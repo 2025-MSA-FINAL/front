@@ -1,0 +1,62 @@
+# =========================================
+# Logs
+# =========================================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# =========================================
+# Dependencies
+# =========================================
+node_modules/
+
+# =========================================
+# Build output
+# =========================================
+dist/
+dist-ssr/
+
+# Local environment config
+*.local
+
+# =========================================
+# Environment variables
+# =========================================
+.env
+.env.*
+!.env.example   # 예시 파일은 포함
+
+# =========================================
+# Editor directories and files
+# =========================================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# =========================================
+# Vite cache
+# =========================================
+.vite/
+vite.config.local.*
+
+# =========================================
+# Optional production / testing artifacts
+# =========================================
+coverage/
+*.tsbuildinfo
+
+# =========================================
+# System-specific files
+# =========================================
+Thumbs.db
+
