@@ -4,6 +4,12 @@ import { useState } from "react";
 import PrimaryButton from "../../components/button/PrimaryButton.jsx";
 import { useAuthStore } from "../../store/authStore";
 
+import kakaoBtn from "../../assets/kakaoBtn.png";
+import logo from "../../assets/logo.png";
+import ghost1 from "../../assets/ghost1.png";
+import naverBtn from "../../assets/naverbtn.png";
+import googleBtn from "../../assets/googleBtn.png";   // ✅ 추가
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 const NAVER_AUTH_URL = `${API_BASE}/oauth2/authorization/naver`;
 
@@ -31,7 +37,6 @@ function LoginPage() {
     try {
       await login({ loginId: form.loginId, password: form.password });
       alert("로그인 되었습니다.");
-      // ✅ 로그인 성공 시 메인 페이지로 이동
       navigate("/", { replace: true });
     } catch (err) {
       const status = err?.response?.status;
@@ -56,14 +61,19 @@ function LoginPage() {
   return (
     <main className="min-h-[calc(100vh-88px)] flex items-center justify-center px-4 py-12 bg-secondary-light">
       <div className="flex max-w-[900px] w-full bg-paper rounded-card shadow-card overflow-hidden flex-col md:flex-row">
-        {/* Left - 보라 배경 + 유령 + 로고 */}
+
+        {/* Left */}
         <section className="flex-[0.9] bg-primary-light flex flex-col items-center justify-center px-10 py-12 gap-4">
-          <div className="w-[120px] h-[120px] rounded-full bg-paper flex items-center justify-center text-[64px] mb-4 shadow-card">
-            👻
+          <div className="w-[120px] h-[120px] rounded-full bg-paper flex items-center justify-center mb-4 shadow-card overflow-hidden">
+            <img src={ghost1} alt="ghost" className="w-[80px] h-[80px]" />
           </div>
-          <h2 className="text-[24px] font-extrabold text-primary-dark tracking-[0.1em]">
-            ㅍ ㅅ ㅍ
-          </h2>
+
+          <img
+            src={logo}
+            alt="logo"
+            className="w-[120px] object-contain"
+          />
+
           <p className="mt-2 text-[14px] text-text-black text-center leading-relaxed">
             당신이 관심있는 팝업 스토어를
             <br />
@@ -71,7 +81,7 @@ function LoginPage() {
           </p>
         </section>
 
-        {/* Right - 로그인 폼 */}
+        {/* Right */}
         <section className="flex-[1.1] bg-paper px-8 md:px-14 py-10">
           <h2 className="text-[22px] font-bold text-text-black mb-6">
             로그인
@@ -122,33 +132,50 @@ function LoginPage() {
           </div>
 
           {/* Social buttons */}
-          <div className="flex gap-2 mb-4">
+          <div className="grid grid-cols-3 gap-2 mb-4 h-[40px]">
+
+            {/* 네이버 */}
             <button
               type="button"
-              className="flex-1 rounded-[8px] border border-secondary bg-[#03c75a] text-text-white text-[13px] py-[10px] hover:brightness-105 transition"
+              className="w-full h-full"
               onClick={handleNaverLogin}
             >
-              네이버
+              <img
+                src={naverBtn}
+                alt="naver-login"
+                className="w-full h-full object-contain block"
+              />
             </button>
+
+            {/* 카카오 */}
             <button
               type="button"
-              className="flex-1 rounded-[8px] border border-secondary bg-[#fee500] text-[#381e1f] text-[13px] py-[10px] hover:brightness-105 transition"
+              className="w-full h-full"
               onClick={() => handleNotReady("카카오")}
             >
-              카카오
+              <img
+                src={kakaoBtn}
+                alt="kakao-login"
+                className="w-full h-full object-contain block"
+              />
             </button>
+
+            {/* 구글 PNG 버튼 */}
             <button
               type="button"
-              className="flex-1 rounded-[8px] border border-secondary bg-paper text-text-black text-[13px] py-[10px] hover:bg-secondary-light transition"
+              className="w-full h-full"
               onClick={() => handleNotReady("구글")}
             >
-              구글
+              <img
+                src={googleBtn}
+                alt="google-login"
+                className="w-full h-full object-contain block"
+              />
             </button>
           </div>
 
-          {/* 하단 텍스트들 */}
+          {/* 하단 */}
           <div className="mt-4 flex flex-col gap-2 text-[13px] text-text-sub">
-            {/* 일반 회원가입은 없음 */}
             <div className="mt-1">
               매니저 계정이 필요하신가요?
               <Link
@@ -159,6 +186,7 @@ function LoginPage() {
               </Link>
             </div>
           </div>
+
         </section>
       </div>
     </main>
