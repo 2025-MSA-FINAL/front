@@ -113,3 +113,52 @@
     100% { transform: scale(1); opacity: 1; }
   }
 }
+
+
+
+/* =========================================
+   Popup date range - 최종 스타일
+   ========================================= */
+
+/* 날짜 숫자 칩 공통 스타일: 동그란 칩 */
+.popup-date-range .rdrDayNumber span {
+  min-width: 24px;
+  height: 24px;
+  line-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: var(--text-body-md);
+  color: var(--color-text-sub);
+  background-color: transparent;
+}
+
+
+/* 선택된 범위 안(중간 날짜들): 연보라 바 + 진보라 텍스트 */
+.popup-date-range .rdrInRange ~ .rdrDayNumber span {
+  color: var(--color-primary-dark) !important;
+}
+
+/* 시작/끝 구간 바 자체를 진보라 알약으로 */
+.popup-date-range .rdrStartEdge,
+.popup-date-range .rdrEndEdge {
+  background-color: var(--color-primary) !important;
+}
+
+/* 왼쪽 끝 / 오른쪽 끝 바 모양: 가로로 긴 알약 */
+.popup-date-range .rdrStartEdge {
+  border-top-left-radius: 999px !important;
+  border-bottom-left-radius: 999px !important;
+}
+.popup-date-range .rdrEndEdge {
+  border-top-right-radius: 999px !important;
+  border-bottom-right-radius: 999px !important;
+}
+
+/* 시작/끝 날짜 숫자: 흰 글씨, 배경은 투명(바 위에 얹힌 느낌) */
+.popup-date-range .rdrStartEdge ~ .rdrDayNumber span,
+.popup-date-range .rdrEndEdge ~ .rdrDayNumber span {
+  color: var(--color-text-white) !important;
+  background-color: transparent !important;
+}

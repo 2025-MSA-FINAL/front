@@ -7,6 +7,7 @@ import MainPage from "./pages/MainPage.jsx";
 import MyPage from "./pages/user/MyPage.jsx";
 import SignupPage from "./pages/auth/SignupPage.jsx";
 import ManagerInquiryPage from "./pages/auth/ManagerInquiryPage.jsx"; // ⭐ 추가
+import PopupCreatePage from "./pages/popup/PopupCreatePage.jsx";
 
 function App() {
   return (
@@ -29,6 +30,11 @@ function App() {
 
         {/* ⭐ 매니저 계정 문의 페이지 */}
         <Route path="/manager-inquiry" element={<ManagerInquiryPage />} />
+
+        {/* 팝업 스토어 등록 페이지 */}
+        <Route path="/popup/register" element={<PopupCreatePage />} />
+
+
       </Routes>
     </div>
   );
