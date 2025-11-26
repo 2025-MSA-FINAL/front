@@ -113,3 +113,25 @@
     100% { transform: scale(1); opacity: 1; }
   }
 }
+
+@layer base {
+  /* 루트 요소 높이 100% */
+  html,
+  body,
+  #root {
+    @apply h-full;
+  }
+
+  /* 실제 스크롤되는 html/body에서 스크롤바 숨기기 */
+  html,
+  body {
+    @apply overflow-y-auto;   /* 스크롤은 가능하게 유지 */
+    -ms-overflow-style: none; /* IE/Edge (구버전) */
+    scrollbar-width: none;    /* Firefox */
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none;            /* Chrome, Safari, Edge (Chromium) */
+  }
+}
