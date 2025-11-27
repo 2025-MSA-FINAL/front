@@ -4,13 +4,13 @@ import { useNavigate } from "react-router-dom";
 import PrimaryButton from "../../components/button/PrimaryButton.jsx";
 import OutlineButton from "../../components/button/OutlineButton.jsx";
 import { useAuthStore } from "../../store/authStore";
+import ghost1 from "../../assets/ghost1.png";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
 function SignupPage() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
-
   const fetchMe = useAuthStore((s) => s.fetchMe);
 
   const [form, setForm] = useState({
@@ -39,14 +39,22 @@ function SignupPage() {
   const [uploadingProfile, setUploadingProfile] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // ─────────────────────────────
-  // 입력 변경 시 처리
-  // ─────────────────────────────
+  // ✅ 비밀번호 복잡도 / 일치 상태 계산 (UI + 검증에 사용)
+  const password = form.password;
+  const passwordLengthOk = password.length >= 8;
+  const passwordHasLetter = /[A-Za-z]/.test(password);
+  const passwordHasSpecial = /[^A-Za-z0-9]/.test(password);
+  const passwordComplexOk =
+    passwordLengthOk && passwordHasLetter && passwordHasSpecial;
+  const passwordsMatch =
+    form.password.length > 0 &&
+    form.passwordCheck.length > 0 &&
+    form.password === form.passwordCheck;
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
 
-    // 값 변경되면 중복 체크/인증 상태 초기화
     if (name === "email") setEmailChecked(false);
     if (name === "loginId") setLoginIdChecked(false);
     if (name === "nickname") setNicknameChecked(false);
@@ -56,9 +64,6 @@ function SignupPage() {
     }
   };
 
-  // ─────────────────────────────
-  // 프로필 이미지 업로드 (S3 업로드 API 사용)
-  // ─────────────────────────────
   const handleClickUpload = () => {
     fileInputRef.current?.click();
   };
@@ -82,13 +87,11 @@ function SignupPage() {
         return;
       }
 
-      // FileController 가 반환하는 UploadResultDto { url, key }
       const data = await res.json();
-
       setForm((prev) => ({
         ...prev,
-        profileImageUrl: data.url, // S3 공개 URL
-        profileImageKey: data.key, // S3 object key
+        profileImageUrl: data.url,
+        profileImageKey: data.key,
       }));
     } catch (err) {
       console.error(err);
@@ -98,9 +101,6 @@ function SignupPage() {
     }
   };
 
-  // ─────────────────────────────
-  // 중복 체크
-  // ─────────────────────────────
   const handleCheckEmail = async () => {
     if (!form.email) {
       alert("이메일을 입력해주세요.");
@@ -116,7 +116,7 @@ function SignupPage() {
         alert("이메일 중복 체크 중 오류가 발생했습니다.");
         return;
       }
-      const duplicate = await res.json(); // true: 중복, false: 사용 가능
+      const duplicate = await res.json();
       if (duplicate) {
         alert("이미 사용 중인 이메일입니다.");
         setEmailChecked(false);
@@ -188,9 +188,6 @@ function SignupPage() {
     }
   };
 
-  // ─────────────────────────────
-  // 휴대폰 문자 인증
-  // ─────────────────────────────
   const handleSendPhoneCode = async () => {
     if (!form.phone) {
       alert("휴대폰 번호를 입력해주세요.");
@@ -232,7 +229,7 @@ function SignupPage() {
         alert("인증번호 검증 중 오류가 발생했습니다.");
         return;
       }
-      const ok = await res.json(); // true / false
+      const ok = await res.json();
       if (ok) {
         alert("휴대폰 인증이 완료되었습니다.");
         setPhoneVerified(true);
@@ -248,48 +245,37 @@ function SignupPage() {
     }
   };
 
-  // ─────────────────────────────
-  // 회원가입 제출 (소셜)
-  // ─────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.email) {
-      alert("이메일을 입력해주세요.");
-      return;
+    if (!form.email) return alert("이메일을 입력해주세요.");
+    if (!emailChecked) return alert("이메일 중복 체크를 완료해주세요.");
+
+    if (!form.loginId) return alert("아이디를 입력해주세요.");
+    if (!loginIdChecked) return alert("아이디 중복 체크를 완료해주세요.");
+
+    if (!form.name) return alert("이름을 입력해주세요.");
+
+    if (!form.password || !form.passwordCheck)
+      return alert("비밀번호와 비밀번호 확인을 입력해주세요.");
+
+    // ✅ 비밀번호 복잡도 체크: 8자리 이상 + 영문 + 특수문자
+    if (!passwordComplexOk) {
+      return alert(
+        "비밀번호는 최소 8자리이며, 영문자와 특수문자를 포함해야 합니다."
+      );
     }
-    if (!emailChecked) {
-      alert("이메일 중복 체크를 완료해주세요.");
-      return;
-    }
-    if (!form.loginId) {
-      alert("아이디를 입력해주세요.");
-      return;
-    }
-    if (!loginIdChecked) {
-      alert("아이디 중복 체크를 완료해주세요.");
-      return;
-    }
-    if (!form.password || !form.passwordCheck) {
-      alert("비밀번호와 비밀번호 확인을 입력해주세요.");
-      return;
-    }
-    if (form.password !== form.passwordCheck) {
-      alert("비밀번호와 비밀번호 확인이 일치하지 않습니다.");
-      return;
-    }
-    if (!form.nickname) {
-      alert("닉네임을 입력해주세요.");
-      return;
-    }
-    if (!nicknameChecked) {
-      alert("닉네임 중복 체크를 완료해주세요.");
-      return;
-    }
-    if (!phoneVerified) {
-      alert("휴대폰 인증을 완료해주세요.");
-      return;
-    }
+
+    if (form.password !== form.passwordCheck)
+      return alert("비밀번호와 비밀번호 확인이 일치하지 않습니다.");
+
+    if (!form.nickname) return alert("닉네임을 입력해주세요.");
+    if (!nicknameChecked) return alert("닉네임 중복 체크를 완료해주세요.");
+
+    if (!form.birthYear) return alert("출생년도를 입력해주세요.");
+    if (!form.gender) return alert("성별을 선택해주세요.");
+    if (!form.phone) return alert("휴대폰 번호를 입력해주세요.");
+    if (!phoneVerified) return alert("휴대폰 인증을 완료해주세요.");
 
     setSubmitting(true);
     try {
@@ -301,9 +287,9 @@ function SignupPage() {
           name: form.name,
           email: form.email,
           nickname: form.nickname,
-          gender: form.gender || null,
+          gender: form.gender,
           phone: form.phone,
-          birthYear: form.birthYear ? Number(form.birthYear) : null,
+          birthYear: Number(form.birthYear),
           loginId: form.loginId,
           password: form.password,
           profileImageUrl: form.profileImageUrl || null,
@@ -313,11 +299,7 @@ function SignupPage() {
 
       if (res.ok) {
         alert("회원가입이 완료되었습니다.");
-
-        // ✅ 백엔드에서 access/refresh 쿠키 세팅됨 → 내 정보 다시 가져오기
         await fetchMe(true);
-
-        // 메인으로 이동
         navigate("/", { replace: true });
       } else {
         const text = await res.text();
@@ -332,39 +314,38 @@ function SignupPage() {
     }
   };
 
-  // ─────────────────────────────
-  // JSX
-  // ─────────────────────────────
   return (
-    <main className="min-h-[calc(100vh-88px)] flex items-center justify-center px-4 py-12 bg-secondary-light">
+    <main className="min-h-[calc(100vh-88px)] flex items-center justify-center px-4 py-8 bg-secondary-light">
       <div className="flex max-w-[960px] w-full bg-paper rounded-card shadow-card overflow-hidden flex-col md:flex-row">
-        {/* Left - 보라 배경 + 유령 + 텍스트 */}
-        <section className="flex-[0.9] bg-primary-light flex flex-col items-center justify-center px-10 py-12 gap-4">
-          <div className="w-[120px] h-[120px] rounded-full bg-paper flex items-center justify-center text-[64px] mb-4 shadow-card">
-            👻
+        <section className="flex-[0.9] bg-primary-light flex flex-col items-center justify-center px-8 py-10 gap-3">
+          <div className="w-[110px] h-[110px] rounded-full bg-paper flex items-center justify-center mb-3 shadow-card">
+            <img
+              src={ghost1}
+              alt="팝스팝 유령"
+              className="w-[80px] h-[80px] object-contain"
+            />
           </div>
-          <h2 className="text-[24px] font-extrabold text-primary-dark tracking-[0.1em]">
+          <h2 className="text-[22px] font-extrabold text-primary-dark tracking-[0.1em]">
             회원가입
           </h2>
-          <p className="mt-2 text-[14px] text-text-black text-center leading-relaxed">
+          <p className="mt-1 text-[13px] text-text-black text-center leading-relaxed">
             기본 정보를 입력하고,
             <br />
             팝스팝의 모든 기능을 이용해보세요.
           </p>
         </section>
 
-        {/* Right - 폼 */}
-        <section className="flex-[1.2] px-8 md:px-14 py-10 bg-paper">
-          <h1 className="text-[22px] font-bold text-text-black mb-6">
+        <section className="flex-[1.2] px-6 md:px-10 py-8 bg-paper">
+          <h1 className="text-[20px] font-bold text-text-black mb-4">
             회원가입
           </h1>
 
-          {/* 프로필 사진 */}
-          <div className="rounded-[12px] bg-[#f8f8fc] px-[18px] py-[16px] mb-6">
+          {/* 프로필 사진 (선택) */}
+          <div className="rounded-[12px] bg-[#f8f8fc] px-[16px] py-[14px] mb-4">
             <p className="m-0 text-[13px] font-semibold text-text-black mb-1">
               프로필 사진 (선택)
             </p>
-            <p className="m-0 text-[13px] text-text-sub mb-3">
+            <p className="m-0 text-[12px] text-text-sub mb-2">
               나중에 마이페이지에서도 변경할 수 있어요.
             </p>
 
@@ -373,15 +354,15 @@ function SignupPage() {
                 <img
                   src={form.profileImageUrl}
                   alt="profile"
-                  className="w-[64px] h-[64px] rounded-full object-cover border border-secondary bg-secondary-light"
+                  className="w-[60px] h-[60px] rounded-full object-cover border border-secondary bg-secondary-light"
                 />
               ) : (
-                <div className="w-[64px] h-[64px] rounded-full flex items-center justify-center bg-secondary-light border border-secondary text-[24px] text-text-sub">
+                <div className="w-[60px] h-[60px] rounded-full flex items-center justify-center bg-secondary-light border border-secondary text-[22px] text-text-sub">
                   😊
                 </div>
               )}
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5">
                 <OutlineButton
                   type="button"
                   onClick={handleClickUpload}
@@ -389,7 +370,7 @@ function SignupPage() {
                 >
                   {uploadingProfile ? "업로드 중..." : "사진 업로드"}
                 </OutlineButton>
-                <p className="text-[12px] text-text-sub">
+                <p className="text-[11px] text-text-sub">
                   5MB 이하의 JPG, PNG 파일을 권장합니다.
                 </p>
               </div>
@@ -404,55 +385,71 @@ function SignupPage() {
             />
           </div>
 
-          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-            {/* 이메일 + 중복체크 */}
-            <div className="flex gap-2">
-              <label className="flex-1 flex flex-col gap-1.5 text-[13px] text-text-sub">
-                이메일
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="이메일 입력"
-                  className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-                  value={form.email}
-                  onChange={handleChange}
-                  disabled={submitting}
-                />
-              </label>
-              <div className="flex items-end">
-                <OutlineButton
-                  type="button"
-                  onClick={handleCheckEmail}
-                  disabled={submitting}
-                >
-                  중복확인
-                </OutlineButton>
+          <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
+            {/* 이메일 */}
+            <div className="flex flex-col gap-1">
+              <div className="flex gap-2">
+                <label className="flex-1 flex flex-col gap-1.5 text-[13px] text-text-sub">
+                  이메일
+                  <input
+                    type="email"
+                    name="email"
+                    required
+                    placeholder="이메일 입력"
+                    className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                    value={form.email}
+                    onChange={handleChange}
+                    disabled={submitting}
+                  />
+                </label>
+                <div className="flex items-end">
+                  <OutlineButton
+                    type="button"
+                    onClick={handleCheckEmail}
+                    disabled={submitting}
+                  >
+                    중복확인
+                  </OutlineButton>
+                </div>
               </div>
+              {emailChecked && form.email && (
+                <p className="text-[12px] text-green-600">
+                  이메일 중복 확인이 완료되었습니다.
+                </p>
+              )}
             </div>
 
-            {/* 아이디 + 중복체크 */}
-            <div className="flex gap-2">
-              <label className="flex-1 flex flex-col gap-1.5 text-[13px] text-text-sub">
-                아이디
-                <input
-                  type="text"
-                  name="loginId"
-                  placeholder="아이디 입력"
-                  className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-                  value={form.loginId}
-                  onChange={handleChange}
-                  disabled={submitting}
-                />
-              </label>
-              <div className="flex items-end">
-                <OutlineButton
-                  type="button"
-                  onClick={handleCheckLoginId}
-                  disabled={submitting}
-                >
-                  중복확인
-                </OutlineButton>
+            {/* 아이디 */}
+            <div className="flex flex-col gap-1">
+              <div className="flex gap-2">
+                <label className="flex-1 flex flex-col gap-1.5 text-[13px] text-text-sub">
+                  아이디
+                  <input
+                    type="text"
+                    name="loginId"
+                    required
+                    placeholder="아이디 입력"
+                    className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                    value={form.loginId}
+                    onChange={handleChange}
+                    disabled={submitting}
+                  />
+                </label>
+                <div className="flex items-end">
+                  <OutlineButton
+                    type="button"
+                    onClick={handleCheckLoginId}
+                    disabled={submitting}
+                  >
+                    중복확인
+                  </OutlineButton>
+                </div>
               </div>
+              {loginIdChecked && form.loginId && (
+                <p className="text-[12px] text-green-600">
+                  아이디 중복 확인이 완료되었습니다.
+                </p>
+              )}
             </div>
 
             {/* 이름 */}
@@ -461,6 +458,7 @@ function SignupPage() {
               <input
                 type="text"
                 name="name"
+                required
                 placeholder="이름 입력"
                 className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
                 value={form.name}
@@ -469,56 +467,108 @@ function SignupPage() {
               />
             </label>
 
-            {/* 비밀번호 / 비밀번호 확인 */}
-            <label className="flex flex-col gap-1.5 text-[13px] text-text-sub">
-              비밀번호
-              <input
-                type="password"
-                name="password"
-                placeholder="비밀번호 입력"
-                className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-                value={form.password}
-                onChange={handleChange}
-                disabled={submitting}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1.5 text-[13px] text-text-sub">
-              비밀번호 확인
-              <input
-                type="password"
-                name="passwordCheck"
-                placeholder="비밀번호 재입력"
-                className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-                value={form.passwordCheck}
-                onChange={handleChange}
-                disabled={submitting}
-              />
-            </label>
-
-            {/* 닉네임 + 중복체크 */}
-            <div className="flex gap-2">
-              <label className="flex-1 flex flex-col gap-1.5 text-[13px] text-text-sub">
-                닉네임
+            {/* 비밀번호 */}
+            <div className="flex flex-col gap-1.5 text-[13px] text-text-sub">
+              <label className="flex flex-col gap-1.5">
+                비밀번호
                 <input
-                  type="text"
-                  name="nickname"
-                  placeholder="닉네임 입력"
+                  type="password"
+                  name="password"
+                  required
+                  minLength={8}
+                  placeholder="비밀번호 입력"
                   className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-                  value={form.nickname}
+                  value={form.password}
                   onChange={handleChange}
                   disabled={submitting}
                 />
               </label>
-              <div className="flex items-end">
-                <OutlineButton
-                  type="button"
-                  onClick={handleCheckNickname}
-                  disabled={submitting}
+              {/* ✅ 비밀번호 조건 표시 */}
+              <ul className="mt-1 text-[12px] space-y-0.5">
+                <li
+                  className={
+                    passwordLengthOk ? "text-green-600" : "text-text-sub"
+                  }
                 >
-                  중복확인
-                </OutlineButton>
+                  • 8자리 이상
+                </li>
+                <li
+                  className={
+                    passwordHasLetter ? "text-green-600" : "text-text-sub"
+                  }
+                >
+                  • 영문자 포함
+                </li>
+                <li
+                  className={
+                    passwordHasSpecial ? "text-green-600" : "text-text-sub"
+                  }
+                >
+                  • 특수문자 포함
+                </li>
+              </ul>
+            </div>
+
+            {/* 비밀번호 확인 + 일치 여부 표시 */}
+            <div className="flex flex-col gap-1.5 text-[13px] text-text-sub">
+              <label className="flex flex-col gap-1.5">
+                비밀번호 확인
+                <input
+                  type="password"
+                  name="passwordCheck"
+                  required
+                  minLength={8}
+                  placeholder="비밀번호 재입력"
+                  className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                  value={form.passwordCheck}
+                  onChange={handleChange}
+                  disabled={submitting}
+                />
+              </label>
+              {form.passwordCheck.length > 0 && (
+                <p
+                  className={`text-[12px] mt-0.5 ${
+                    passwordsMatch ? "text-green-600" : "text-red-500"
+                  }`}
+                >
+                  {passwordsMatch
+                    ? "비밀번호가 일치합니다."
+                    : "비밀번호가 일치하지 않습니다."}
+                </p>
+              )}
+            </div>
+
+            {/* 닉네임 */}
+            <div className="flex flex-col gap-1">
+              <div className="flex gap-2">
+                <label className="flex-1 flex flex-col gap-1.5 text-[13px] text-text-sub">
+                  닉네임
+                  <input
+                    type="text"
+                    name="nickname"
+                    required
+                    placeholder="닉네임 입력"
+                    className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                    value={form.nickname}
+                    onChange={handleChange}
+                    disabled={submitting}
+                  />
+                </label>
+                <div className="flex items-end">
+                  <OutlineButton
+                    type="button"
+                    onClick={handleCheckNickname}
+                    disabled={submitting}
+                  >
+                    중복확인
+                  </OutlineButton>
+                </div>
               </div>
+              {nicknameChecked && form.nickname && (
+                <p className="text-[12px] text-green-600">
+                  닉네임 중복 확인이 완료되었습니다.
+                </p>
+              )}
             </div>
 
             {/* 출생년도 + 성별 */}
@@ -528,6 +578,7 @@ function SignupPage() {
                 <input
                   type="number"
                   name="birthYear"
+                  required
                   placeholder="예) 1995"
                   className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
                   value={form.birthYear}
@@ -536,33 +587,21 @@ function SignupPage() {
                 />
               </label>
 
-              <div className="flex flex-col gap-1.5 text-[13px] text-text-sub">
+              <label className="flex flex-col gap-1.5 text-[13px] text-text-sub">
                 성별
-                <div className="flex gap-3 items-center">
-                  {["MALE", "FEMALE", "NONE"].map((g) => (
-                    <label
-                      key={g}
-                      className="flex items-center gap-1.5 text-[13px] text-text-sub"
-                    >
-                      <input
-                        type="radio"
-                        name="gender"
-                        value={g}
-                        checked={form.gender === g}
-                        onChange={handleChange}
-                        disabled={submitting}
-                      />
-                      <span>
-                        {g === "MALE"
-                          ? "남성"
-                          : g === "FEMALE"
-                          ? "여성"
-                          : "선택 안 함"}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+                <select
+                  name="gender"
+                  required
+                  value={form.gender}
+                  onChange={handleChange}
+                  disabled={submitting}
+                  className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none bg-white focus:border-primary focus:ring-1 focus:ring-primary/20"
+                >
+                  <option value="">성별 선택</option>
+                  <option value="MALE">남성</option>
+                  <option value="FEMALE">여성</option>
+                </select>
+              </label>
             </div>
 
             {/* 휴대폰 + 인증 */}
@@ -573,6 +612,7 @@ function SignupPage() {
                   <input
                     type="tel"
                     name="phone"
+                    required
                     placeholder="- 없이 숫자만 입력"
                     className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
                     value={form.phone}
@@ -592,10 +632,11 @@ function SignupPage() {
               </div>
 
               <div className="flex gap-2 items-end">
-                <label className="flex-1 flex flex_col gap-1.5 text-[13px] text-text-sub">
+                <label className="flex-1 flex flex-col gap-1.5 text-[13px] text-text-sub">
                   인증번호
                   <input
                     type="text"
+                    required
                     placeholder="인증번호 입력"
                     className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
                     value={verificationCode}
@@ -619,12 +660,11 @@ function SignupPage() {
               )}
             </div>
 
-            {/* 제출 버튼 */}
             <PrimaryButton
               type="submit"
               fullWidth
               loading={submitting}
-              className="mt-4"
+              className="mt-3"
             >
               {submitting ? "가입 중..." : "회원가입 완료"}
             </PrimaryButton>
