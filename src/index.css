@@ -6,14 +6,20 @@
      ========================================= */
 
   /* Primary (메인 브랜드) */
-  --color-primary: #C33DFF;       /* Main */
-  --color-primary-light: #F1DEFF; /* Light (배경) */
-  --color-primary-dark: #7E00CC;  /* Dark (강조/클릭) */
+  --color-primary: #C33DFF;
+  /* Main */
+  --color-primary-light: #F1DEFF;
+  /* Light (배경) */
+  --color-primary-dark: #7E00CC;
+  /* Dark (강조/클릭) */
 
   /* Secondary (보조/회색) */
-  --color-secondary: #DDDFE2;       /* Main (테두리 등) */
-  --color-secondary-light: #F0F1F3; /* Light (전체 배경) */
-  --color-secondary-dark: #70757A;  /* Dark (본문 텍스트) */
+  --color-secondary: #DDDFE2;
+  /* Main (테두리 등) */
+  --color-secondary-light: #F0F1F3;
+  /* Light (전체 배경) */
+  --color-secondary-dark: #70757A;
+  /* Dark (본문 텍스트) */
 
   /* Accent (포인트 컬러) */
   --color-accent-lemon: #FFD93D;
@@ -22,8 +28,10 @@
   --color-accent-pink: #FF2A7E;
 
   /* Paper (카드/박스 배경) */
-  --color-paper: #FFFFFF;      /* White */
-  --color-paper-dark: #424242; /* Dark Gray */
+  --color-paper: #FFFFFF;
+  /* White */
+  --color-paper-dark: #424242;
+  /* Dark Gray */
 
   /* Text Colors (글자 전용) */
   --color-text-main: #DDDFE2;
@@ -70,20 +78,23 @@
      ========================================= */
 
   /* Radius (둥글기) */
-  --radius-btn: 20px;   /* 버튼용 */
-  --radius-card: 20px;  /* 카드/박스용 */
-  --radius-input: 8px;  /* 입력창용 */
+  --radius-btn: 20px;
+  /* 버튼용 */
+  --radius-card: 20px;
+  /* 카드/박스용 */
+  --radius-input: 8px;
+  /* 입력창용 */
 
   /* Shadow (그림자) */
   /* 1. 브랜드 그림자 (강조) */
   --shadow-brand: 0 4px 14px 0 rgba(195, 61, 255, 0.25);
-  
+
   /* 2. 기본 카드 그림자 (목록/박스) */
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.05);
-  
+
   /* 3. 드롭다운/모달 그림자 (입체감) */
   --shadow-dropdown: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  
+
   /* 4. 호버 효과 그림자 (마우스 올렸을 때) */
   --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
 
@@ -102,6 +113,7 @@
       opacity: 0;
       transform: translateY(20px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -109,12 +121,71 @@
   }
 
   @keyframes pop-in {
-    0% { transform: scale(0.95); opacity: 0; }
-    100% { transform: scale(1); opacity: 1; }
+    0% {
+      transform: scale(0.95);
+      opacity: 0;
+    }
+
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
   }
 }
 
+
+
+/* =========================================
+   Popup date range - 최종 스타일
+   ========================================= */
+
+/* 날짜 숫자 칩 공통 스타일: 동그란 칩 */
+.popup-date-range .rdrDayNumber span {
+  min-width: 24px;
+  height: 24px;
+  line-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: var(--text-body-md);
+  color: var(--color-text-sub);
+  background-color: transparent;
+}
+
+
+/* 선택된 범위 안(중간 날짜들): 연보라 바 + 진보라 텍스트 */
+.popup-date-range .rdrInRange~.rdrDayNumber span {
+  color: var(--color-primary-dark) !important;
+}
+
+/* 시작/끝 구간 바 자체를 진보라 알약으로 */
+.popup-date-range .rdrStartEdge,
+.popup-date-range .rdrEndEdge {
+  background-color: var(--color-primary) !important;
+}
+
+/* 왼쪽 끝 / 오른쪽 끝 바 모양: 가로로 긴 알약 */
+.popup-date-range .rdrStartEdge {
+  border-top-left-radius: 999px !important;
+  border-bottom-left-radius: 999px !important;
+}
+
+.popup-date-range .rdrEndEdge {
+  border-top-right-radius: 999px !important;
+  border-bottom-right-radius: 999px !important;
+}
+
+/* 시작/끝 날짜 숫자: 흰 글씨, 배경은 투명(바 위에 얹힌 느낌) */
+.popup-date-range .rdrStartEdge~.rdrDayNumber span,
+.popup-date-range .rdrEndEdge~.rdrDayNumber span {
+  color: var(--color-text-white) !important;
+  background-color: transparent !important;
+
+}
+
 @layer base {
+
   /* 루트 요소 높이 100% */
   html,
   body,
@@ -125,13 +196,17 @@
   /* 실제 스크롤되는 html/body에서 스크롤바 숨기기 */
   html,
   body {
-    @apply overflow-y-auto;   /* 스크롤은 가능하게 유지 */
-    -ms-overflow-style: none; /* IE/Edge (구버전) */
-    scrollbar-width: none;    /* Firefox */
+    @apply overflow-y-auto;
+    /* 스크롤은 가능하게 유지 */
+    -ms-overflow-style: none;
+    /* IE/Edge (구버전) */
+    scrollbar-width: none;
+    /* Firefox */
   }
 
   html::-webkit-scrollbar,
   body::-webkit-scrollbar {
-    display: none;            /* Chrome, Safari, Edge (Chromium) */
+    display: none;
+    /* Chrome, Safari, Edge (Chromium) */
   }
 }
