@@ -35,7 +35,7 @@ export const useAuthStore = create((set, get) => ({
     set({ loading: true, error: null });
     try {
       await logoutApi(); // 쿠키 삭제
-      set({ user: null, loading: false });
+      set({ user: null, loading: false, initialized: false });
     } catch (err) {
       console.error("logout error:", err);
       set({ loading: false, error: err });
@@ -64,4 +64,11 @@ export const useAuthStore = create((set, get) => ({
       });
     }
   },
+
+  // 🔥 프론트에서 특정 필드만 바로 바꾸고 싶을 때 사용
+  // 예: setUser({ nickname: "새닉" }), setUser({ email: "test@..." })
+  setUser: (partial) =>
+    set((state) => ({
+      user: state.user ? { ...state.user, ...partial } : partial,
+    })),
 }));

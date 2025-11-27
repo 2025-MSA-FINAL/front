@@ -1,4 +1,3 @@
-// src/pages/auth/SignupPage.jsx
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import PrimaryButton from "../../components/button/PrimaryButton.jsx";
@@ -27,6 +26,9 @@ function SignupPage() {
     profileImageKey: "",
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordCheck, setShowPasswordCheck] = useState(false);
+
   const [emailChecked, setEmailChecked] = useState(false);
   const [loginIdChecked, setLoginIdChecked] = useState(false);
   const [nicknameChecked, setNicknameChecked] = useState(false);
@@ -39,7 +41,11 @@ function SignupPage() {
   const [uploadingProfile, setUploadingProfile] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // ✅ 비밀번호 복잡도 / 일치 상태 계산 (UI + 검증에 사용)
+  // 공통 인풋 클래스
+  const baseInputClass =
+    "w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20";
+
+  // 비밀번호 복잡도 / 일치 상태
   const password = form.password;
   const passwordLengthOk = password.length >= 8;
   const passwordHasLetter = /[A-Za-z]/.test(password);
@@ -259,7 +265,6 @@ function SignupPage() {
     if (!form.password || !form.passwordCheck)
       return alert("비밀번호와 비밀번호 확인을 입력해주세요.");
 
-    // ✅ 비밀번호 복잡도 체크: 8자리 이상 + 영문 + 특수문자
     if (!passwordComplexOk) {
       return alert(
         "비밀번호는 최소 8자리이며, 영문자와 특수문자를 포함해야 합니다."
@@ -317,14 +322,14 @@ function SignupPage() {
   return (
     <main className="min-h-[calc(100vh-88px)] flex items-center justify-center px-4 py-8 bg-secondary-light">
       <div className="flex max-w-[960px] w-full bg-paper rounded-card shadow-card overflow-hidden flex-col md:flex-row">
+        {/* Left */}
         <section className="flex-[0.9] bg-primary-light flex flex-col items-center justify-center px-8 py-10 gap-3">
-          <div className="w-[110px] h-[110px] rounded-full bg-paper flex items-center justify-center mb-3 shadow-card">
-            <img
-              src={ghost1}
-              alt="팝스팝 유령"
-              className="w-[80px] h-[80px] object-contain"
-            />
-          </div>
+          {/* 👇 동그란 div 삭제, 이미지만 남김 */}
+          <img
+            src={ghost1}
+            alt="팝스팝 유령"
+            className="w-[80px] h-[80px] mb-3 object-contain"
+          />
           <h2 className="text-[22px] font-extrabold text-primary-dark tracking-[0.1em]">
             회원가입
           </h2>
@@ -335,6 +340,7 @@ function SignupPage() {
           </p>
         </section>
 
+        {/* Right */}
         <section className="flex-[1.2] px-6 md:px-10 py-8 bg-paper">
           <h1 className="text-[20px] font-bold text-text-black mb-4">
             회원가입
@@ -357,8 +363,21 @@ function SignupPage() {
                   className="w-[60px] h-[60px] rounded-full object-cover border border-secondary bg-secondary-light"
                 />
               ) : (
-                <div className="w-[60px] h-[60px] rounded-full flex items-center justify-center bg-secondary-light border border-secondary text-[22px] text-text-sub">
-                  😊
+                <div className="w-[60px] h-[60px] rounded-full flex items-center justify-center bg-secondary-light border border-secondary">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    className="w-6 h-6 text-text-sub"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="3" y="7" width="18" height="14" rx="2" ry="2" />
+                    <path d="M9 7L10.5 4.5H13.5L15 7" />
+                    <circle cx="12" cy="14" r="3.5" />
+                  </svg>
                 </div>
               )}
 
@@ -385,6 +404,7 @@ function SignupPage() {
             />
           </div>
 
+          {/* 이하 폼 로직은 그대로 */}
           <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
             {/* 이메일 */}
             <div className="flex flex-col gap-1">
@@ -396,7 +416,7 @@ function SignupPage() {
                     name="email"
                     required
                     placeholder="이메일 입력"
-                    className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                    className={baseInputClass}
                     value={form.email}
                     onChange={handleChange}
                     disabled={submitting}
@@ -429,7 +449,7 @@ function SignupPage() {
                     name="loginId"
                     required
                     placeholder="아이디 입력"
-                    className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                    className={baseInputClass}
                     value={form.loginId}
                     onChange={handleChange}
                     disabled={submitting}
@@ -460,7 +480,7 @@ function SignupPage() {
                 name="name"
                 required
                 placeholder="이름 입력"
-                className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                className={baseInputClass}
                 value={form.name}
                 onChange={handleChange}
                 disabled={submitting}
@@ -471,19 +491,52 @@ function SignupPage() {
             <div className="flex flex-col gap-1.5 text-[13px] text-text-sub">
               <label className="flex flex-col gap-1.5">
                 비밀번호
-                <input
-                  type="password"
-                  name="password"
-                  required
-                  minLength={8}
-                  placeholder="비밀번호 입력"
-                  className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-                  value={form.password}
-                  onChange={handleChange}
-                  disabled={submitting}
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    required
+                    minLength={8}
+                    placeholder="비밀번호 입력"
+                    className={`${baseInputClass} pr-10`}
+                    value={form.password}
+                    onChange={handleChange}
+                    disabled={submitting}
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    tabIndex={-1}
+                    aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+                  >
+                    {showPassword ? (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                      >
+                        <path d="M3 3l18 18M10.584 10.587A2 2 0 0113.414 13.42M9.88 4.253A9.76 9.76 0 0112 4c5 0 9 3.5 10 8-0.273 1.295-0.807 2.496-1.56 3.556M6.16 6.164C4.27 7.39 2.86 9.236 2 12c1 4.5 5 8 10 8 1.265 0 2.48-.232 3.607-.66" />
+                      </svg>
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                      >
+                        <path d="M2 12s2.5-6 10-6 10 6 10 6-2.5 6-10 6-10-6-10-6z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </label>
-              {/* ✅ 비밀번호 조건 표시 */}
               <ul className="mt-1 text-[12px] space-y-0.5">
                 <li
                   className={
@@ -509,21 +562,57 @@ function SignupPage() {
               </ul>
             </div>
 
-            {/* 비밀번호 확인 + 일치 여부 표시 */}
+            {/* 비밀번호 확인 */}
             <div className="flex flex-col gap-1.5 text-[13px] text-text-sub">
               <label className="flex flex-col gap-1.5">
                 비밀번호 확인
-                <input
-                  type="password"
-                  name="passwordCheck"
-                  required
-                  minLength={8}
-                  placeholder="비밀번호 재입력"
-                  className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-                  value={form.passwordCheck}
-                  onChange={handleChange}
-                  disabled={submitting}
-                />
+                <div className="relative">
+                  <input
+                    type={showPasswordCheck ? "text" : "password"}
+                    name="passwordCheck"
+                    required
+                    minLength={8}
+                    placeholder="비밀번호 재입력"
+                    className={`${baseInputClass} pr-10`}
+                    value={form.passwordCheck}
+                    onChange={handleChange}
+                    disabled={submitting}
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600"
+                    onClick={() => setShowPasswordCheck((prev) => !prev)}
+                    tabIndex={-1}
+                    aria-label={
+                      showPasswordCheck ? "비밀번호 숨기기" : "비밀번호 보기"
+                    }
+                  >
+                    {showPasswordCheck ? (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                      >
+                        <path d="M3 3l18 18M10.584 10.587A2 2 0 0113.414 13.42M9.88 4.253A9.76 9.76 0 0112 4c5 0 9 3.5 10 8-0.273 1.295-0.807 2.496-1.56 3.556M6.16 6.164C4.27 7.39 2.86 9.236 2 12c1 4.5 5 8 10 8 1.265 0 2.48-.232 3.607-.66" />
+                      </svg>
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                      >
+                        <path d="M2 12s2.5-6 10-6 10 6 10 6-2.5 6-10 6-10-6-10-6z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </label>
               {form.passwordCheck.length > 0 && (
                 <p
@@ -548,7 +637,7 @@ function SignupPage() {
                     name="nickname"
                     required
                     placeholder="닉네임 입력"
-                    className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                    className={baseInputClass}
                     value={form.nickname}
                     onChange={handleChange}
                     disabled={submitting}
@@ -580,7 +669,7 @@ function SignupPage() {
                   name="birthYear"
                   required
                   placeholder="예) 1995"
-                  className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                  className={baseInputClass}
                   value={form.birthYear}
                   onChange={handleChange}
                   disabled={submitting}
@@ -589,18 +678,35 @@ function SignupPage() {
 
               <label className="flex flex-col gap-1.5 text-[13px] text-text-sub">
                 성별
-                <select
-                  name="gender"
-                  required
-                  value={form.gender}
-                  onChange={handleChange}
-                  disabled={submitting}
-                  className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none bg-white focus:border-primary focus:ring-1 focus:ring-primary/20"
-                >
-                  <option value="">성별 선택</option>
-                  <option value="MALE">남성</option>
-                  <option value="FEMALE">여성</option>
-                </select>
+                <div className="relative rounded-input border border-secondary bg-white focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20">
+                  <select
+                    name="gender"
+                    required
+                    value={form.gender}
+                    onChange={handleChange}
+                    disabled={submitting}
+                    className="w-full px-3 py-2.5 pr-9 rounded-input bg-transparent text-[14px] outline-none border-none appearance-none"
+                  >
+                    <option value="">성별 선택</option>
+                    <option value="MALE">남성</option>
+                    <option value="FEMALE">여성</option>
+                  </select>
+
+                  <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      className="w-4 h-4 text-text-sub"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </div>
+                </div>
               </label>
             </div>
 
@@ -614,7 +720,7 @@ function SignupPage() {
                     name="phone"
                     required
                     placeholder="- 없이 숫자만 입력"
-                    className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                    className={baseInputClass}
                     value={form.phone}
                     onChange={handleChange}
                     disabled={submitting}
@@ -638,7 +744,7 @@ function SignupPage() {
                     type="text"
                     required
                     placeholder="인증번호 입력"
-                    className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                    className={baseInputClass}
                     value={verificationCode}
                     onChange={(e) => setVerificationCode(e.target.value)}
                     disabled={submitting}
