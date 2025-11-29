@@ -8,6 +8,8 @@ import MyPage from "./pages/user/MyPage.jsx";
 import SignupPage from "./pages/auth/SignupPage.jsx";
 import ManagerInquiryPage from "./pages/auth/ManagerInquiryPage.jsx"; // ⭐ 추가
 import PopupCreatePage from "./pages/popup/PopupCreatePage.jsx";
+import PopupListPage from "./pages/popup/PopupListPage.jsx";
+
 
 function App() {
   return (
@@ -34,6 +36,8 @@ function App() {
         {/* 팝업 스토어 등록 페이지 */}
         <Route path="/popup/register" element={<PopupCreatePage />} />
 
+        {/* 팝업 목록 페이지 */}
+        <Route path="/pop-up" element={<PopupListPage />} />
 
       </Routes>
     </div>

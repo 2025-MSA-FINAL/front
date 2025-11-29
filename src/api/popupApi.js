@@ -24,7 +24,6 @@ export async function uploadImageApi(files) {
     });
 
     const res = await apiClient.post("/api/files/popup/list", formData);
-    // 예상: [{ url, key }, ...] 또는 ["url1", "url2", ...]
     return res.data;
   }
 
@@ -32,12 +31,34 @@ export async function uploadImageApi(files) {
   formData.append("file", fileArray[0]); // 단일 업로드 필드명
 
   const res = await apiClient.post("/api/files/popup", formData);
-  // 예상: { url, key }
   return res.data;
 }
 
 // 팝업 등록 API
 export async function registerPopupApi(popupData) {
   const res = await apiClient.post("/api/popups", popupData);
+  return res.data;
+}
+
+// 팝업 목록 조회
+// filters: { cursor, size, keyword, regions, startDate, endDate, status, minPrice, maxPrice, sort }
+export async function fetchPopupListApi(filters = {}) {
+  const params = { ...filters };
+
+  // undefined / null 은 쿼리에서 제거
+  Object.keys(params).forEach((key) => {
+    if (params[key] === undefined || params[key] === null || params[key] === "") {
+      delete params[key];
+    }
+  });
+
+  const res = await apiClient.get("/api/popups", { params });
+  return res.data;
+}
+
+// 찜 토글
+export async function togglePopupWishlistApi(popupId) {
+  if (!popupId) throw new Error("popupId가 없습니다.");
+  const res = await apiClient.post(`/api/popups/${popupId}/wishlist`);
   return res.data;
 }

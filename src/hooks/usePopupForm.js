@@ -46,11 +46,14 @@ function validate(form) {
         }
     }
 
-    const priceNumber = form.popPrice
-        ? Number(String(form.popPrice).replace(/[^0-9]/g, ""))
-        : 0;
-    if (!priceNumber || priceNumber <= 0) {
-        errors.popPrice = "유효한 가격을 입력해 주세요.";
+    if (form.popPrice === "" || form.popPrice === null || form.popPrice === undefined) {
+        errors.popPrice = "가격을 입력해 주세요.";
+    } 
+    else {
+        const priceNumber = Number(String(form.popPrice).replace(/[^0-9]/g, ""));
+        if (priceNumber < 0) {
+            errors.popPrice = "0원 이상 입력해 주세요.";
+        }
     }
 
     if (!form.popThumbnail) {
