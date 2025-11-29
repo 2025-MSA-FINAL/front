@@ -30,7 +30,6 @@ export async function deleteMeApi() {
   return apiClient.delete("/api/auth/withdraw");
 }
 
-
 export async function uploadProfileImageApi(file) {
   const formData = new FormData();
   formData.append("file", file);
@@ -54,6 +53,23 @@ export async function updateProfileApi(dto) {
 export async function checkPasswordApi(payload) {
   // payload = { password: "현재비번" }
   const res = await apiClient.post("/api/users/me/password/check", payload);
-
   return res.data; // true
+}
+
+// ✅ 찜 토글 (마이페이지/상세 공용)
+export async function toggleWishlistApi(popupId) {
+  const res = await apiClient.post(`/api/popup/${popupId}/wishlist`);
+  return res.data; // { isLiked }
+}
+
+// ✅ 찜한 팝업 목록 전체 삭제
+export async function deleteAllWishlistApi() {
+  const res = await apiClient.delete("/api/users/me/wishlist");
+  return res.data; // Boolean
+}
+
+// ✅ 찜한 목록 중 종료된 팝업 전체 삭제
+export async function deleteCloseWishlistApi() {
+  const res = await apiClient.delete("/api/users/me/wishlist/close");
+  return res.data; // Boolean
 }

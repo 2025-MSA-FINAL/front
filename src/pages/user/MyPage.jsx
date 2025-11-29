@@ -1,5 +1,5 @@
-// src/pages/user/MyPage.jsx
-import { useRef, useState } from "react";
+// src/pages/user/MyPage.jsx 
+import { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import { useMyPageStore } from "../../store/myPageStore";
@@ -12,10 +12,14 @@ import {
   uploadProfileImageApi,
   updateProfileApi,
   checkPasswordApi,
+  toggleWishlistApi,
+  deleteAllWishlistApi,
+  deleteCloseWishlistApi,
 } from "../../api/myPageApi";
-import { apiClient } from "../../api/authApi"; // ✅ 추가: 토큰 붙여서 /me 호출용
+import { apiClient } from "../../api/authApi"; // ✅ 토큰 붙여서 /me 호출용
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
+const PAGE_SIZE = 6; // ✅ 5 → 6으로 변경
 
 function formatPrice(value) {
   if (typeof value !== "number") return value;
@@ -48,7 +52,7 @@ function MyPage() {
   const authUser = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
 
-  const { activeTab, setActiveTab, reservations, wishlist } = useMyPageStore();
+  const { activeTab, setActiveTab } = useMyPageStore();
 
   const [updating, setUpdating] = useState(false);
 
@@ -91,6 +95,29 @@ function MyPage() {
     passwordForm.newPassword.length > 0 &&
     passwordForm.confirmPassword.length > 0 &&
     passwordForm.newPassword === passwordForm.confirmPassword;
+
+  // =========================
+  // 예약/찜 리스트 페이징 상태
+  // =========================
+  const [reservationPage, setReservationPage] = useState(0); // 0-based
+  const [reservationPageData, setReservationPageData] = useState({
+    content: [],
+    pageNumber: 0,
+    pageSize: PAGE_SIZE,
+    totalElements: 0,
+    totalPages: 0,
+  });
+  const [reservationLoading, setReservationLoading] = useState(false);
+
+  const [wishlistPage, setWishlistPage] = useState(0); // 0-based
+  const [wishlistPageData, setWishlistPageData] = useState({
+    content: [],
+    pageNumber: 0,
+    pageSize: PAGE_SIZE,
+    totalElements: 0,
+    totalPages: 0,
+  });
+  const [wishlistLoading, setWishlistLoading] = useState(false);
 
   // =========================
   // 기본 정보 수정 핸들러들
@@ -391,6 +418,138 @@ function MyPage() {
   };
 
   // =========================
+  // 예약/찜 리스트 API 호출
+  // =========================
+  const loadReservationPage = async (page) => {
+    if (!authUser) return;
+    setReservationLoading(true);
+    try {
+      const res = await apiClient.get("/api/users/me/reservations", {
+        params: { page, size: PAGE_SIZE },
+      });
+      setReservationPageData(res.data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setReservationLoading(false);
+    }
+  };
+
+  const loadWishlistPage = async (page) => {
+    if (!authUser) return;
+    setWishlistLoading(true);
+    try {
+      const res = await apiClient.get("/api/users/me/wishlist", {
+        params: { page, size: PAGE_SIZE },
+      });
+      setWishlistPageData(res.data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
+  // ✅ 찜한 목록 전체 삭제
+  const handleDeleteAllWishlist = async () => {
+    if (
+      !window.confirm("찜한 팝업 전체를 삭제하시겠습니까? 되돌릴 수 없습니다.")
+    ) {
+      return;
+    }
+    try {
+      await deleteAllWishlistApi();
+      setWishlistPage(0);
+      setWishlistPageData((prev) => ({
+        ...prev,
+        content: [],
+        pageNumber: 0,
+        totalElements: 0,
+        totalPages: 0,
+      }));
+    } catch (e) {
+      console.error(e);
+      alert(
+        e?.response?.data?.message ??
+          "전체 삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+      );
+    }
+  };
+
+  // ✅ 종료된 팝업만 전체 삭제
+  const handleDeleteCloseWishlist = async () => {
+    if (!window.confirm("종료된 팝업만 모두 삭제하시겠습니까?")) {
+      return;
+    }
+    try {
+      await deleteCloseWishlistApi();
+      // 프론트에서 현재 페이지에서 종료된 것만 제거
+      setWishlistPageData((prev) => {
+        const filtered = prev.content.filter(
+          (it) => it.popupStatus !== "ENDED"
+        );
+        return {
+          ...prev,
+          content: filtered,
+          // totalElements는 정확히 맞추긴 어렵지만 대략 줄여 줌
+          totalElements:
+            prev.totalElements - (prev.content.length - filtered.length),
+        };
+      });
+    } catch (e) {
+      console.error(e);
+      alert(
+        e?.response?.data?.message ??
+          "종료된 팝업 삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+      );
+    }
+  };
+
+  // ✅ 찜 리스트에서 하트 눌렀을 때: 찜 토글 API 호출 후, 해제된 경우 목록에서 제거
+  const handleToggleWishlistFromMyPage = async (popupId) => {
+    try {
+      const { isLiked } = await toggleWishlistApi(popupId);
+
+      // false면 해제된 상태이므로 리스트에서 제거
+      if (!isLiked) {
+        setWishlistPageData((prev) => ({
+          ...prev,
+          content: prev.content.filter((it) => it.popupId !== popupId),
+          totalElements:
+            prev.totalElements > 0 ? prev.totalElements - 1 : prev.totalElements,
+        }));
+      }
+    } catch (e) {
+      console.error(e);
+      alert(
+        e?.response?.data?.message ??
+          "찜 해제 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+      );
+    }
+  };
+
+  // 탭 전환 시 첫 페이지로 초기화
+  useEffect(() => {
+    if (activeTab === "reservation") {
+      setReservationPage(0);
+    } else if (activeTab === "wishlist") {
+      setWishlistPage(0);
+    }
+  }, [activeTab]);
+
+  // 페이지 / 탭 변경 시 데이터 로드
+  useEffect(() => {
+    if (!authUser) return;
+
+    if (activeTab === "reservation") {
+      loadReservationPage(reservationPage);
+    } else if (activeTab === "wishlist") {
+      loadWishlistPage(wishlistPage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser, activeTab, reservationPage, wishlistPage]);
+
+  // =========================
   // 로그인 안 된 상태
   // =========================
   if (!authUser) {
@@ -426,7 +585,8 @@ function MyPage() {
   // 실제 렌더
   // =========================
   return (
-    <main className="min-h-[calc(100vh-88px)] bg-white px-4 py-10 flex justify-center">
+    <main className="min-h-[calc(100vh-88px)] bg-[var(--color-secondary-light)] px-4 py-10 flex flex-col items-center">
+      {/* 상단: 타이틀 + 내 정보 카드 (예전 폭 유지) */}
       <div className="w-full max-w-3xl">
         {/* 상단 타이틀 */}
         <h1 className="text-[28px] font-bold text-center text-text-black mb-10">
@@ -448,7 +608,7 @@ function MyPage() {
           {/* 프로필 이미지 */}
           <div className="relative mb-3">
             <div className="w-[140px] h-[140px] rounded-full overflow-hidden bg-secondary-light flex items-center justify-center">
-              {(profileImage || authUser.profileImage) ? (
+              {profileImage || authUser.profileImage ? (
                 <img
                   src={profileImage || authUser.profileImage}
                   alt="프로필"
@@ -574,66 +734,126 @@ function MyPage() {
             </button>
           </div>
         </section>
+      </div>
 
+      {/* 하단: 리스트 영역만 좀 더 넓게 (max-w-5xl) */}
+      <div className="w-full max-w-5xl mt-12">
         {/* 예약 / 찜 리스트 */}
-        <section className="mt-12">
-          <div className="flex justify-center gap-10 text-[15px] mb-4">
-            <button
-              type="button"
+        <section>
+          {/* 탭 영역 */}
+          <div className="flex justify-center gap-12 text-[15px] mb-4 border-b border-secondary">
+            <TabButton
+              active={activeTab === "reservation"}
+              icon="📋"
+              label="예약한 리스트"
+              activeUnderlineClass="border-primary"
               onClick={() => setActiveTab("reservation")}
-              className={`flex items-center gap-2 pb-2 ${
-                activeTab === "reservation"
-                  ? "text-text-black border-b-2 border-text-black"
-                  : "text-text-sub"
-              }`}
-            >
-              <span className="text-[15px]">📋</span>
-              <span>예약한 리스트</span>
-            </button>
-            <button
-              type="button"
+            />
+            <TabButton
+              active={activeTab === "wishlist"}
+              icon="❤"
+              label="찜한 리스트"
+              activeUnderlineClass="border-primary"
               onClick={() => setActiveTab("wishlist")}
-              className={`flex items-center gap-2 pb-2 ${
-                activeTab === "wishlist"
-                  ? "text-primary border-b-2 border-primary"
-                  : "text-text-sub"
-              }`}
-            >
-              <span className="text-[15px] text-primary">❤</span>
-              <span>찜한 리스트</span>
-            </button>
+            />
           </div>
 
-          <div className="h-[1px] w-full bg-secondary mb-4" />
+          {/* 찜 리스트 전용 상단 액션 */}
+          {activeTab === "wishlist" && (
+            <div className="flex justify-end mb-2 text-[13px] text-text-sub gap-2 pr-1">
+              <button
+                type="button"
+                className="hover:text-primary-dark whitespace-nowrap"
+                onClick={handleDeleteCloseWishlist}
+              >
+                종료된 팝업 전체삭제
+              </button>
+              <span className="text-secondary-dark">|</span>
+              <button
+                type="button"
+                className="hover:text-primary-dark whitespace-nowrap"
+                onClick={handleDeleteAllWishlist}
+              >
+                목록 전체 삭제
+              </button>
+            </div>
+          )}
 
-          {/* 헤더 */}
-          <div className="grid grid-cols-[2fr,1.2fr,1fr,0.8fr,1fr,1fr] items-center bg-primary-light rounded-t-[18px] px-6 py-3 text-[13px] text-text-black font-medium">
-            <div>팝업이름</div>
-            <div>날짜</div>
-            <div>시간</div>
-            <div>인원</div>
-            <div>가격</div>
-            <div className="text-right">상태</div>
+          {/* 리스트 – 헤더 제거, 카드 2열 */}
+          <div className="mt-4">
+            {activeTab === "reservation" && (
+              <>
+                {reservationLoading && (
+                  <div className="text-center text-[14px] text-text-sub py-6">
+                    로딩 중...
+                  </div>
+                )}
+                {!reservationLoading &&
+                  reservationPageData.content.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {reservationPageData.content.map((item) => (
+                        <ReservationRow
+                          key={item.reservationId}
+                          item={item}
+                        />
+                      ))}
+                    </div>
+                  )}
+                {!reservationLoading &&
+                  reservationPageData.content.length === 0 && (
+                    <div className="bg-paper rounded-[18px] px-6 py-6 text-center text-[14px] text-text-sub border border-secondary-light">
+                      예약한 팝업이 없습니다.
+                    </div>
+                  )}
+              </>
+            )}
+
+            {activeTab === "wishlist" && (
+              <>
+                {wishlistLoading && (
+                  <div className="text-center text-[14px] text-text-sub py-6">
+                    로딩 중...
+                  </div>
+                )}
+                {!wishlistLoading &&
+                  wishlistPageData.content.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {wishlistPageData.content.map((item) => (
+                        <WishlistRow
+                          key={item.popupId}
+                          item={item}
+                          onToggleWishlist={handleToggleWishlistFromMyPage}
+                        />
+                      ))}
+                    </div>
+                  )}
+                {!wishlistLoading &&
+                  wishlistPageData.content.length === 0 && (
+                    <div className="bg-paper rounded-[18px] px-6 py-6 text-center text-[14px] text-text-sub border border-secondary-light">
+                      찜한 팝업이 없습니다.
+                    </div>
+                  )}
+              </>
+            )}
           </div>
 
-          {/* 리스트 */}
-          <div className="space-y-3 mt-2">
-            {activeTab === "reservation" &&
-              reservations.map((item) => (
-                <ReservationRow key={item.id} item={item} />
-              ))}
+          {/* 페이지네이션 */}
+          {activeTab === "reservation" &&
+            reservationPageData.totalPages > 1 && (
+              <Pagination
+                page={reservationPageData.pageNumber}
+                totalPages={reservationPageData.totalPages}
+                onChange={(nextPage) => setReservationPage(nextPage)}
+              />
+            )}
 
-            {activeTab === "wishlist" &&
-              (wishlist.length > 0 ? (
-                wishlist.map((item) => (
-                  <WishlistRow key={item.id} item={item} />
-                ))
-              ) : (
-                <div className="bg-paper rounded-b-[18px] px-6 py-6 text-center text-[14px] text-text-sub">
-                  찜한 팝업이 없습니다.
-                </div>
-              ))}
-          </div>
+          {activeTab === "wishlist" && wishlistPageData.totalPages > 1 && (
+            <Pagination
+              page={wishlistPageData.pageNumber}
+              totalPages={wishlistPageData.totalPages}
+              onChange={(nextPage) => setWishlistPage(nextPage)}
+            />
+          )}
         </section>
       </div>
 
@@ -641,7 +861,7 @@ function MyPage() {
       {isPhoneModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.35)]">
           <div className="bg-paper rounded-[20px] shadow-dropdown w-full max-w-md px-7 py-6">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify_between mb-3">
               <h2 className="text-[18px] font-semibold text-text-black">
                 휴대폰 번호 변경
               </h2>
@@ -830,85 +1050,291 @@ function MyPage() {
   );
 }
 
-function ReservationRow({ item }) {
-  const statusLabel =
-    item.status === "CANCELLED"
-      ? "취소됨"
-      : item.status === "RESERVED"
-      ? "예약 완료"
-      : item.status;
+/* =========================
+   공용 컴포넌트들 (리스트 전용)
+   ========================= */
 
-  const isCancelled = item.status === "CANCELLED";
+// 탭 버튼 (찜한 리스트 하트는 항상 빨간색으로)
+function TabButton({ active, icon, label, onClick, activeUnderlineClass }) {
+  const isWishlist = label === "찜한 리스트";
 
   return (
-    <div className="bg-paper rounded-[18px] shadow-card px-6 py-4 flex items-center gap-4">
-      <div className="w-[72px] h-[72px] rounded-[16px] bg-secondary-light overflow-hidden flex-shrink-0">
-        {item.imageUrl ? (
-          <img
-            src={item.imageUrl}
-            alt={item.popupName}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-[12px] text-secondary-dark">
-            이미지
-          </div>
-        )}
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-2 pb-3 -mb-px border-b-2 ${
+        active
+          ? `${activeUnderlineClass} text-text-black`
+          : "border-transparent text-text-sub"
+      }`}
+    >
+      <span
+        className={`text-[15px] ${
+          active ? "text-text-black" : "text-text-sub"
+        } ${isWishlist ? "text-red-500" : ""}`}
+        style={isWishlist ? { color: "#ff4b4b" } : undefined}
+      >
+        {icon}
+      </span>
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function formatDateTime(dateTimeString) {
+  if (!dateTimeString) return { date: "-", time: "-" };
+  const d = new Date(dateTimeString);
+  if (Number.isNaN(d.getTime())) return { date: "-", time: "-" };
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+
+  return {
+    date: `${year}.${month}.${day}`,
+    time: `${hours}:${minutes}`,
+  };
+}
+
+/* =========================================
+   예약 리스트 카드 – 이미지 왼쪽, 설명 박스 오른쪽
+   ========================================= */
+function ReservationRow({ item }) {
+  const { date, time } = formatDateTime(item.reserveDateTime);
+
+  const isCancelled = item.reserveStatus === false;
+  const statusLabel = isCancelled ? "취소됨" : "예약 완료";
+
+  return (
+    <div className="flex gap-4 min-w-0">
+      {/* 이미지 영역 */}
+      <div className="w-[140px] h-full flex-shrink-0">
+        <div className="w-full h-full rounded-[18px] bg-secondary-light overflow-hidden">
+          {item.popupThumbnail ? (
+            <img
+              src={item.popupThumbnail}
+              alt={item.popupName}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="flex items-center justify-center w-full h-full text-secondary-dark text-[13px]">
+              이미지
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-[2fr,1.2fr,1fr,0.8fr,1fr,1fr] items-center text-[14px]">
-        <div className="font-medium text-text-black">{item.popupName}</div>
-        <div className="text-text-sub">{item.date}</div>
-        <div className="text-text-sub">{item.time}</div>
-        <div className="text-text-sub">{item.people}명</div>
-        <div className="text-text-sub">{formatPrice(item.price)}원</div>
-        <div className="flex justify-end">
+      {/* 설명 박스 */}
+      <div className="flex-1 min-w-0 bg-white rounded-[18px] border border-secondary-light px-4 py-3 flex flex-col justify-between">
+        {/* 위쪽 정보 */}
+        <div className="flex-1 min-w-0 flex flex-col gap-1">
+          <div className="font-semibold text-[16px] text-text-black truncate">
+            {item.popupName}
+          </div>
+
+          <div className="mt-2 text-[13px] text-text-sub">
+            <span className="font-medium text-text-black mr-1">예약일</span>
+            {date}
+            <span className="mx-2 text-secondary-dark">|</span>
+            {time}
+          </div>
+
+          <div className="text-[13px] text-text-sub">
+            <span className="font-medium text-text-black mr-1">장소</span>
+            {item.popupLocation ?? "-"}
+          </div>
+
+          <div className="text-[13px] text-text-sub">
+            <span className="font-medium text-text-black mr-1">인원</span>
+            {item.reserveUserCount}명
+            <span className="mx-2 text-secondary-dark">|</span>
+            <span className="font-medium text-text-black mr-1">가격</span>
+            {formatPrice(item.price)}원
+          </div>
+        </div>
+
+        {/* 상태 버튼 영역 */}
+        <div className="mt-2 flex items-center justify-between">
           <span
-            className={`inline-flex items-center rounded-full px-3 py-1 text-[12px] border ${
+            className={`inline-flex items-center rounded-full px-3 py-0.5 text-[12px] border ${
               isCancelled
-                ? "border-secondary text-secondary-dark bg-secondary-light"
-                : "border-primary text-primary bg-primary-light"
+                ? "border-secondary-dark text-secondary-dark"
+                : "border-primary text-primary"
             }`}
           >
             {statusLabel}
           </span>
+
+          {!isCancelled && (
+            <button
+              type="button"
+              className="text-[12px] text-text-sub hover:text-primary-dark"
+            >
+              취소하기
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function WishlistRow({ item }) {
+
+/* =========================================
+   찜 리스트 카드 – 이미지 왼쪽, 설명 박스 오른쪽
+   ========================================= */
+function WishlistRow({ item, onToggleWishlist }) {
+  const { date: startDate } = formatDateTime(item.startDate);
+  const { date: endDate } = formatDateTime(item.endDate);
+
+  const period =
+    startDate !== "-" && endDate !== "-"
+      ? `${startDate} ~ ${endDate}`
+      : "-";
+
+  const statusLabel =
+    item.popupStatus === "ENDED"
+      ? "종료"
+      : item.popupStatus === "UPCOMING"
+      ? "예정"
+      : "진행중";
+
+  const isEnded = item.popupStatus === "ENDED";
+
   return (
-    <div className="bg-paper rounded-[18px] shadow-card px-6 py-4 flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <div className="w-[72px] h-[72px] rounded-[16px] bg-secondary-light overflow-hidden flex-shrink-0">
-          {item.imageUrl ? (
+    <div className="flex gap-4 min-w-0">
+      {/* 이미지 영역 */}
+      <div className="w-[140px] h-full flex-shrink-0">
+        <div className="w-full h-full rounded-[18px] bg-secondary-light overflow-hidden">
+          {item.popupThumbnail ? (
             <img
-              src={item.imageUrl}
+              src={item.popupThumbnail}
               alt={item.popupName}
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-[12px] text-secondary-dark">
+            <div className="flex items-center justify-center w-full h-full text-secondary-dark text-[13px]">
               이미지
             </div>
           )}
         </div>
-        <div>
-          <div className="text-[14px] font-medium text-text-black">
+      </div>
+
+      {/* 설명 박스 */}
+      <div className="flex-1 min-w-0 bg-white rounded-[18px] border border-secondary-light px-4 py-3 flex flex-col justify-between">
+        {/* 위쪽 정보 */}
+        <div className="flex-1 min-w-0 flex flex-col gap-1">
+          <div className="font-semibold text-[16px] text-text-black truncate">
             {item.popupName}
           </div>
-          <div className="text-[13px] text-text-sub">
-            {item.date} · {item.location}
+
+          <div className="mt-2 text-[13px] text-text-sub whitespace-nowrap overflow-hidden text-ellipsis">
+            <span className="font-medium text-text-black mr-1">장소</span>
+            {item.popupLocation ?? "-"}
+          </div>
+
+          <div className="text-[13px] text-text-sub whitespace-nowrap overflow-hidden text-ellipsis">
+            <span className="font-medium text-text-black mr-1">기간</span>
+            {period}
+          </div>
+
+          <div className="text-[13px] text-text-sub whitespace-nowrap overflow-hidden text-ellipsis">
+            <span className="font-medium text-text-black mr-1">가격</span>
+            {item.popPrice != null ? `${formatPrice(item.popPrice)}원` : "-"}
           </div>
         </div>
+
+        {/* 상태 + 하트 */}
+        <div className="mt-2 flex items-center justify-between">
+          <span
+            className={`inline-flex items-center rounded-full px-3 py-0.5 text-[12px] border ${
+              isEnded
+                ? "border-secondary-dark text-secondary-dark"
+                : "border-primary text-primary"
+            }`}
+          >
+            {statusLabel}
+          </span>
+
+          <button
+            type="button"
+            className="text-[18px] text-red-500 hover:scale-110 transition-transform"
+            onClick={() => onToggleWishlist(item.popupId)}
+          >
+            ❤
+          </button>
+        </div>
       </div>
+    </div>
+  );
+}
+
+
+
+// 페이지네이션
+function Pagination({ page, totalPages, onChange }) {
+  if (totalPages <= 1) return null;
+
+  const current = page; // 0-based
+  const pages = Array.from({ length: totalPages }, (_, i) => i);
+
+  const handlePrev = () => {
+    if (current <= 0) return;
+    onChange(current - 1);
+  };
+
+  const handleNext = () => {
+    if (current >= totalPages - 1) return;
+    onChange(current + 1);
+  };
+
+  return (
+    <div className="mt-6 flex justify-center items-center gap-4 text-[13px] text-text-sub">
       <button
         type="button"
-        className="text-[13px] text-primary hover:text-primary-dark"
+        onClick={handlePrev}
+        disabled={current === 0}
+        className={`flex items-center gap-1 px-2 py-1 rounded-full ${
+          current === 0
+            ? "opacity-40 cursor-default"
+            : "hover:text-primary-dark"
+        }`}
       >
-        상세보기
+        <span>{"<"}</span>
+        <span>이전</span>
+      </button>
+
+      <div className="flex items-center gap-2">
+        {pages.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onChange(p)}
+            className={`w-7 h-7 rounded-full text-[13px] flex items-center justify-center ${
+              p === current
+                ? "bg-primary-light text-primary font-semibold"
+                : "text-text-sub hover:text-primary-dark"
+            }`}
+          >
+            {p + 1}
+          </button>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={handleNext}
+        disabled={current === totalPages - 1}
+        className={`flex items-center gap-1 px-2 py-1 rounded-full ${
+          current === totalPages - 1
+            ? "opacity-40 cursor-default"
+            : "hover:text-primary-dark"
+        }`}
+      >
+        <span>다음</span>
+        <span>{">"}</span>
       </button>
     </div>
   );

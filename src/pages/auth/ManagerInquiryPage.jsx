@@ -11,8 +11,8 @@ function ManagerInquiryPage() {
         {/* LEFT: 보라 영역 + 브랜드 설명 */}
         <section className="flex-[0.9] bg-primary-light flex flex-col items-center justify-center px-8 md:px-10 py-10 gap-4">
 
-          {/* 👻 유령 이모티콘 → 이미지로 변경 */}
-          <div className="w-[120px] h-[120px] rounded-full bg-paper flex items-center justify-center mb-4 shadow-card overflow-hidden">
+          {/* 👻 유령 이모티콘 → 이미지 (동그라미 배경 제거) */}
+          <div className="w-[120px] h-[120px] flex items-center justify-center mb-4">
             <img src={ghost1} alt="ghost" className="w-[80px] h-[80px]" />
           </div>
 
