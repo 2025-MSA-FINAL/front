@@ -32,6 +32,8 @@
   /* White */
   --color-paper-dark: #424242;
   /* Dark Gray */
+  --color-paper-light: #F8F8F9;
+  /* Light Gray */
 
   /* Text Colors (글자 전용) */
   --color-text-main: #DDDFE2;
