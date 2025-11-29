@@ -13,11 +13,12 @@ export const useAuthStore = create((set, get) => ({
     set({ loading: true, error: null });
     try {
       // 1) 로그인 -> 쿠키 세팅
+      console.log("attempting login for:", loginId);
       await loginApi({ loginId, password });
-
+      console.log("login successful");
       // 2) 내 정보 조회
       const me = await fetchMeApi();
-
+      console.log("fetched me:", me);
       set({
         user: me,
         loading: false,
