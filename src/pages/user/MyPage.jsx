@@ -1,4 +1,4 @@
-// src/pages/user/MyPage.jsx
+// src/pages/user/MyPage.jsx 
 import { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
@@ -585,7 +585,7 @@ function MyPage() {
   // 실제 렌더
   // =========================
   return (
-    <main className="min-h-[calc(100vh-88px)] bg-white px-4 py-10 flex flex-col items-center">
+    <main className="min-h-[calc(100vh-88px)] bg-[var(--color-secondary-light)] px-4 py-10 flex flex-col items-center">
       {/* 상단: 타이틀 + 내 정보 카드 (예전 폭 유지) */}
       <div className="w-full max-w-3xl">
         {/* 상단 타이틀 */}
@@ -1099,7 +1099,7 @@ function formatDateTime(dateTimeString) {
 }
 
 /* =========================================
-   예약 리스트 카드 – 이미지 왼쪽, 정보 오른쪽
+   예약 리스트 카드 – 이미지 왼쪽, 설명 박스 오른쪽
    ========================================= */
 function ReservationRow({ item }) {
   const { date, time } = formatDateTime(item.reserveDateTime);
@@ -1108,10 +1108,10 @@ function ReservationRow({ item }) {
   const statusLabel = isCancelled ? "취소됨" : "예약 완료";
 
   return (
-    <div className="bg-paper rounded-[20px] border border-secondary-light shadow-card overflow-hidden flex">
-      {/* 왼쪽: 썸네일 영역 (전체가 아니라, 안에 네모 박스) */}
-      <div className="w-[160px] flex-shrink-0 flex items-center justify-center px-4 py-4">
-        <div className="w-[120px] h-[140px] rounded-[18px] bg-secondary-light overflow-hidden flex items-center justify-center">
+    <div className="flex gap-4 min-w-0">
+      {/* 이미지 영역 */}
+      <div className="w-[140px] h-full flex-shrink-0">
+        <div className="w-full h-full rounded-[18px] bg-secondary-light overflow-hidden">
           {item.popupThumbnail ? (
             <img
               src={item.popupThumbnail}
@@ -1119,29 +1119,31 @@ function ReservationRow({ item }) {
               className="w-full h-full object-cover"
             />
           ) : (
-            <span className="text-[13px] text-secondary-dark">이미지</span>
+            <div className="flex items-center justify-center w-full h-full text-secondary-dark text-[13px]">
+              이미지
+            </div>
           )}
         </div>
       </div>
 
-      {/* 오른쪽: 내용 */}
-      <div className="flex-1 flex flex-col px-5 py-4 min-w-0">
-        {/* 위쪽 정보 영역을 꽉 채우기 위해 flex-1 */}
-        <div className="flex-1 flex flex-col gap-2">
-          <div className="font-semibold text-[16px] text-text-black leading-snug line-clamp-2">
+      {/* 설명 박스 */}
+      <div className="flex-1 min-w-0 bg-white rounded-[18px] border border-secondary-light px-4 py-3 flex flex-col justify-between">
+        {/* 위쪽 정보 */}
+        <div className="flex-1 min-w-0 flex flex-col gap-1">
+          <div className="font-semibold text-[16px] text-text-black truncate">
             {item.popupName}
           </div>
 
-          {/* ✅ 제목 밑에 예약일/예약시간 분리 */}
-          <div className="mt-1 text-[13px] text-text-sub">
+          <div className="mt-2 text-[13px] text-text-sub">
             <span className="font-medium text-text-black mr-1">예약일</span>
             {date}
-          </div>
-          <div className="text-[13px] text-text-sub">
-            <span className="font-medium text-text-black mr-1">
-              예약 시간
-            </span>
+            <span className="mx-2 text-secondary-dark">|</span>
             {time}
+          </div>
+
+          <div className="text-[13px] text-text-sub">
+            <span className="font-medium text-text-black mr-1">장소</span>
+            {item.popupLocation ?? "-"}
           </div>
 
           <div className="text-[13px] text-text-sub">
@@ -1153,19 +1155,18 @@ function ReservationRow({ item }) {
           </div>
         </div>
 
-        {/* 아래쪽 상태 + 버튼 영역 (선 제거) */}
-        <div className="mt-3 pt-2 flex items-center justify-between flex-wrap gap-2">
+        {/* 상태 버튼 영역 */}
+        <div className="mt-2 flex items-center justify-between">
           <span
-            className={`inline-flex items-center rounded-full px-4 py-1 text-[13px] border ${
+            className={`inline-flex items-center rounded-full px-3 py-0.5 text-[12px] border ${
               isCancelled
-                ? "border-secondary-dark text-secondary-dark bg-white"
-                : "border-primary text-primary bg-white"
+                ? "border-secondary-dark text-secondary-dark"
+                : "border-primary text-primary"
             }`}
           >
             {statusLabel}
           </span>
 
-          {/* 취소된 예약이면 버튼 자체를 표시하지 않음 */}
           {!isCancelled && (
             <button
               type="button"
@@ -1180,14 +1181,18 @@ function ReservationRow({ item }) {
   );
 }
 
+
 /* =========================================
-   찜 리스트 카드 – 이미지 왼쪽, 정보 오른쪽
+   찜 리스트 카드 – 이미지 왼쪽, 설명 박스 오른쪽
    ========================================= */
 function WishlistRow({ item, onToggleWishlist }) {
   const { date: startDate } = formatDateTime(item.startDate);
   const { date: endDate } = formatDateTime(item.endDate);
+
   const period =
-    startDate !== "-" && endDate !== "-" ? `${startDate} ~ ${endDate}` : "-";
+    startDate !== "-" && endDate !== "-"
+      ? `${startDate} ~ ${endDate}`
+      : "-";
 
   const statusLabel =
     item.popupStatus === "ENDED"
@@ -1199,10 +1204,10 @@ function WishlistRow({ item, onToggleWishlist }) {
   const isEnded = item.popupStatus === "ENDED";
 
   return (
-    <div className="bg-paper rounded-[20px] border border-secondary-light shadow-card overflow-hidden flex">
-      {/* 왼쪽: 썸네일 영역 (전체가 아니라, 안에 네모 박스) */}
-      <div className="w-[160px] flex-shrink-0 flex items-center justify-center px-4 py-4">
-        <div className="w-[120px] h-[140px] rounded-[18px] bg-secondary-light overflow-hidden flex items-center justify-center">
+    <div className="flex gap-4 min-w-0">
+      {/* 이미지 영역 */}
+      <div className="w-[140px] h-full flex-shrink-0">
+        <div className="w-full h-full rounded-[18px] bg-secondary-light overflow-hidden">
           {item.popupThumbnail ? (
             <img
               src={item.popupThumbnail}
@@ -1210,53 +1215,53 @@ function WishlistRow({ item, onToggleWishlist }) {
               className="w-full h-full object-cover"
             />
           ) : (
-            <span className="text-[13px] text-secondary-dark">이미지</span>
+            <div className="flex items-center justify-center w-full h-full text-secondary-dark text-[13px]">
+              이미지
+            </div>
           )}
         </div>
       </div>
 
-      {/* 오른쪽: 내용 */}
-      <div className="flex-1 flex flex-col px-5 py-4 min-w-0">
-        {/* 정보 영역을 꽉 채우기 위해 flex-1 */}
-        <div className="flex-1 flex flex-col gap-2">
-          <div className="font-semibold text-[16px] text-text-black leading-snug line-clamp-2">
+      {/* 설명 박스 */}
+      <div className="flex-1 min-w-0 bg-white rounded-[18px] border border-secondary-light px-4 py-3 flex flex-col justify-between">
+        {/* 위쪽 정보 */}
+        <div className="flex-1 min-w-0 flex flex-col gap-1">
+          <div className="font-semibold text-[16px] text-text-black truncate">
             {item.popupName}
           </div>
 
-          {/* ✅ 제목 밑 여백 + 장소/기간 */}
-          <div className="mt-1 text-[13px] text-text-sub">
+          <div className="mt-2 text-[13px] text-text-sub whitespace-nowrap overflow-hidden text-ellipsis">
             <span className="font-medium text-text-black mr-1">장소</span>
             {item.popupLocation ?? "-"}
           </div>
 
-          <div className="text-[13px] text-text-sub">
+          <div className="text-[13px] text-text-sub whitespace-nowrap overflow-hidden text-ellipsis">
             <span className="font-medium text-text-black mr-1">기간</span>
             {period}
           </div>
 
-          {/* ✅ 찜 리스트 가격 표시 추가 */}
-          <div className="text-[13px] text-text-sub">
+          <div className="text-[13px] text-text-sub whitespace-nowrap overflow-hidden text-ellipsis">
             <span className="font-medium text-text-black mr-1">가격</span>
-            {item.price != null ? `${formatPrice(item.price)}원` : "-"}
+            {item.popPrice != null ? `${formatPrice(item.popPrice)}원` : "-"}
           </div>
         </div>
 
-        {/* ✅ 설명 아래 선 제거 + 하트 hover 효과 + flex-wrap */}
-        <div className="mt-3 pt-2 flex items-center justify-between flex-wrap gap-2">
+        {/* 상태 + 하트 */}
+        <div className="mt-2 flex items-center justify-between">
           <span
-            className={`inline-flex items-center rounded-full px-4 py-1 text-[13px] border ${
+            className={`inline-flex items-center rounded-full px-3 py-0.5 text-[12px] border ${
               isEnded
-                ? "border-secondary-dark text-secondary-dark bg-white"
-                : "border-primary text-primary bg-white"
+                ? "border-secondary-dark text-secondary-dark"
+                : "border-primary text-primary"
             }`}
           >
             {statusLabel}
           </span>
+
           <button
             type="button"
-            className="text-[18px] text-red-500 hover:text-red-500 transition-transform duration-150 hover:scale-110"
-            title="삭제"
-            onClick={() => onToggleWishlist && onToggleWishlist(item.popupId)}
+            className="text-[18px] text-red-500 hover:scale-110 transition-transform"
+            onClick={() => onToggleWishlist(item.popupId)}
           >
             ❤
           </button>
@@ -1265,6 +1270,8 @@ function WishlistRow({ item, onToggleWishlist }) {
     </div>
   );
 }
+
+
 
 // 페이지네이션
 function Pagination({ page, totalPages, onChange }) {
