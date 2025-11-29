@@ -430,10 +430,16 @@ export default function PopupFilterPanel({ filter, onChange }) {
                 </button>
               </div>
               <span className="text-label-sm text-primary font-bold">
-                {isFreeOnly
-                  ? "무료만 보기"
-                  : `${priceRange[0].toLocaleString()}원 ~ ${priceRange[1].toLocaleString()}원`}
-              </span>
+                {isFreeOnly ? (
+                    "무료만 보기"
+                ) : (
+                    <>
+                    {priceRange[0].toLocaleString()}원 ~{" "}
+                    {priceRange[1].toLocaleString()}
+                    {priceRange[1] === 100000 ? "원 이상" : "원"}
+                    </>
+                )}
+            </span>
             </div>
             <Slider
               range
