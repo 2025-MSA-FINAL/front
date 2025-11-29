@@ -136,9 +136,11 @@ export default function PopupFilterPanel({ filter, onChange }) {
   // 3. 가격 (Price)
   // -----------------------------
   const [priceRange, setPriceRange] = useState([0, 100000]);
+  const isFreeOnly = !!filter.freeOnly;
+
   useEffect(() => {
-    const nextMin = filter.minPrice || 0;
-    const nextMax = filter.maxPrice || 100000;
+    const nextMin = filter.minPrice ?? 0;
+    const nextMax = filter.maxPrice ?? 100000;
     if (priceRange[0] !== nextMin || priceRange[1] !== nextMax) {
       setPriceRange([nextMin, nextMax]);
     }
@@ -146,7 +148,30 @@ export default function PopupFilterPanel({ filter, onChange }) {
   }, [filter.minPrice, filter.maxPrice]);
 
   const handlePriceChangeComplete = (value) => {
+    if (isFreeOnly) return;
     onChange({ ...filter, minPrice: value[0], maxPrice: value[1] });
+  };
+
+  const toggleFreeOnly = () => {
+    const nextFreeOnly = !isFreeOnly;
+
+    if (nextFreeOnly) {
+      // 무료만 보기 켜면 가격 범위를 0으로 고정
+      onChange({
+        ...filter,
+        freeOnly: true,
+        minPrice: 0,
+        maxPrice: 0,
+      });
+    } else {
+      // 끌 때는 기본 범위로 복원 (원하면 여기 값 조정해도 됨)
+      onChange({
+        ...filter,
+        freeOnly: false,
+        minPrice: 0,
+        maxPrice: 100000,
+      });
+    }
   };
 
   // -----------------------------
@@ -171,14 +196,13 @@ export default function PopupFilterPanel({ filter, onChange }) {
 
     //애니메이션 로직 적용
     if (newStatuses.length === STATUS_OPTIONS.length) {
+      onChange({ ...filter, statusList: newStatuses });
 
-        onChange({ ...filter, statusList: newStatuses });
-
-        setTimeout(() => {
-            onChange({ ...filter, statusList: [] });
-        }, 75); 
+      setTimeout(() => {
+        onChange({ ...filter, statusList: [] });
+      }, 75);
     } else {
-        onChange({ ...filter, statusList: newStatuses });
+      onChange({ ...filter, statusList: newStatuses });
     }
   };
 
@@ -195,13 +219,27 @@ export default function PopupFilterPanel({ filter, onChange }) {
       minPrice: 0,
       maxPrice: 100000,
       statusList: [],
+      freeOnly: false,
     });
   };
 
   return (
-    <div className="w-full bg-paper rounded-[20px] border border-secondary-light shadow-sm mb-6">
+    <div className="w-full bg-paper rounded-[20px] border border-secondary-light shadow-sm mb-0">
       
-      <div className="px-6 py-6 flex flex-col gap-10">
+      <div className="px-6 py-6 flex flex-col gap-6">
+        
+        {/* 상단 헤더: 상세 필터 / 초기화 */}
+        <div className="flex items-start justify-between mb-0">
+          <span className="text-label-lg font-semibold text-text-black">
+            상세 필터
+          </span>
+          <button
+            onClick={handleReset}
+            className="text-label-sm text-text-sub hover:text-primary transition-colors flex items-center gap-1"
+          >
+            <span>↻</span> 필터 초기화
+          </button>
+        </div>
         
         {/* 상단: 지역 & 기간 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -213,7 +251,7 @@ export default function PopupFilterPanel({ filter, onChange }) {
             </label>
             <div
               className="
-                  flex items-center gap-1 pl-2 pr-3 
+                  flex items-center gap-1 pl-4 pr-3 
                   bg-paper border border-secondary rounded-[12px] 
                   focus-within:border-primary transition-colors 
                   h-[50px]
@@ -370,13 +408,31 @@ export default function PopupFilterPanel({ filter, onChange }) {
 
           {/* 4. 가격 */}
           <div className="px-2">
-            <div className="flex justify-between mb-2">
-              <label className="text-label-md text-text-sub font-medium">
-                가격 범위
-              </label>
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center gap-2">
+                <label className="text-label-md text-text-sub font-medium">
+                  가격 범위
+                </label>
+                <button
+                  type="button"
+                  onClick={toggleFreeOnly}
+                  className={`
+                    px-3 py-1 rounded-full text-label-sm border
+                    transition-colors
+                    ${
+                      isFreeOnly
+                        ? "bg-primary-light text-primary border-primary"
+                        : "bg-paper text-secondary border-secondary-light hover:border-primary-light hover:text-primary"
+                    }
+                  `}
+                >
+                  무료만 보기
+                </button>
+              </div>
               <span className="text-label-sm text-primary font-bold">
-                {priceRange[0].toLocaleString()}원 ~{" "}
-                {priceRange[1].toLocaleString()}원
+                {isFreeOnly
+                  ? "무료만 보기"
+                  : `${priceRange[0].toLocaleString()}원 ~ ${priceRange[1].toLocaleString()}원`}
               </span>
             </div>
             <Slider
@@ -387,6 +443,7 @@ export default function PopupFilterPanel({ filter, onChange }) {
               value={priceRange}
               onChange={setPriceRange}
               onAfterChange={handlePriceChangeComplete}
+              disabled={isFreeOnly}
               trackStyle={[{ backgroundColor: "var(--color-primary)" }]}
               handleStyle={[
                 {
@@ -405,14 +462,6 @@ export default function PopupFilterPanel({ filter, onChange }) {
           </div>
         </div>
 
-        <div className="flex justify-end mt-2">
-          <button
-            onClick={handleReset}
-            className="text-label-sm text-text-sub hover:text-primary transition-colors flex items-center gap-1"
-          >
-            <span>↻</span> 필터 초기화
-          </button>
-        </div>
       </div>
     </div>
   );

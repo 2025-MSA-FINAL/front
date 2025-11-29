@@ -40,8 +40,8 @@ export default function PopupSearchBar({ keyword, setKeyword, onSearch }) {
             pl-6 pr-4
             bg-transparent
             border-none outline-none
-            text-headline-sm text-text-black
-            placeholder:text-text-sub placeholder:text-body-lg
+            text-body-lg text-text-black font-bold
+            placeholder:text-text-sub placeholder:text-body-lg placeholder:font-normal
           "
         />
 

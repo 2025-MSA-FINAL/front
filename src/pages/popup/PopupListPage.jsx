@@ -175,14 +175,11 @@ export default function PopupListPage() {
         <h1 className="text-headline-lg font-bold text-text-black mb-3">
           지금 가볼 만한 팝업 스토어
         </h1>
-        <p className="text-body-lg text-text-sub">
-          위치, 가격, 진행 상태별로 내가 가고 싶은 팝업을 골라보세요.
-        </p>
       </section>
 
       {/* 2. 검색 & 필터 영역 */}
       <section className="max-w-[1000px] mx-auto px-5 mb-4">
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-4">
           <PopupSearchBar
             keyword={searchQuery}
             setKeyword={setSearchQuery}
