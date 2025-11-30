@@ -30,6 +30,7 @@ export async function deleteMeApi() {
   return apiClient.delete("/api/auth/withdraw");
 }
 
+// 프로필 이미지 업로드
 export async function uploadProfileImageApi(file) {
   const formData = new FormData();
   formData.append("file", file);
@@ -43,6 +44,7 @@ export async function uploadProfileImageApi(file) {
   return res.data; // { url, key }
 }
 
+// 프로필 정보 업데이트 (url, key)
 export async function updateProfileApi(dto) {
   // dto: { url, key }
   const res = await apiClient.patch("/api/users/me/profile", dto);
@@ -53,7 +55,7 @@ export async function updateProfileApi(dto) {
 export async function checkPasswordApi(payload) {
   // payload = { password: "현재비번" }
   const res = await apiClient.post("/api/users/me/password/check", payload);
-  return res.data; // true
+  return res.data; // true / false
 }
 
 // ✅ 찜 토글 (마이페이지/상세 공용)
@@ -72,4 +74,19 @@ export async function deleteAllWishlistApi() {
 export async function deleteCloseWishlistApi() {
   const res = await apiClient.delete("/api/users/me/wishlist/close");
   return res.data; // Boolean
+}
+
+// ✅ 휴대폰 인증번호 전송
+export async function sendPhoneCodeApi(phone) {
+  // 백엔드: POST /api/auth/phone/send { phone }
+  const res = await apiClient.post("/api/auth/phone/send", { phone });
+  return res.data; // 필요시 메시지 등
+}
+
+// ✅ 휴대폰 인증번호 검증
+export async function verifyPhoneCodeApi(payload) {
+  // payload: { phone, code }
+  // 백엔드: POST /api/auth/phone/verify
+  const res = await apiClient.post("/api/auth/phone/verify", payload);
+  return res.data; // true / false
 }
