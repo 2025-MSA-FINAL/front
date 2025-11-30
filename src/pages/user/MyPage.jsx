@@ -17,6 +17,7 @@ import {
   deleteCloseWishlistApi,
 } from "../../api/myPageApi";
 import { apiClient } from "../../api/authApi"; // ✅ 토큰 붙여서 /me 호출용
+import FilterDropdown from "../../components/FilterDropdown";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 const PAGE_SIZE = 6; // ✅ 5 → 6으로 변경
@@ -118,6 +119,16 @@ function MyPage() {
     totalPages: 0,
   });
   const [wishlistLoading, setWishlistLoading] = useState(false);
+
+  // ✅ 예약/찜 리스트 상태 필터 & 정렬 상태
+  // 예약: 상태(전체/예약완료/취소됨) + 정렬(최신/오래된)
+  const [reservationStatusFilter, setReservationStatusFilter] =
+    useState("ALL");
+  const [reservationSortOrder, setReservationSortOrder] = useState("DESC"); // DESC: 최신순, ASC: 오래된순
+
+  // 찜: 상태(전체/예정/진행중/종료) + 정렬(최신/오래된)
+  const [wishlistStatusFilter, setWishlistStatusFilter] = useState("ALL");
+  const [wishlistSortOrder, setWishlistSortOrder] = useState("DESC");
 
   // =========================
   // 기본 정보 수정 핸들러들
@@ -334,7 +345,8 @@ function MyPage() {
     e.preventDefault();
     setPasswordError("");
 
-    const { currentPassword, newPassword, confirmPassword } = passwordForm;
+    const { currentPassword, newPassword, confirmPassword } =
+      passwordForm;
 
     // 1) 필수 값 체크
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -425,7 +437,12 @@ function MyPage() {
     setReservationLoading(true);
     try {
       const res = await apiClient.get("/api/users/me/reservations", {
-        params: { page, size: PAGE_SIZE },
+        params: {
+          page,
+          size: PAGE_SIZE,
+          status: reservationStatusFilter,  // ✅ Enum 이름과 매칭
+          sortDir: reservationSortOrder,
+        },
       });
       setReservationPageData(res.data);
     } catch (e) {
@@ -440,7 +457,12 @@ function MyPage() {
     setWishlistLoading(true);
     try {
       const res = await apiClient.get("/api/users/me/wishlist", {
-        params: { page, size: PAGE_SIZE },
+        params: {
+          page,
+          size: PAGE_SIZE,
+          status: wishlistStatusFilter,     // ✅ Enum 이름과 매칭
+          sortDir: wishlistSortOrder,
+        },
       });
       setWishlistPageData(res.data);
     } catch (e) {
@@ -537,7 +559,7 @@ function MyPage() {
     }
   }, [activeTab]);
 
-  // 페이지 / 탭 변경 시 데이터 로드
+  // 페이지 / 탭 / 필터 / 정렬 변경 시 데이터 로드
   useEffect(() => {
     if (!authUser) return;
 
@@ -547,7 +569,16 @@ function MyPage() {
       loadWishlistPage(wishlistPage);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authUser, activeTab, reservationPage, wishlistPage]);
+  }, [
+    authUser,
+    activeTab,
+    reservationPage,
+    wishlistPage,
+    reservationStatusFilter,
+    reservationSortOrder,
+    wishlistStatusFilter,
+    wishlistSortOrder,
+  ]);
 
   // =========================
   // 로그인 안 된 상태
@@ -758,28 +789,91 @@ function MyPage() {
             />
           </div>
 
-          {/* 찜 리스트 전용 상단 액션 */}
-          {activeTab === "wishlist" && (
-            <div className="flex justify-end mb-2 text-[13px] text-text-sub gap-2 pr-1">
-              <button
-                type="button"
-                className="hover:text-primary-dark whitespace-nowrap"
-                onClick={handleDeleteCloseWishlist}
-              >
-                종료된 팝업 전체삭제
-              </button>
-              <span className="text-secondary-dark">|</span>
-              <button
-                type="button"
-                className="hover:text-primary-dark whitespace-nowrap"
-                onClick={handleDeleteAllWishlist}
-              >
-                목록 전체 삭제
-              </button>
+          {/* 예약 리스트 상단: 상태 필터 + 정렬 */}
+          {activeTab === "reservation" && (
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-2 gap-2 text-[13px] text-text-sub">
+              <div className="flex gap-2">
+                <FilterDropdown
+                  value={reservationStatusFilter}
+                  onChange={(val) => {
+                    setReservationStatusFilter(val);
+                    setReservationPage(0);
+                  }}
+                  options={[
+                    { value: "ALL", label: "전체" },
+                    { value: "CONFIRMED", label: "예약 완료" },
+                    { value: "CANCELLED", label: "예약 취소" },
+                  ]}
+                />
+                <FilterDropdown
+                  value={reservationSortOrder}
+                  onChange={(val) => {
+                    setReservationSortOrder(val);
+                    setReservationPage(0);
+                  }}
+                  options={[
+                    { value: "DESC", label: "최신순" },
+                    { value: "ASC", label: "오래된순" },
+                  ]}
+                />
+              </div>
+              <div className="text-[12px] text-secondary-dark">
+                총 {reservationPageData.totalElements}개
+              </div>
             </div>
           )}
 
-          {/* 리스트 – 헤더 제거, 카드 2열 */}
+          {/* 찜 리스트 상단: 상태 필터 + 정렬 + 기존 삭제 버튼 유지 */}
+          {activeTab === "wishlist" && (
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-2 gap-2 text-[13px] text-text-sub">
+              <div className="flex gap-2">
+                <FilterDropdown
+                  value={wishlistStatusFilter}
+                  onChange={(val) => {
+                    setWishlistStatusFilter(val);
+                    setWishlistPage(0);
+                  }}
+                  options={[
+                    { value: "ALL", label: "전체" },
+                    { value: "UPCOMING", label: "오픈 예정" },
+                    { value: "ONGOING", label: "진행중" },
+                    { value: "ENDED", label: "종료" },
+                  ]}
+                />
+                <FilterDropdown
+                  value={wishlistSortOrder}
+                  onChange={(val) => {
+                    setWishlistSortOrder(val);
+                    setWishlistPage(0);
+                  }}
+                  options={[
+                    { value: "DESC", label: "최신순" },
+                    { value: "ASC", label: "오래된순" },
+                  ]}
+                />
+              </div>
+
+              <div className="flex justify-end text-[13px] text-text-sub gap-2 pr-1">
+                <button
+                  type="button"
+                  className="hover:text-primary-dark whitespace-nowrap"
+                  onClick={handleDeleteCloseWishlist}
+                >
+                  종료된 팝업 전체삭제
+                </button>
+                <span className="text-secondary-dark">|</span>
+                <button
+                  type="button"
+                  className="hover:text-primary-dark whitespace-nowrap"
+                  onClick={handleDeleteAllWishlist}
+                >
+                  목록 전체 삭제
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 리스트 – 카드 2열 */}
           <div className="mt-4">
             {activeTab === "reservation" && (
               <>
@@ -1181,7 +1275,6 @@ function ReservationRow({ item }) {
   );
 }
 
-
 /* =========================================
    찜 리스트 카드 – 이미지 왼쪽, 설명 박스 오른쪽
    ========================================= */
@@ -1190,9 +1283,7 @@ function WishlistRow({ item, onToggleWishlist }) {
   const { date: endDate } = formatDateTime(item.endDate);
 
   const period =
-    startDate !== "-" && endDate !== "-"
-      ? `${startDate} ~ ${endDate}`
-      : "-";
+    startDate !== "-" && endDate !== "-" ? `${startDate} ~ ${endDate}` : "-";
 
   const statusLabel =
     item.popupStatus === "ENDED"
@@ -1270,8 +1361,6 @@ function WishlistRow({ item, onToggleWishlist }) {
     </div>
   );
 }
-
-
 
 // 페이지네이션
 function Pagination({ page, totalPages, onChange }) {
