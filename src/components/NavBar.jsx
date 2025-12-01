@@ -49,6 +49,7 @@ export default function Navbar() {
       await logout();
       setIsProfileOpen(false);
       setIsMenuOpen(false);
+      navigate('/')
     } catch (e) {
       console.error(e);
     }
