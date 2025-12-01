@@ -1349,7 +1349,7 @@ function WishlistRow({ item, onToggleWishlist }) {
         </div>
       </div>
     </div>
-  );
+  );;
 }
 
 export default MyPage;
