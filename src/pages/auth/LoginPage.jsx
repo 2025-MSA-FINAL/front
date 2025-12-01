@@ -1,3 +1,5 @@
+// src/pages/auth/LoginPage.jsx
+
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import PrimaryButton from "../../components/button/PrimaryButton.jsx";
@@ -7,13 +9,17 @@ import kakaoBtn from "../../assets/kakaoBtn.png";
 import logo from "../../assets/logo.png";
 import ghost1 from "../../assets/ghost1.png";
 import naverBtn from "../../assets/naverbtn.png";
-import googleBtn from "../../assets/googleBtn.png"; // ✅ 추가
+import googleBtn from "../../assets/googleBtn.png";
+
+import { EyeIcon, EyeOffIcon } from "../../components/icon/EyeIcons.jsx"; // 👈 공용 아이콘
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 const NAVER_AUTH_URL = `${API_BASE}/oauth2/authorization/naver`;
 
 function LoginPage() {
   const [form, setForm] = useState({ loginId: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false); // 👈 비밀번호 보기 상태
+
   const navigate = useNavigate();
 
   const login = useAuthStore((s) => s.login);
@@ -73,7 +79,8 @@ function LoginPage() {
 
           <p className="mt-2 text-[14px] text-text-black text-center leading-relaxed">
             당신이 관심있는 팝업 스토어를
-            <br />더 빠르고 쉽게 만나보세요.
+            <br />
+            더 빠르고 쉽게 만나보세요.
           </p>
         </section>
 
@@ -82,6 +89,7 @@ function LoginPage() {
           <h2 className="text-[22px] font-bold text-text-black mb-6">로그인</h2>
 
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+            {/* 아이디 */}
             <label className="flex flex-col gap-1.5 text-[13px] text-text-sub">
               아이디
               <input
@@ -95,17 +103,30 @@ function LoginPage() {
               />
             </label>
 
+            {/* 비밀번호 + 눈 아이콘 */}
             <label className="flex flex-col gap-1.5 text-[13px] text-text-sub">
               비밀번호
-              <input
-                type="password"
-                name="password"
-                placeholder="비밀번호 입력"
-                className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-                value={form.password}
-                onChange={handleChange}
-                disabled={loading}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="비밀번호 입력"
+                  className="w-full px-3 py-2.5 pr-10 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                  value={form.password}
+                  onChange={handleChange}
+                  disabled={loading}
+                />
+
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  tabIndex={-1}
+                  aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+                >
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
+              </div>
             </label>
 
             <PrimaryButton
@@ -140,7 +161,7 @@ function LoginPage() {
             </button>
 
             <button
-              className="w-full h-full rounded-[8px] object-contain"
+              className="w-full h-full rounded-[8px]"
               type="button"
               onClick={() => handleNotReady("카카오")}
             >
@@ -152,14 +173,14 @@ function LoginPage() {
             </button>
 
             <button
-              className="w-full h-full rounded-[8px] object-contain"
+              className="w-full h-full rounded-[8px]"
               type="button"
               onClick={() => handleNotReady("구글")}
             >
               <img
                 src={googleBtn}
                 alt="google-login"
-                className="object-scale-down w-full h-full"
+                className="object-scale-down w-full h-full rounded-[8px]"
               />
             </button>
           </div>
