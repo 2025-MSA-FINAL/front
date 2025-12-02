@@ -9,6 +9,7 @@ import SignupPage from "./pages/auth/SignupPage.jsx";
 import ManagerInquiryPage from "./pages/auth/ManagerInquiryPage.jsx"; // ⭐ 추가
 import PopupCreatePage from "./pages/popup/PopupCreatePage.jsx";
 import PopupListPage from "./pages/popup/PopupListPage.jsx";
+import PopupDetailPage from "./pages/popup/PopupDetailPage";
 
 
 function App() {
@@ -33,11 +34,15 @@ function App() {
         {/* ⭐ 매니저 계정 문의 페이지 */}
         <Route path="/manager-inquiry" element={<ManagerInquiryPage />} />
 
-        {/* 팝업 스토어 등록 페이지 */}
+        {/* 팝업스토어 등록 페이지 */}
         <Route path="/popup/register" element={<PopupCreatePage />} />
 
-        {/* 팝업 목록 페이지 */}
+        {/* 팝업스토어 목록 페이지 */}
         <Route path="/pop-up" element={<PopupListPage />} />
+
+        {/* 팝업스토어 상세 페이지 */}
+        <Route path="/popup/:popupId" element={<PopupDetailPage />} />
+
 
       </Routes>
     </div>
