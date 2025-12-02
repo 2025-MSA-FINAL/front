@@ -1,7 +1,7 @@
 // src/api/popupApi.js
 import { apiClient } from "./authApi";
 
-// 이미지 업로드 API (썸네일/상세 공용)
+//이미지 업로드 API (썸네일/상세 공용)
 export async function uploadImageApi(files) {
   if (!files) {
     throw new Error("uploadImageApi: files가 없습니다.");
@@ -34,7 +34,7 @@ export async function uploadImageApi(files) {
   return res.data;
 }
 
-// 팝업 등록 API
+//팝업 등록
 export async function registerPopupApi(popupData) {
   const res = await apiClient.post("/api/popups", popupData);
   return res.data;
@@ -45,7 +45,7 @@ export async function registerPopupApi(popupData) {
 export async function fetchPopupListApi(filters = {}) {
   const params = { ...filters };
 
-  // undefined / null 은 쿼리에서 제거
+  //undefined / null 은 쿼리에서 제거
   Object.keys(params).forEach((key) => {
     if (params[key] === undefined || params[key] === null || params[key] === "") {
       delete params[key];
@@ -56,9 +56,17 @@ export async function fetchPopupListApi(filters = {}) {
   return res.data;
 }
 
-// 찜 토글
+//찜 토글
 export async function togglePopupWishlistApi(popupId) {
   if (!popupId) throw new Error("popupId가 없습니다.");
   const res = await apiClient.post(`/api/popups/${popupId}/wishlist`);
+  return res.data;
+}
+
+//팝업 상세 조회
+export async function fetchPopupDetailApi(popupId) {
+  if (!popupId) throw new Error("popupId가 없습니다.");
+
+  const res = await apiClient.get(`/api/popups/${popupId}`);
   return res.data;
 }

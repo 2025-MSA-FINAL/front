@@ -313,7 +313,7 @@ export default function PopupListPage() {
             <PopupCard
               key={popup.popId}
               popup={popup}
-              onClick={() => window.location.href = `/popups/${popup.popId}`}
+              onClick={() => window.location.href = `/popup/${popup.popId}`}
               onToggleWishlist={handleToggleWishlist}
               isWishlistLoading={wishlistLoadingId === popup.popId}
               userRole={user?.role}
