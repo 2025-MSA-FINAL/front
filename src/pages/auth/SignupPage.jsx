@@ -4,6 +4,7 @@ import PrimaryButton from "../../components/button/PrimaryButton.jsx";
 import OutlineButton from "../../components/button/OutlineButton.jsx";
 import { useAuthStore } from "../../store/authStore";
 import ghost1 from "../../assets/ghost1.png";
+import { EyeIcon, EyeOffIcon } from "../../components/icon/EyeIcons.jsx"; // 👈 공용 아이콘
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
@@ -404,7 +405,7 @@ function SignupPage() {
             />
           </div>
 
-          {/* 이하 폼 로직은 그대로 */}
+          {/* 폼 */}
           <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
             {/* 이메일 */}
             <div className="flex flex-col gap-1">
@@ -510,30 +511,7 @@ function SignupPage() {
                     tabIndex={-1}
                     aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
                   >
-                    {showPassword ? (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.7"
-                      >
-                        <path d="M3 3l18 18M10.584 10.587A2 2 0 0113.414 13.42M9.88 4.253A9.76 9.76 0 0112 4c5 0 9 3.5 10 8-0.273 1.295-0.807 2.496-1.56 3.556M6.16 6.164C4.27 7.39 2.86 9.236 2 12c1 4.5 5 8 10 8 1.265 0 2.48-.232 3.607-.66" />
-                      </svg>
-                    ) : (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.7"
-                      >
-                        <path d="M2 12s2.5-6 10-6 10 6 10 6-2.5 6-10 6-10-6-10-6z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    )}
+                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
                 </div>
               </label>
@@ -587,30 +565,7 @@ function SignupPage() {
                       showPasswordCheck ? "비밀번호 숨기기" : "비밀번호 보기"
                     }
                   >
-                    {showPasswordCheck ? (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.7"
-                      >
-                        <path d="M3 3l18 18M10.584 10.587A2 2 0 0113.414 13.42M9.88 4.253A9.76 9.76 0 0112 4c5 0 9 3.5 10 8-0.273 1.295-0.807 2.496-1.56 3.556M6.16 6.164C4.27 7.39 2.86 9.236 2 12c1 4.5 5 8 10 8 1.265 0 2.48-.232 3.607-.66" />
-                      </svg>
-                    ) : (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.7"
-                      >
-                        <path d="M2 12s2.5-6 10-6 10 6 10 6-2.5 6-10 6-10-6-10-6z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    )}
+                    {showPasswordCheck ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
                 </div>
               </label>
