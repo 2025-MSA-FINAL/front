@@ -10,6 +10,7 @@ import ManagerInquiryPage from "./pages/auth/ManagerInquiryPage.jsx"; // ⭐ 추
 import PopupCreatePage from "./pages/popup/PopupCreatePage.jsx";
 import PopupListPage from "./pages/popup/PopupListPage.jsx";
 import PopupDetailPage from "./pages/popup/PopupDetailPage";
+import ManagerMyPage from "./pages/manager/ManagerMyPage.jsx";
 
 
 function App() {
@@ -42,6 +43,9 @@ function App() {
 
         {/* 팝업스토어 상세 페이지 */}
         <Route path="/popup/:popupId" element={<PopupDetailPage />} />
+
+        {/* 매니저 페이지 */}
+        <Route path="/manager" element={<ManagerMyPage />} />
 
 
       </Routes>
