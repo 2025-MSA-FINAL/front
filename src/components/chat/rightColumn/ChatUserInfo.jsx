@@ -6,21 +6,19 @@ export default function ChatUserInfo() {
       {/* 프로필 박스 전체 */}
       <div
         className="
-          flex items-center gap-2 
+          flex items-end gap-3
           px-3 py-2 
           rounded-btn
           cursor-pointer
         "
       >
         {/* 유저 이름 */}
-        <span className="text-title-md font-bold text-text-black truncate">
-          히정
-        </span>
+        <span className="text-title-md font-bold text-text-black">히정</span>
         {/* 프로필 이미지 */}
         <img
           src={ghost1}
           alt="profile"
-          className="w-11 h-10 rounded-full object-cover bg-secondary-light border border-secondary"
+          className="w-10 h-10 rounded-full object-contain bg-white"
         />
       </div>
     </div>

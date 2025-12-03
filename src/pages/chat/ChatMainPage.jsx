@@ -1,14 +1,14 @@
 import logo from "../../assets/logo.png";
 import MyChatRoomSection from "../../components/chat/leftColumn/MyChatRoomSection";
 import ChatSearchBar from "../../components/chat/middleColumn/ChatSearchBar";
-import PopupRoomSection from "../../components/chat/MiddleColumn/PopupRoomSection";
+import PopupRoomSection from "../../components/chat/middleColumn/PopupRoomSection";
 import ChatConversationSection from "../../components/chat/rightColumn/ChatConversationSection";
 
 import ChatUserInfo from "../../components/chat/RightColumn/ChatUserInfo";
 
 export default function ChatMainPage() {
   return (
-    <div className="w-full h-screen bg-white flex p-5 gap-5">
+    <div className="w-full h-screen flex p-5 gap-5">
       {/* LEFT COLUMN */}
       <div className="w-[10%] min-w-[140px] h-full flex flex-col items-center">
         {/* 상단 로고 - 고정 높이 */}
@@ -35,7 +35,7 @@ export default function ChatMainPage() {
         </div>
 
         {/* 아래 영역 */}
-        <div className="flex-1 min-h-0 w-full mt-4">
+        <div className="flex-1 min-h-0 w-full mt-4 ">
           <PopupRoomSection />
         </div>
       </div>
@@ -48,7 +48,7 @@ export default function ChatMainPage() {
         </div>
 
         {/* 아래 영역 */}
-        <div className="flex-1 min-h-0 w-full border-primary-light border-8 rounded-2xl ">
+        <div className="flex-1 min-h-0 w-full bg-paper shadow-card  border-primary-light border-3 rounded-2xl ">
           <ChatConversationSection />
         </div>
       </div>
