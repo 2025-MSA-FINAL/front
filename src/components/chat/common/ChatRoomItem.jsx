@@ -4,7 +4,7 @@ export default function ChatRoomItem({ name, img, type }) {
 
   return (
     <div
-      className="w-[100px] h-[100px] bg-secondary-light rounded-[20px]
+      className="w-[100px] h-[100px] bg-white rounded-[100%]
                  flex flex-col items-center justify-center shadow-card
                  cursor-pointer hover:shadow-hover transition
                  flex-shrink-0"

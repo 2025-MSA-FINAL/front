@@ -15,10 +15,9 @@ import ManagerMyPage from "./pages/manager/ManagerMyPage.jsx";
 import ChatMainPage from "./pages/chat/ChatMainPage.jsx";
 import ManagerPopupDetailPage from "./pages/manager/ManagerPopupDetailPage.jsx";
 
-
 function App() {
   return (
-    <div className="min-h-screen bg-secondary-light text-text-black">
+    <div className="min-h-screen  bg-paper-light text-text-black">
       <Routes>
         {/* NavBar 사용하는 일반 페이지 */}
         <Route element={<DefaultLayout />}>
@@ -48,8 +47,10 @@ function App() {
 
           {/* 매니저 페이지 */}
           <Route path="/manager" element={<ManagerMyPage />} />
-          <Route path="/manager/popup/:popupId" element={<ManagerPopupDetailPage />} />
-          
+          <Route
+            path="/manager/popup/:popupId"
+            element={<ManagerPopupDetailPage />}
+          />
         </Route>
 
         {/* NavBar 없는 페이지 (채팅 + 관리자 등) */}

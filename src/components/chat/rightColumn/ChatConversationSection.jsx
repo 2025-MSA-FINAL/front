@@ -6,7 +6,7 @@ export default function ChatConversationSection() {
       <div className="flex flex-row items-center justify-center gap-2">
         <img src={ghost2} className="w-10 h-10 object-cover" />
 
-        <p className="text-secondary-dark font-semibold text-title-lg">
+        <p className="text-text-sub font-semibold text-title-lg">
           채팅에 참가해보세요
         </p>
       </div>
