@@ -25,6 +25,7 @@ function SignupPage() {
     phone: "",
     profileImageUrl: "",
     profileImageKey: "",
+    introduction: "", // ✅ 자기소개 추가
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -60,15 +61,21 @@ function SignupPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    // ✅ 전화번호는 항상 숫자만 저장 (하이픈, 공백 등 제거)
+    if (name === "phone") {
+      const onlyDigits = value.replace(/[^0-9]/g, "");
+      setForm((prev) => ({ ...prev, phone: onlyDigits }));
+      setPhoneVerified(false);
+      setVerificationCode("");
+      return;
+    }
+
     setForm((prev) => ({ ...prev, [name]: value }));
 
     if (name === "email") setEmailChecked(false);
     if (name === "loginId") setLoginIdChecked(false);
     if (name === "nickname") setNicknameChecked(false);
-    if (name === "phone") {
-      setPhoneVerified(false);
-      setVerificationCode("");
-    }
   };
 
   const handleClickUpload = () => {
@@ -278,6 +285,11 @@ function SignupPage() {
     if (!form.nickname) return alert("닉네임을 입력해주세요.");
     if (!nicknameChecked) return alert("닉네임 중복 체크를 완료해주세요.");
 
+    // ✅ 자기소개 필수라면
+    if (!form.introduction || !form.introduction.trim()) {
+      return alert("자기소개를 입력해주세요.");
+    }
+
     if (!form.birthYear) return alert("출생년도를 입력해주세요.");
     if (!form.gender) return alert("성별을 선택해주세요.");
     if (!form.phone) return alert("휴대폰 번호를 입력해주세요.");
@@ -300,6 +312,7 @@ function SignupPage() {
           password: form.password,
           profileImageUrl: form.profileImageUrl || null,
           profileImageKey: form.profileImageKey || null,
+          introduction: form.introduction.trim(), // ✅ 백엔드로 전달
         }),
       });
 
@@ -325,7 +338,6 @@ function SignupPage() {
       <div className="flex max-w-[960px] w-full bg-paper rounded-card shadow-card overflow-hidden flex-col md:flex-row">
         {/* Left */}
         <section className="flex-[0.9] bg-primary-light flex flex-col items-center justify-center px-8 py-10 gap-3">
-          {/* 👇 동그란 div 삭제, 이미지만 남김 */}
           <img
             src={ghost1}
             alt="팝스팝 유령"
@@ -613,6 +625,29 @@ function SignupPage() {
                   닉네임 중복 확인이 완료되었습니다.
                 </p>
               )}
+            </div>
+
+            {/* ✅ 자기소개 */}
+            <div className="flex flex-col gap-1.5 text-[13px] text-text-sub">
+              <div className="flex items-center justify-between">
+                <span>자기소개</span>
+                <span className="text-[11px] text-text-sub">
+                  최대 500자 정도로 간단히 작성해 주세요
+                </span>
+              </div>
+              <textarea
+                name="introduction"
+                required
+                maxLength={500}
+                placeholder="예) 팝업투어를 좋아하는 20대 직장인입니다 🙂"
+                className="w-full min-h-[70px] max-h-[140px] resize-none rounded-input border border-secondary px-3 py-2 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white"
+                value={form.introduction}
+                onChange={handleChange}
+                disabled={submitting}
+              />
+              <div className="flex justify-end text-[11px] text-text-sub">
+                {form.introduction.length} / 500
+              </div>
             </div>
 
             {/* 출생년도 + 성별 */}
