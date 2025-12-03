@@ -51,6 +51,12 @@ export async function updateProfileApi(dto) {
   return res.data;
 }
 
+// ✅ 자기소개 변경 (전용 API)
+export async function updateIntroductionApi(dto) {
+  // dto: { introduction }
+  return apiClient.patch("/api/users/me/introduction", dto);
+}
+
 // 현재 비밀번호 검증
 export async function checkPasswordApi(payload) {
   // payload = { password: "현재비번" }

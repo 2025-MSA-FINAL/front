@@ -11,8 +11,13 @@ import {
   checkPasswordApi,
   sendPhoneCodeApi,
   verifyPhoneCodeApi,
+  updateIntroductionApi, // ✅ 자기소개 수정 API
 } from "../../api/myPageApi";
 import { apiClient } from "../../api/authApi";
+import Toast from "../../components/common/Toast";
+
+// ✅ 연필 버튼 svg (경로는 프로젝트 구조에 맞게 조정)
+import editIcon from "../../assets/editButton.svg";
 
 // 성별 표기: MALE → 남자, FEMALE → 여자
 function getGenderLabel(gender) {
@@ -64,14 +69,50 @@ function UserInfoSection({ authUser, setUser }) {
 
   const genderLabel = getGenderLabel(authUser?.gender);
 
-  // ✅ 자기소개 상태
+  // ✅ 자기소개 상태 (백엔드 필드: introduction)
   const [intro, setIntro] = useState(authUser?.introduction ?? "");
   const [introSaving, setIntroSaving] = useState(false);
 
-  // authUser 변경 시 자기소개 동기화
+  // ✅ 닉네임 / 이메일 수정 모달 상태
+  const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState(authUser?.nickname ?? "");
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [emailInput, setEmailInput] = useState(authUser?.email ?? "");
+
+  // ✅ 토스트 상태
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastVariant, setToastVariant] = useState("success"); // "success" | "error"
+  const toastTimerRef = useRef(null);
+
+  const showToast = (msg, variant = "success") => {
+    if (!msg) return;
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    setToastMessage(msg);
+    setToastVariant(variant);
+    setToastVisible(true);
+    toastTimerRef.current = setTimeout(() => {
+      setToastVisible(false);
+    }, 2500);
+  };
+
+  // authUser 변경 시 자기소개/닉네임/이메일 동기화
   useEffect(() => {
     setIntro(authUser?.introduction ?? "");
+    setNicknameInput(authUser?.nickname ?? "");
+    setEmailInput(authUser?.email ?? "");
   }, [authUser]);
+
+  // 언마운트 시 토스트 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
 
   // ✅ 모달 새 비밀번호 복잡도 체크 (회원가입과 동일 규칙: 8자 + 영문 + 특문)
   const newPwd = passwordForm.newPassword;
@@ -90,10 +131,19 @@ function UserInfoSection({ authUser, setUser }) {
   // =========================
   // 기본 정보 수정 핸들러들
   // =========================
-  const handleUpdateNickname = async () => {
+  const handleUpdateNickname = () => {
     if (!authUser) return;
-    const next = window.prompt("새 닉네임을 입력하세요.", authUser.nickname);
-    if (!next || next === authUser.nickname) return;
+    setNicknameInput(authUser.nickname || "");
+    setIsNicknameModalOpen(true);
+  };
+
+  const handleConfirmNicknameChange = async () => {
+    if (!authUser) return;
+    const next = nicknameInput.trim();
+    if (!next || next === authUser.nickname) {
+      setIsNicknameModalOpen(false);
+      return;
+    }
 
     try {
       setUpdating(true);
@@ -101,19 +151,31 @@ function UserInfoSection({ authUser, setUser }) {
 
       // 🔥 즉시 UI 반영
       setUser({ nickname: next });
+      showToast("닉네임이 변경되었습니다.", "success");
+      setIsNicknameModalOpen(false);
     } catch (err) {
-      alert(
-        err?.response?.data?.message ?? "닉네임 변경 중 오류가 발생했습니다."
+      showToast(
+        err?.response?.data?.message ?? "닉네임 변경 중 오류가 발생했습니다.",
+        "error"
       );
     } finally {
       setUpdating(false);
     }
   };
 
-  const handleUpdateEmail = async () => {
+  const handleUpdateEmail = () => {
     if (!authUser) return;
-    const next = window.prompt("새 이메일을 입력하세요.", authUser.email);
-    if (!next || next === authUser.email) return;
+    setEmailInput(authUser.email || "");
+    setIsEmailModalOpen(true);
+  };
+
+  const handleConfirmEmailChange = async () => {
+    if (!authUser) return;
+    const next = emailInput.trim();
+    if (!next || next === authUser.email) {
+      setIsEmailModalOpen(false);
+      return;
+    }
 
     try {
       setUpdating(true);
@@ -121,9 +183,12 @@ function UserInfoSection({ authUser, setUser }) {
 
       // 🔥 즉시 UI 반영
       setUser({ email: next });
+      showToast("이메일이 변경되었습니다.", "success");
+      setIsEmailModalOpen(false);
     } catch (err) {
-      alert(
-        err?.response?.data?.message ?? "이메일 변경 중 오류가 발생했습니다."
+      showToast(
+        err?.response?.data?.message ?? "이메일 변경 중 오류가 발생했습니다.",
+        "error"
       );
     } finally {
       setUpdating(false);
@@ -143,18 +208,19 @@ function UserInfoSection({ authUser, setUser }) {
   // =========================
   const handleSendPhoneCode = async () => {
     if (!phoneInput) {
-      alert("휴대폰 번호를 입력해주세요.");
+      showToast("휴대폰 번호를 입력해주세요.", "error");
       return;
     }
     setPhoneSending(true);
     try {
       await sendPhoneCodeApi(phoneInput);
-      alert("인증번호를 전송했습니다.");
+      showToast("인증번호를 전송했습니다.", "success");
     } catch (e) {
       console.error(e);
-      alert(
+      showToast(
         e?.response?.data?.message ??
-          "인증번호 전송 중 오류가 발생했습니다."
+          "인증번호 전송 중 오류가 발생했습니다.",
+        "error"
       );
     } finally {
       setPhoneSending(false);
@@ -163,7 +229,7 @@ function UserInfoSection({ authUser, setUser }) {
 
   const handleVerifyPhoneCode = async () => {
     if (!phoneInput || !verificationCode) {
-      alert("휴대폰 번호와 인증번호를 모두 입력해주세요.");
+      showToast("휴대폰 번호와 인증번호를 모두 입력해주세요.", "error");
       return;
     }
     setPhoneVerifying(true);
@@ -175,7 +241,7 @@ function UserInfoSection({ authUser, setUser }) {
       });
 
       if (!ok) {
-        alert("인증번호가 올바르지 않습니다.");
+        showToast("인증번호가 올바르지 않습니다.", "error");
         return;
       }
 
@@ -184,13 +250,14 @@ function UserInfoSection({ authUser, setUser }) {
 
       // 3) 전역 상태 & 화면 반영
       setUser({ phone: phoneInput });
-      alert("휴대폰 번호가 변경되었습니다.");
+      showToast("휴대폰 번호가 변경되었습니다.", "success");
       setIsPhoneModalOpen(false);
     } catch (e) {
       console.error(e);
-      alert(
+      showToast(
         e?.response?.data?.message ??
-          "휴대폰 번호 변경 중 오류가 발생했습니다."
+          "휴대폰 번호 변경 중 오류가 발생했습니다.",
+        "error"
       );
     } finally {
       setPhoneVerifying(false);
@@ -226,10 +293,12 @@ function UserInfoSection({ authUser, setUser }) {
       // 3) 화면 & 전역 authUser 동기화
       setProfileImage(result.url);
       setUser({ profileImage: result.url });
+      showToast("프로필 이미지가 변경되었습니다.", "success");
     } catch (err) {
-      alert(
+      showToast(
         err?.response?.data?.message ??
-          "프로필 이미지 변경 중 오류가 발생했습니다."
+          "프로필 이미지 변경 중 오류가 발생했습니다.",
+        "error"
       );
     } finally {
       setProfileUploading(false);
@@ -254,10 +323,12 @@ function UserInfoSection({ authUser, setUser }) {
       // 백엔드에서 defaultProfileUrl 적용된 값 받아서 Zustand에 반영
       setUser(me);
       setProfileImage(me.profileImage ?? null);
+      showToast("기본 프로필 이미지로 변경되었습니다.", "success");
     } catch (err) {
-      alert(
+      showToast(
         err?.response?.data?.message ??
-          "프로필 이미지를 기본으로 되돌리는 중 오류가 발생했습니다."
+          "프로필 이미지를 기본으로 되돌리는 중 오류가 발생했습니다.",
+        "error"
       );
     } finally {
       setProfileUploading(false);
@@ -278,17 +349,18 @@ function UserInfoSection({ authUser, setUser }) {
 
       setIntroSaving(true);
 
-      // introduction 필드만 부분 업데이트
-      await updateProfileApi({ introduction: intro });
+      // ✅ 전용 API로 자기소개만 PATCH
+      await updateIntroductionApi({ introduction: intro });
 
       // 전역 유저 상태 업데이트
       setUser({ introduction: intro });
 
-      alert("자기소개가 저장되었습니다.");
+      showToast("자기소개가 저장되었습니다.", "success");
     } catch (err) {
-      alert(
+      showToast(
         err?.response?.data?.message ??
-          "자기소개 저장 중 오류가 발생했습니다."
+          "자기소개 저장 중 오류가 발생했습니다.",
+        "error"
       );
     } finally {
       setIntroSaving(false);
@@ -327,7 +399,7 @@ function UserInfoSection({ authUser, setUser }) {
     if (!currentPassword || !newPassword || !confirmPassword) {
       const msg = "모든 비밀번호를 입력해주세요.";
       setPasswordError(msg);
-      alert(msg);
+      showToast(msg, "error");
       return;
     }
 
@@ -340,7 +412,7 @@ function UserInfoSection({ authUser, setUser }) {
       if (!isValid) {
         const msg = "현재 비밀번호가 올바르지 않습니다.";
         setPasswordError(msg);
-        alert(msg);
+        showToast(msg, "error");
         return;
       }
 
@@ -349,7 +421,7 @@ function UserInfoSection({ authUser, setUser }) {
         const msg =
           "새 비밀번호는 최소 8자리이며, 영문자와 특수문자를 포함해야 합니다.";
         setPasswordError(msg);
-        alert(msg);
+        showToast(msg, "error");
         return;
       }
 
@@ -357,20 +429,20 @@ function UserInfoSection({ authUser, setUser }) {
       if (newPassword !== confirmPassword) {
         const msg = "새 비밀번호와 확인 비밀번호가 일치하지 않습니다.";
         setPasswordError(msg);
-        alert(msg);
+        showToast(msg, "error");
         return;
       }
 
       // 5) 실제 비밀번호 변경 API 호출
       await changePasswordApi({ currentPassword, newPassword });
-      alert("비밀번호가 변경되었습니다.");
+      showToast("비밀번호가 변경되었습니다.", "success");
       setIsPasswordModalOpen(false);
     } catch (err) {
       const msg =
         err?.response?.data?.message ??
         "비밀번호 변경 중 오류가 발생했습니다.";
       setPasswordError(msg);
-      alert(msg);
+      showToast(msg, "error");
     } finally {
       setPasswordSubmitting(false);
     }
@@ -387,7 +459,7 @@ function UserInfoSection({ authUser, setUser }) {
     try {
       setUpdating(true);
       await deleteMeApi();
-      alert("회원탈퇴가 완료되었습니다. 메인 페이지로 이동합니다.");
+      showToast("회원탈퇴가 완료되었습니다. 메인 페이지로 이동합니다.", "success");
 
       // ✅ 프론트 상태 정리
       setUser(null);
@@ -395,9 +467,10 @@ function UserInfoSection({ authUser, setUser }) {
       // ✅ 메인 페이지로 이동
       window.location.href = "/";
     } catch (err) {
-      alert(
+      showToast(
         err?.response?.data?.message ??
-          "회원탈퇴 처리 중 오류가 발생했습니다."
+          "회원탈퇴 처리 중 오류가 발생했습니다.",
+        "error"
       );
     } finally {
       setUpdating(false);
@@ -444,10 +517,14 @@ function UserInfoSection({ authUser, setUser }) {
               type="button"
               onClick={handleClickProfileEdit}
               disabled={profileUploading}
-              className="absolute -bottom-1 right-2 w-7 h-7 rounded-full bg-paper border border-secondary flex items-center justify-center text-[13px] text-secondary-dark hover:bg-secondary-light disabled:opacity-60"
+              className="absolute -bottom-1 right-2 w-7 h-7 rounded-full bg-paper border border-secondary flex items-center justify-center text-secondary-dark hover:bg-secondary-light disabled:opacity-60"
               title="프로필 사진 수정"
             >
-              ✏️
+              <img
+                src={editIcon}
+                alt="프로필 수정"
+                className="w-3.5 h-3.5"
+              />
             </button>
 
             <input
@@ -482,10 +559,10 @@ function UserInfoSection({ authUser, setUser }) {
                   type="button"
                   onClick={handleUpdateNickname}
                   disabled={updating}
-                  className="text-[14px] text-secondary-dark hover:text-primary-dark"
+                  className="flex items-center justify-center w-[24px] h-[24px] text-secondary-dark hover:text-primary-dark"
                   title="닉네임 수정"
                 >
-                  ✏️
+                  <img src={editIcon} alt="닉네임 수정" className="w-4 h-4" />
                 </button>
               </div>
 
@@ -495,7 +572,7 @@ function UserInfoSection({ authUser, setUser }) {
                 <span className="flex-1 text-text-black whitespace-nowrap">
                   {genderLabel}
                 </span>
-                <span className="w-[22px]" />
+                <span className="w-[24px]" />
               </div>
 
               {/* 전화번호 */}
@@ -508,10 +585,10 @@ function UserInfoSection({ authUser, setUser }) {
                   type="button"
                   onClick={handleUpdatePhone}
                   disabled={updating}
-                  className="text-[14px] text-secondary-dark hover:text-primary-dark"
+                  className="flex items-center justify-center w-[24px] h-[24px] text-secondary-dark hover:text-primary-dark"
                   title="전화번호 수정"
                 >
-                  ✏️
+                  <img src={editIcon} alt="전화번호 수정" className="w-4 h-4" />
                 </button>
               </div>
 
@@ -525,10 +602,10 @@ function UserInfoSection({ authUser, setUser }) {
                   type="button"
                   onClick={handleUpdateEmail}
                   disabled={updating}
-                  className="text-[14px] text-secondary-dark hover:text-primary-dark"
+                  className="flex items-center justify-center w-[24px] h-[24px] text-secondary-dark hover:text-primary-dark"
                   title="이메일 수정"
                 >
-                  ✏️
+                  <img src={editIcon} alt="이메일 수정" className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -547,7 +624,7 @@ function UserInfoSection({ authUser, setUser }) {
               <textarea
                 className="w-full min-h-[80px] max-h-[160px] resize-none rounded-[10px] border border-secondary bg-paper px-3 py-2 text-[14px] focus:outline-none focus:border-primary"
                 placeholder="예) 팝업투어를 좋아하는 20대 직장인입니다 🙂"
-                maxLength={100}
+                maxLength={500}
                 value={intro}
                 onChange={(e) => setIntro(e.target.value)}
               />
@@ -567,7 +644,6 @@ function UserInfoSection({ authUser, setUser }) {
 
           {/* 하단 버튼 줄 */}
           <div className="mt-5 w-full max-w-[560px] flex justify-center gap-10 text-[13px] text-text-sub">
-            {/* 🎨 #777777 → text-sub */}
             <button
               type="button"
               onClick={openPasswordModal}
@@ -586,6 +662,110 @@ function UserInfoSection({ authUser, setUser }) {
           </div>
         </section>
       </div>
+
+      {/* ✅ 닉네임 변경 모달 */}
+      {isNicknameModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.35)]">
+          <div className="bg-paper rounded-[20px] shadow-dropdown w-full max-w-md px-7 py-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[18px] font-semibold text-text-black">
+                닉네임 변경
+              </h2>
+              <button
+                type="button"
+                className="text-[20px] leading-none text-secondary-dark hover:text-text-black"
+                onClick={() => setIsNicknameModalOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <p className="text-[13px] text-text-sub mb-3">
+              새 닉네임을 입력해주세요.
+            </p>
+
+            <div className="space-y-3">
+              <input
+                type="text"
+                className="w-full h-[42px] rounded-[10px] border border-secondary bg-paper px-3 text-[14px] focus:outline-none focus:border-primary"
+                value={nicknameInput}
+                onChange={(e) => setNicknameInput(e.target.value)}
+              />
+
+              <div className="mt-3 flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="min-w-[80px] h-[38px] rounded-[10px] border border-secondary text-[13px] text-text-sub hover:bg-secondary-light disabled:opacity-70"
+                  onClick={() => setIsNicknameModalOpen(false)}
+                  disabled={updating}
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  className="min-w-[90px] h-[38px] rounded-[10px] bg-primary text-[13px] text-white hover:bg-primary-dark disabled:opacity-70"
+                  onClick={handleConfirmNicknameChange}
+                  disabled={updating}
+                >
+                  변경하기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ 이메일 변경 모달 */}
+      {isEmailModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.35)]">
+          <div className="bg-paper rounded-[20px] shadow-dropdown w-full max-w-md px-7 py-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[18px] font-semibold text-text-black">
+                이메일 변경
+              </h2>
+              <button
+                type="button"
+                className="text-[20px] leading-none text-secondary-dark hover:text-text-black"
+                onClick={() => setIsEmailModalOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <p className="text-[13px] text-text-sub mb-3">
+              새 이메일을 입력해주세요.
+            </p>
+
+            <div className="space-y-3">
+              <input
+                type="email"
+                className="w-full h-[42px] rounded-[10px] border border-secondary bg-paper px-3 text-[14px] focus:outline-none focus:border-primary"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+              />
+
+              <div className="mt-3 flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="min-w-[80px] h-[38px] rounded-[10px] border border-secondary text-[13px] text-text-sub hover:bg-secondary-light disabled:opacity-70"
+                  onClick={() => setIsEmailModalOpen(false)}
+                  disabled={updating}
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  className="min-w-[90px] h-[38px] rounded-[10px] bg-primary text-[13px] text-white hover:bg-primary-dark disabled:opacity-70"
+                  onClick={handleConfirmEmailChange}
+                  disabled={updating}
+                >
+                  변경하기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ✅ 휴대폰 변경 모달 */}
       {isPhoneModalOpen && (
@@ -776,6 +956,13 @@ function UserInfoSection({ authUser, setUser }) {
           </div>
         </div>
       )}
+
+      {/* ✅ 공통 Toast */}
+      <Toast
+        message={toastMessage}
+        visible={toastVisible}
+        variant={toastVariant}
+      />
     </>
   );
 }
