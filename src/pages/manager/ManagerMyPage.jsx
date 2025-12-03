@@ -25,6 +25,8 @@ export default function ManagerMyPage() {
     const navigate = useNavigate();
     const authUser = useAuthStore((s) => s.user);
     const setUser = useAuthStore((s) => s.setUser);
+    const initialized = useAuthStore((s) => s.initialized);
+    const fetchMe = useAuthStore((s) => s.fetchMe);
 
     const [profile, setProfile] = useState(null);
 
@@ -42,6 +44,32 @@ export default function ManagerMyPage() {
     );
     const [profileUploading, setProfileUploading] = useState(false);
     const fileInputRef = useRef(null);
+
+
+    // --------------------------
+    // 0) 로그인 / 권한 가드
+    // --------------------------
+    useEffect(() => {
+        // 1) 아직 로그인 상태 체크(fetchMe) 안 했으면 먼저 호출
+        if (!initialized) {
+            fetchMe();
+            return;
+        }
+
+        // 2) 체크 끝났는데 user가 없으면  로그인 페이지로
+        if (initialized && !authUser) {
+            alert("로그인이 필요합니다.");
+            navigate("/login", { replace: true });
+            return;
+        }
+
+        // 3) 로그인은 했는데 매니저가 아니면  메인으로
+        if (initialized && authUser && authUser.role !== "MANAGER") {
+            alert("매니저 전용 페이지입니다.");
+            navigate("/", { replace: true });
+        }
+    }, [initialized, authUser, fetchMe, navigate]);
+
 
     // --------------------------
     // 1) 프로필 로딩
