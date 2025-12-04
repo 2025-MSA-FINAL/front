@@ -16,10 +16,9 @@ import ChatMainPage from "./pages/chat/ChatMainPage.jsx";
 import ManagerPopupDetailPage from "./pages/manager/ManagerPopupDetailPage.jsx";
 import PopupReservationSettingPage from "./pages/reservation/PopupReservationSettingPage.jsx"; 
 
-
 function App() {
   return (
-    <div className="min-h-screen bg-secondary-light text-text-black">
+    <div className="min-h-screen  bg-paper-light text-text-black">
       <Routes>
         {/* NavBar 사용하는 일반 페이지 */}
         <Route element={<DefaultLayout />}>
@@ -49,12 +48,17 @@ function App() {
 
           {/* 매니저 페이지 */}
           <Route path="/manager" element={<ManagerMyPage />} />
+
           <Route path="/manager/popup/:popupId" element={<ManagerPopupDetailPage />} />
           
           {/* ✅ 팝업 예약 설정 페이지 */}
           <Route
             path="/manager/popup/:popupId/reservation"
             element={<PopupReservationSettingPage />}
+          />
+          <Route
+            path="/manager/popup/:popupId"
+            element={<ManagerPopupDetailPage />}
           />
         </Route>
 
