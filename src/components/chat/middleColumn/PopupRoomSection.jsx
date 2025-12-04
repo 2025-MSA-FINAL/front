@@ -1,34 +1,37 @@
+import { useEffect } from "react";
 import PopupRoomItem from "../common/PopupRoomItem";
+import { useChatPopupStore } from "../../../store/chat/chatPopupStore";
 
 export default function PopupRoomSection() {
-  const mockPopupRooms = [
-    { id: 1, name: "무모한 몬치치 투어" },
-    { id: 2, name: "젤리캣 스페이스 팝업스토어" },
-    { id: 3, name: "다마고치 팝업스토어" },
-    { id: 4, name: "토니모리 <주토피아> 팝업•••" },
-    { id: 5, name: "텔레토비 팝업스토어" },
-    { id: 6, name: "SSEBONGRAMA 어쩌다•••" },
-    { id: 7, name: "똥마카세 짬뽕 포차 팝업스•••" },
-    { id: 8, name: "똥마카세 짬뽕 포차 팝업스•••" },
-    { id: 9, name: "똥마카세 짬뽕 포차 팝업스•••" },
-    { id: 10, name: "똥마카세 짬뽕 포차 팝업스•••" },
-    { id: 11, name: "똥마카세 짬뽕 포차 팝업스•••" },
-  ];
+  const { popups, fetchPopups, loading } = useChatPopupStore();
+
+  useEffect(() => {
+    fetchPopups();
+  }, []);
 
   return (
     <section
       className="
         w-full h-full 
-        bg-secondary-light
+        bg-rose-200/40
         rounded-[30px] 
         p-4 
         flex flex-col
       "
     >
       <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col gap-4">
-        {mockPopupRooms.map((popup) => (
-          <PopupRoomItem key={popup.id} name={popup.name} />
-        ))}
+        {loading && (
+          <div className="text-center text-gray-500">불러오는 중...</div>
+        )}
+
+        {!loading &&
+          popups.map((popup) => (
+            <PopupRoomItem
+              key={popup.popId}
+              name={popup.popName}
+              popup={popup} // ⭐ popup 객체 자체 전달
+            />
+          ))}
       </div>
     </section>
   );

@@ -11,13 +11,13 @@ export default function ChatSearchBar({ keyword, setKeyword, onSearch }) {
       <div
         className="
           flex items-center
-          w-full h-[48px] pl-4 pr-14
+          w-[80%] h-[48px] pl-4 pr-14
           bg-paper
           border-[2px] border-primary-light
           rounded-full
           shadow-sm
           transition-all duration-200
-          focus-within:border-primary focus-within:shadow-brand
+          focus-within:border-rose-300/40 focus-within:shadow-dropdown
         "
       >
         <input
@@ -31,7 +31,7 @@ export default function ChatSearchBar({ keyword, setKeyword, onSearch }) {
             bg-transparent
             border-none outline-none
             text-body-md text-text-black font-medium
-            placeholder:text-text-sub
+            placeholder:text-text-main
           "
         />
       </div>
@@ -40,13 +40,14 @@ export default function ChatSearchBar({ keyword, setKeyword, onSearch }) {
       <button
         onClick={onSearch}
         className="
-    absolute right-[-6px] top-1/2 -translate-y-1/2
+    absolute right-8 top-1/2 -translate-y-1/2
     flex items-center justify-center
-    w-[48px] h-[48px]
+    w-[50px] h-[50px]
     bg-primary
     rounded-full
     text-text-white
-    hover:bg-primary-dark
+    hover:text-text-black
+    hover:bg-rose-300
     active:scale-95
     transition-all duration-200
     shadow-brand

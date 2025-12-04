@@ -13,7 +13,7 @@ export default function ChatUserInfo() {
         "
       >
         {/* 유저 이름 */}
-        <span className="text-title-md font-bold text-text-black">히정</span>
+        <span className="text-md font-bold text-black">히정</span>
         {/* 프로필 이미지 */}
         <img
           src={ghost1}
