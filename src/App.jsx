@@ -14,11 +14,22 @@ import PopupDetailPage from "./pages/popup/PopupDetailPage.jsx";
 import ManagerMyPage from "./pages/manager/ManagerMyPage.jsx";
 import ChatMainPage from "./pages/chat/ChatMainPage.jsx";
 import ManagerPopupDetailPage from "./pages/manager/ManagerPopupDetailPage.jsx";
+import PopupReservationSettingPage from "./pages/reservation/PopupReservationSettingPage.jsx"; 
+
+//관리자 페이지
+import AdminLayout from "./pages/admin/AdminLayout.jsx";
+import Dashboard from "./pages/admin/Dashboard.jsx";
+import Users from "./pages/admin/Users.jsx";
+import Popups from "./pages/admin/Popups.jsx";
+import Reports from "./pages/admin/Reports.jsx";
+import ChatRooms from "./pages/admin/ChatRooms.jsx";
 
 
 function App() {
   return (
-    <div className="min-h-screen bg-secondary-light text-text-black">
+
+    <div className="min-h-screen  bg-paper-light text-text-black">
+
       <Routes>
         {/* NavBar 사용하는 일반 페이지 */}
         <Route element={<DefaultLayout />}>
@@ -28,14 +39,13 @@ function App() {
           {/* 로그인 페이지 */}
           <Route path="/login" element={<LoginPage />} />
 
-          {/* ✅ 네이버 소셜 인증 후 회원가입 페이지 */}
-          <Route path="/signup/social" element={<SignupPage />} />
+
+        {/* 네이버 소셜 인증 후 회원가입 페이지 */}
+        <Route path="/signup/social" element={<SignupPage />} />
+
 
           {/* 임시 마이페이지 */}
           <Route path="/mypage" element={<MyPage />} />
-
-          {/* ⭐ 매니저 계정 문의 페이지 */}
-          <Route path="/manager-inquiry" element={<ManagerInquiryPage />} />
 
           {/* 팝업스토어 등록 페이지 */}
           <Route path="/popup/register" element={<PopupCreatePage />} />
@@ -48,14 +58,37 @@ function App() {
 
           {/* 매니저 페이지 */}
           <Route path="/manager" element={<ManagerMyPage />} />
+
           <Route path="/manager/popup/:popupId" element={<ManagerPopupDetailPage />} />
           
+          {/* ✅ 팝업 예약 설정 페이지 */}
+          <Route
+            path="/manager/popup/:popupId/reservation"
+            element={<PopupReservationSettingPage />}
+          />
+          <Route
+            path="/manager/popup/:popupId"
+            element={<ManagerPopupDetailPage />}
+          />
         </Route>
 
         {/* NavBar 없는 페이지 (채팅 + 관리자 등) */}
         <Route element={<NoNavLayout />}>
           <Route path="/chat" element={<ChatMainPage />} />
         </Route>
+
+        {/* 매니저 계정 문의 페이지 */}
+        <Route path="/manager-inquiry" element={<ManagerInquiryPage />} />
+      
+        {/* 관리자 라우트 */}
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="users" element={<Users />} />
+          <Route path="popups" element={<Popups />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="chatrooms" element={<ChatRooms />} />
+        </Route>
+     
       </Routes>
     </div>
   );

@@ -1,16 +1,77 @@
 export default function ChatRoomItem({ name, img, type }) {
-  // type: "private" | "group"
-  const sizeClass = type === "group" ? "w-13 h-10" : "w-10 h-10";
+  const sizeClass =
+    type === "GROUP" ? "w-[55px] h-[45px]" : "w-[42px] h-[42px]";
 
   return (
     <div
-      className="w-[100px] h-[100px] bg-secondary-light rounded-[20px]
-                 flex flex-col items-center justify-center shadow-card
-                 cursor-pointer hover:shadow-hover transition
-                 flex-shrink-0"
+      className="
+        relative
+        w-[100px] h-[100px]
+        rounded-3xl
+        flex flex-col items-center justify-center
+        cursor-pointer shrink-0
+        transition-all duration-200 ease-out
+
+        /* ★ 밝고 귀여운 파스텔 글라스 */
+        bg-accent-lemon-soft/70
+        backdrop-blur-xl
+        border border-accent-lemon-soft/50
+        shadow-[0_4px_14px_rgba(255,220,150,0.35)] hover:shadow-[0_10px_28px_rgba(255,245,180,0.40)]
+
+        hover:-translate-y-0.5
+        active:scale-[0.97]
+
+        /* 내부 부드러운 그림자 → 입체감 */
+        before:content-['']
+        before:absolute before:inset-0
+        before:rounded-3xl
+        before:shadow-[inset_0_0_12px_rgba(255,255,255,0.5)]
+        before:pointer-events-none
+      "
     >
-      <img src={img} className={`${sizeClass} mb-1`} />
-      <p className="text-text-sub text-[13px] text-center">{name}</p>
+      {/* ★ 통일된 파스텔 Glow (옐로우 계열) */}
+      <div
+        className="
+          absolute inset-0 rounded-3xl -z-10
+          bg-[radial-gradient(
+            circle_at_50%_0%,
+            rgba(255,250,210,0.8),
+            rgba(255,240,180,0.32),
+            rgba(255,255,255,0)
+          )]
+          blur-2xl
+        "
+      ></div>
+
+      {/* 위쪽 립(Edge Highlight) */}
+      <div
+        className="
+          absolute top-0 left-0 w-full h-[30%]
+          bg-white/45 rounded-t-3xl blur-xl pointer-events-none
+        "
+      ></div>
+
+      {/* 아이콘 */}
+      <img
+        src={img}
+        className={`
+          ${sizeClass} mb-2
+          drop-shadow-[0_3px_4px_rgba(0,0,0,0.22)]
+          transition-transform duration-200
+          hover:scale-[1.08]
+        `}
+      />
+
+      {/* 텍스트 */}
+      <p
+        className="
+          text-[14px] font-semibold max-w-[90px] text-center
+          whitespace-nowrap overflow-hidden text-ellipsis
+          text-[#363636]
+        "
+      >
+        {name}
+      </p>
     </div>
   );
 }

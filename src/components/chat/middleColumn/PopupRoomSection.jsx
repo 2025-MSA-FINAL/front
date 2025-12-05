@@ -1,37 +1,37 @@
+import { useEffect } from "react";
 import PopupRoomItem from "../common/PopupRoomItem";
-import groupChat from "../../../assets/groupChat.png";
-import privateChat from "../../../assets/privateChat.png";
+import { useChatPopupStore } from "../../../store/chat/chatPopupStore";
 
 export default function PopupRoomSection() {
-  const mockPopupRooms = [
-    { id: 1, name: "무모한 몬치치 투어", img: groupChat },
-    { id: 2, name: "젤리캣 스페이스 팝업스토어", img: privateChat },
-    { id: 3, name: "다마고치 팝업스토어", img: groupChat },
-    { id: 4, name: "토니모리 <주토피아> 팝업•••", img: privateChat },
-    { id: 5, name: "텔레토비 팝업스토어", img: groupChat },
-    { id: 6, name: "SSEBONGRAMA 어쩌다•••", img: groupChat },
-    { id: 7, name: "똥마카세 짬뽕 포차 팝업스•••", img: privateChat },
-    { id: 8, name: "똥마카세 짬뽕 포차 팝업스•••", img: privateChat },
-    { id: 9, name: "똥마카세 짬뽕 포차 팝업스•••", img: privateChat },
-    { id: 10, name: "똥마카세 짬뽕 포차 팝업스•••", img: privateChat },
-    { id: 11, name: "똥마카세 짬뽕 포차 팝업스•••", img: privateChat },
-  ];
+  const { popups, fetchPopups, loading } = useChatPopupStore();
+
+  useEffect(() => {
+    fetchPopups();
+  }, []);
 
   return (
     <section
       className="
         w-full h-full 
-        bg-primary-light 
+       bg-primary-soft2/80
         rounded-[30px] 
         p-4 
         flex flex-col
       "
     >
-      {/* 스크롤 영역 */}
       <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col gap-4">
-        {mockPopupRooms.map((popup) => (
-          <PopupRoomItem key={popup.id} name={popup.name} img={popup.img} />
-        ))}
+        {loading && (
+          <div className="text-center text-gray-500">불러오는 중...</div>
+        )}
+
+        {!loading &&
+          popups.map((popup) => (
+            <PopupRoomItem
+              key={popup.popId}
+              name={popup.popName}
+              popup={popup} // ⭐ popup 객체 자체 전달
+            />
+          ))}
       </div>
     </section>
   );

@@ -27,6 +27,16 @@
   --color-accent-aqua: #45DFD3;
   --color-accent-pink: #FF2A7E;
 
+  /* ▼ 채도 낮춘 Soft 브랜드 컬러 */
+  --color-primary-soft: #E5C9FF;   
+  --color-primary-soft2: #F3E5FF;  
+
+  /* ▼ 채도 낮춘 Accent 컬러들 */
+  --color-accent-lemon-soft: #FFF4B8;
+  --color-accent-lime-soft: #E8FFAD;
+  --color-accent-aqua-soft: #B8F0E8;
+  --color-accent-pink-soft: #FFCCE0;
+
   /* Paper (카드/박스 배경) */
   --color-paper: #FFFFFF;
   /* White */
