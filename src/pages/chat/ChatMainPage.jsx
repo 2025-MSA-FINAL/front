@@ -1,4 +1,7 @@
+import { useState, useEffect } from "react";
+
 import logo from "../../assets/logo.png";
+import debounce from "../../utils/debounce";
 
 import MyChatRoomSection from "../../components/chat/leftColumn/MyChatRoomSection";
 import ChatSearchBar from "../../components/chat/middleColumn/ChatSearchBar";
@@ -7,8 +10,7 @@ import GroupChatRoomListSection from "../../components/chat/middleColumn/GroupCh
 import GroupRoomDetailSection from "../../components/chat/rightColumn/GroupRoomDetailSection";
 import GroupRoomCreateForm from "../../components/chat/rightColumn/GroupRoomCreateForm";
 import ChatConversationSection from "../../components/chat/rightColumn/ChatConversationSection";
-
-import ChatUserInfo from "../../components/chat/RightColumn/ChatUserInfo";
+import ChatUserInfo from "../../components/chat/rightColumn/ChatUserInfo";
 import MessageChatSection from "../../components/chat/rightColumn/MessageChatSection";
 
 import { useChatStore } from "../../store/chat/chatStore";
@@ -16,7 +18,24 @@ import { useChatPopupStore } from "../../store/chat/chatPopupStore";
 
 export default function ChatMainPage() {
   const { activeChatRoom } = useChatStore();
-  const { selectedPopup, selectedGroupRoom, createMode } = useChatPopupStore();
+  const {
+    selectedPopup,
+    selectedGroupRoom,
+    createMode,
+    fetchPopups,
+    resetPopup,
+  } = useChatPopupStore();
+
+  const [keyword, setKeyword] = useState("");
+
+  const debouncedSearch = debounce((value) => {
+    resetPopup();
+    fetchPopups(value);
+  }, 400); // 0.4초 뒤 자동 검색
+
+  useEffect(() => {
+    debouncedSearch(keyword);
+  }, [keyword]);
 
   return (
     <div className="w-full h-screen flex p-5 gap-5">
@@ -42,11 +61,15 @@ export default function ChatMainPage() {
       <div className="w-[20%] min-w-[260px] h-full flex flex-col">
         {/* Search Bar */}
         <div className="h-[60px] flex items-center">
-          <ChatSearchBar />
+          <ChatSearchBar
+            keyword={keyword}
+            setKeyword={setKeyword}
+            onSearch={() => debouncedSearch(keyword)} // 버튼 눌러도 검색되게
+          />
         </div>
 
         {/* 팝업 리스트 or 그룹채팅방 리스트 */}
-        <div className="flex-1 min-h-0 w-full mt-4">
+        <div className="flex-1 min-h-0 w-full mt-4 ">
           {selectedPopup ? <GroupChatRoomListSection /> : <PopupRoomSection />}
         </div>
       </div>
@@ -59,7 +82,7 @@ export default function ChatMainPage() {
         </div>
 
         {/* 채팅창 */}
-        <div className="flex-1 min-h-0 w-full bg-paper shadow-card border-white border-5 rounded-2xl">
+        <div className="flex-1 min-h-0 w-full shadow-card rounded-2xl">
           {createMode ? (
             <GroupRoomCreateForm />
           ) : activeChatRoom ? (

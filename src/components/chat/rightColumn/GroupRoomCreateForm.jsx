@@ -87,7 +87,7 @@ export default function GroupRoomCreateForm() {
   };
 
   return (
-    <div className="w-full h-full justify-center flex flex-col items-center justify-center p-8 bg-paper-light rounded-xl">
+    <div className="w-full h-full flex flex-col items-center justify-center p-8 rounded-2xl">
       {/* HEADER */}
       <h2 className="text-[30px] font-bold text-black mb-13 tracking-tight">
         {selectedPopup?.popName ?? ""}

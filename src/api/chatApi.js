@@ -19,13 +19,14 @@ export async function getMyChatRooms() {
 }
 
 /* -------------------------------------------
-    1-2) 전체 팝업 리스트 조회
+    1-2) 팝업 리스트 조회
        GET /api/chat/popup/list
 ------------------------------------------- */
-export async function getAllPopups() {
-  const res = await apiClient.get("/api/chat/popup/list");
-  return res.data; 
-  // { count: number, popups: [ { popId, popName } ] }
+export async function getAllPopups(keyword = "") {
+  const res = await apiClient.get("/api/chat/popup/list", {
+    params: keyword ? { keyword } : {}
+  });
+  return res.data;
 }
 
 /* -------------------------------------------
