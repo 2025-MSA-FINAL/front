@@ -32,9 +32,14 @@ export async function changeManagerPasswordApi(payload) {
 // ================================
 
 //내가 등록한 팝업 목록 조회
-// params: { page, size, status, sortDir }
+//params: { page, size, status, sort } 
 export async function fetchManagerPopupListApi(params = {}) {
-  const query = { ...params };
+  const { sort, ...rest } = params;
+
+  const query = { 
+    ...rest, 
+    sortBy: sort 
+  };
 
   Object.keys(query).forEach((key) => {
     if (
@@ -49,7 +54,7 @@ export async function fetchManagerPopupListApi(params = {}) {
   const res = await apiClient.get("/api/managers/me/popups", {
     params: query,
   });
-  return res.data; // PageDTO<PopupListItemResponse>
+  return res.data; 
 }
 
 // ================================
