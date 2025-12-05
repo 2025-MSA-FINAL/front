@@ -16,7 +16,9 @@ export default function GroupChatRoomListSection() {
     openCreateForm,
     fetchRoomDetail,
   } = useChatPopupStore();
-  const { exitRoom } = useChatStore();
+
+  const { exitRoom, selectRoom } = useChatStore();
+
   // ⭐ 팝업 선택되면 그 팝업의 그룹채팅방 목록 불러오기
   useEffect(() => {
     if (selectedPopup) {
@@ -28,7 +30,7 @@ export default function GroupChatRoomListSection() {
     <section
       className="
         w-full h-full
-        bg-rose-200/40
+        bg-primary-soft2/80
         rounded-[30px]
         p-4 flex flex-col
       "
@@ -42,10 +44,10 @@ export default function GroupChatRoomListSection() {
           <button
             onClick={resetPopup}
             className="
-        text-text-black text-[20px]
-        px-2 py-1 rounded-md
-        hover:bg-white/40 transition
-      "
+              text-text-black text-[20px]
+              px-2 py-1 rounded-md
+              hover:bg-white/40 transition
+            "
           >
             <BackArrowIcon className="w-5 h-5" stroke="currentColor" />
           </button>
@@ -70,14 +72,14 @@ export default function GroupChatRoomListSection() {
             {/* 하얀 박스 */}
             <div
               className="
-              absolute top-[7px] left-[20px]
-              w-[110px] h-[32px]
-              bg-white rounded-[10px] border border-[#dddfe2]
-              transition-colors duration-[220ms]
-              [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]
-              group-hover:border-primary-light
-              group-hover:shadow-hover
-            "
+                absolute top-[7px] left-[20px]
+                w-[110px] h-[32px]
+                bg-white rounded-[10px] border border-[#dddfe2]
+                transition-colors duration-[220ms]
+                [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]
+                group-hover:border-primary-light
+                group-hover:shadow-hover
+              "
             />
 
             {/* 고스트 이미지 */}
@@ -96,10 +98,10 @@ export default function GroupChatRoomListSection() {
             <div
               className="
                 absolute top-[16px] left-[62px]
-                text-primary-dark text-[14px] font-semibold
+                text-accent-pink text-[14px] font-semibold
                 whitespace-nowrap leading-none
                 transition-colors duration-200
-                group-hover:text-primary-dark
+                group-hover:text-accent-pink
               "
             >
               채팅 생성
@@ -107,6 +109,7 @@ export default function GroupChatRoomListSection() {
           </div>
         </div>
       </div>
+
       {/* ---------------------------- */}
       {/* GROUP ROOM LIST */}
       {/* ---------------------------- */}
@@ -126,63 +129,67 @@ export default function GroupChatRoomListSection() {
             <div
               key={room.gcrId}
               className="
-                w-full bg-white 
-                rounded-[16px] shadow-card 
-                px-4 py-3
-                flex items-center justify-between
-              "
+        group relative w-full 
+        rounded-2xl px-4 py-4 
+        cursor-pointer flex items-center justify-between
+        transition-all duration-200 ease-out
+
+        /* Glass + Soft Pink 기반 */
+        bg-white/55 backdrop-blur-xl
+        border border-primary-soft2/80
+        shadow-[0_4px_12px_rgba(180, 140, 255, 0.23)]
+        hover:shadow-[0_10px_24px_rgba(180, 140, 255, 0.32)]
+        hover:-translate-y-[2px]
+      "
+              onClick={async () => {
+                if (room.joined) {
+                  const detail = await fetchRoomDetail(room.gcrId);
+                  selectRoom(detail);
+                  return;
+                }
+
+                exitRoom();
+                await fetchRoomDetail(room.gcrId);
+              }}
             >
-              {/* -------------------------- */}
-              {/* LEFT: ICON + TITLE (ellipsis) */}
-              {/* -------------------------- */}
-              <div className="flex items-center gap-2 overflow-hidden flex-1">
-                {/* LOCK ICON */}
+              {/* hover glass highlight */}
+              <div
+                className="
+          absolute inset-0 rounded-2xl opacity-0
+          group-hover:opacity-100
+          bg-white/35 backdrop-blur-xl
+          border border-white/30
+          transition-all duration-200
+        "
+              />
+
+              {/* LEFT CONTENT */}
+              <div className="flex items-center gap-3 overflow-hidden flex-1 relative z-10">
                 {room.joined ? (
                   <LockOpenIcon className="w-6 h-6 text-secondary-dark shrink-0" />
                 ) : (
                   <LockClosedIcon className="w-6 h-6 text-secondary-dark shrink-0" />
                 )}
 
-                {/* TITLE — ellipsis */}
-                <p className="font-semibold text-text-sub text-[15px] truncate w-full">
+                <p className="font-semibold text-text-black text-[15px] truncate w-full">
                   {room.title}
                 </p>
               </div>
 
-              {/* -------------------------- */}
-              {/* RIGHT: BUTTON */}
-              {/* -------------------------- */}
-              {room.joined ? (
-                <button
-                  className="
-      px-4 py-1 rounded-full shrink-0
-      bg-accent-aqua/50 text-accent-aqua
-      text-sm font-bold
-    "
-                  onClick={async () => {
-                    const detail = await fetchRoomDetail(room.gcrId); // 상세조회
-                    const { selectRoom } = useChatStore.getState();
-                    selectRoom(detail);
-                  }}
-                >
-                  참여 중
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    exitRoom();
-                    fetchRoomDetail(room.gcrId);
-                  }}
-                  className="
-                    px-4 py-1 rounded-full shrink-0
-                    bg-primary-light text-primary-dark
-                    text-sm font-bold
-                    hover:bg-primary transition
-                  "
-                >
-                  참여
-                </button>
-              )}
+              {/* RIGHT LABEL (입장 / 참여중) */}
+              <span
+                className={`
+                relative z-10 px-4 py-1 rounded-full shrink-0 text-[13px] font-bold
+                transition
+                ${
+                  room.joined
+                    ? "bg-accent-lemon-soft/70 text-text-black"
+                    : "bg-accent-pink/65 text-text-white"
+                }
+              `}
+              >
+                {room.joined ? "참여 중" : "입장"}
+              </span>
             </div>
           ))}
       </div>

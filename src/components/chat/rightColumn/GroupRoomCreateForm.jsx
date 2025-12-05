@@ -289,7 +289,7 @@ export default function GroupRoomCreateForm() {
       <button
         onClick={handleSubmit}
         className="
-          mt-12 w-[240px] py-3 rounded-full font-bold
+          mt-12 w-[180px] py-3 rounded-full font-bold
           text-text-sub border-2 border-primary-light
           hover:brightness-110 hover:bg-primary-light/50 hover:text-text-black transition-all
           shadow-brand active:scale-[0.97]
