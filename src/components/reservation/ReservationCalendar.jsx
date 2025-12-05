@@ -1,49 +1,48 @@
+// src/components/reservation/ReservationCalendar.jsx
 import { formatDateKey } from "../../utils/reservationDateUtils";
 import { usePopupReservationStore } from "../../store/popupReservationStore";
 
 export function ReservationCalendar() {
   const period = usePopupReservationStore((state) => state.period);
-  const excludeDates = usePopupReservationStore(
-    (state) => state.excludeDates
-  );
-  const calendarYear = usePopupReservationStore(
-    (state) => state.calendarYear
-  );
+  const popupPeriod = usePopupReservationStore((state) => state.popupPeriod);
+  const excludeDates = usePopupReservationStore((state) => state.excludeDates);
+  const calendarYear = usePopupReservationStore((state) => state.calendarYear);
   const calendarMonth = usePopupReservationStore(
     (state) => state.calendarMonth
   );
   const calendarMode = usePopupReservationStore(
     (state) => state.calendarMode
   );
-
   const setPeriod = usePopupReservationStore((state) => state.setPeriod);
   const setExcludeDates = usePopupReservationStore(
     (state) => state.setExcludeDates
   );
-  const setCalendar = usePopupReservationStore(
-    (state) => state.setCalendar
-  );
+  const setCalendar = usePopupReservationStore((state) => state.setCalendar);
   const setCalendarMode = usePopupReservationStore(
     (state) => state.setCalendarMode
   );
 
   const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
-  const firstDayOfWeek = new Date(
-    calendarYear,
-    calendarMonth,
-    1
-  ).getDay(); // 0~6
+  const firstDayOfWeek = new Date(calendarYear, calendarMonth, 1).getDay(); // 0~6
 
   const isSameDate = (a, b) => {
     if (!a || !b) return false;
     return formatDateKey(a) === formatDateKey(b);
   };
 
-  const isInPeriod = (date) => {
+  const isInReservationPeriod = (date) => {
     if (!period.startDate || !period.endDate) return false;
     const key = formatDateKey(date);
     const startKey = formatDateKey(period.startDate);
     const endKey = formatDateKey(period.endDate);
+    return startKey <= key && key <= endKey;
+  };
+
+  const isInPopupPeriod = (date) => {
+    if (!popupPeriod.startDate || !popupPeriod.endDate) return false;
+    const key = formatDateKey(date);
+    const startKey = formatDateKey(popupPeriod.startDate);
+    const endKey = formatDateKey(popupPeriod.endDate);
     return startKey <= key && key <= endKey;
   };
 
@@ -65,27 +64,31 @@ export function ReservationCalendar() {
 
   const handleDayClick = (date) => {
     if (calendarMode === "PERIOD") {
+      // 예약 기간 설정
       if (!period.startDate || (period.startDate && period.endDate)) {
+        // 새 시작일
         setPeriod({ startDate: date, endDate: null });
-        setExcludeDates([]);
+        // ❌ 더 이상 제외일 초기화 안 함
         return;
       }
 
       if (period.startDate && !period.endDate) {
+        // 종료일 선택
         let start = period.startDate;
         let end = date;
         if (new Date(end) < new Date(start)) {
           [start, end] = [end, start];
         }
         setPeriod({ startDate: start, endDate: end });
-        setExcludeDates([]);
+        // ❌ 여기서도 제외일 초기화 안 함
         return;
       }
     }
 
     if (calendarMode === "EXCLUDE") {
-      if (!period.startDate || !period.endDate) return;
-      if (!isInPeriod(date)) return;
+      // 제외일은 "팝업 기간" 안에서만 허용
+      if (!popupPeriod.startDate || !popupPeriod.endDate) return;
+      if (!isInPopupPeriod(date)) return;
 
       const key = formatDateKey(date);
       setExcludeDates((prev) => {
@@ -98,7 +101,7 @@ export function ReservationCalendar() {
   };
 
   return (
-    <div className="rounded-3xl bg-[#F8F5FF] px-4 py-4 flex items-center justify-center">
+    <div className="h-full rounded-3xl bg-[#F8F5FF] px-4 py-4 flex items-center justify-center">
       <div className="w-full max-w-[520px] rounded-3xl bg-white px-5 py-4 shadow-lg">
         {/* 상단 헤더 */}
         <div className="mb-3 flex items-center justify-between">
@@ -128,13 +131,15 @@ export function ReservationCalendar() {
               </button>
               <button
                 type="button"
-                disabled={!period.startDate || !period.endDate}
+                disabled={!popupPeriod.startDate || !popupPeriod.endDate}
                 className={`px-2 py-0.5 rounded-full ${
                   calendarMode === "EXCLUDE"
                     ? "bg-white text-[#BA3BFF] shadow-sm"
                     : "text-slate-500"
                 } ${
-                  !period.startDate || !period.endDate ? "opacity-40" : ""
+                  !popupPeriod.startDate || !popupPeriod.endDate
+                    ? "opacity-40"
+                    : ""
                 }`}
                 onClick={() => setCalendarMode("EXCLUDE")}
               >
@@ -170,11 +175,24 @@ export function ReservationCalendar() {
             const day = i + 1;
             const date = new Date(calendarYear, calendarMonth, day);
             const key = formatDateKey(date);
-            const inRange = isInPeriod(date);
+
+            const inRange =
+              calendarMode === "PERIOD"
+                ? isInReservationPeriod(date)
+                : isInPopupPeriod(date);
+
             const isStart =
-              period.startDate && isSameDate(date, period.startDate);
-            const isEnd = period.endDate && isSameDate(date, period.endDate);
-            const isExcluded = excludeDates.includes(key);
+              calendarMode === "PERIOD" &&
+              period.startDate &&
+              isSameDate(date, period.startDate);
+            const isEnd =
+              calendarMode === "PERIOD" &&
+              period.endDate &&
+              isSameDate(date, period.endDate);
+
+            // EXCLUDE 모드에서만 제외일 하이라이트
+            const isExcluded =
+              calendarMode === "EXCLUDE" && excludeDates.includes(key);
 
             let base =
               "relative mx-auto flex h-9 w-9 items-center justify-center rounded-full text-xs transition-colors";
@@ -201,7 +219,7 @@ export function ReservationCalendar() {
         <div className="mt-3 text-[11px] text-slate-400 text-center">
           예약 기간 모드: 첫 클릭 시작일 / 두 번째 클릭 종료일 (다시 클릭 시 새 기간 시작)
           <br />
-          제외일 모드: 예약 기간 안의 날짜를 클릭하면 제외일이 토글됩니다.
+          제외일 모드: 팝업 운영 기간 안의 날짜만 제외일로 설정할 수 있습니다.
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { useParams,useNavigate } from "react-router-dom";
+// src/pages/reservation/PopupReservationSettingPage.jsx
+import { useState, useEffect } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { usePopupReservationStore } from "../../store/popupReservationStore";
 import { formatDateKey } from "../../utils/reservationDateUtils";
 import { apiClient } from "../../api/authApi";
@@ -11,8 +12,10 @@ import { ReservationSummary } from "../../components/reservation/ReservationSumm
 function PopupReservationSettingPage() {
   const { popupId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // 필드별 selector
   const reservationInfo = usePopupReservationStore(
     (state) => state.reservationInfo
   );
@@ -21,6 +24,42 @@ function PopupReservationSettingPage() {
   const excludeDates = usePopupReservationStore(
     (state) => state.excludeDates
   );
+
+  const setPopupPeriod = usePopupReservationStore(
+    (state) => state.setPopupPeriod
+  );
+  const setCalendar = usePopupReservationStore((state) => state.setCalendar);
+  const setCalendarMode = usePopupReservationStore(
+    (state) => state.setCalendarMode
+  );
+
+  // ✅ 팝업 등록 페이지에서 넘긴 "팝업 기간"으로 popupPeriod만 세팅
+  useEffect(() => {
+    const state = location.state;
+    if (!state) return;
+
+    const { popupStartDate, popupEndDate } = state;
+    if (!popupStartDate || !popupEndDate) return;
+
+    const start = new Date(popupStartDate);
+    const end = new Date(popupEndDate);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return;
+    }
+
+    // 팝업 기간 고정
+    setPopupPeriod({ startDate: start, endDate: end });
+
+    // 캘린더는 팝업 시작 월로 이동
+    setCalendar({
+      year: start.getFullYear(),
+      month: start.getMonth(),
+    });
+
+    // 기본 모드는 예약 기간(PERIOD) 모드
+    setCalendarMode("PERIOD");
+  }, [location.state, setPopupPeriod, setCalendar, setCalendarMode]);
 
   const handleSubmit = async () => {
     if (!period.startDate || !period.endDate) {
@@ -55,7 +94,6 @@ function PopupReservationSettingPage() {
       },
       timetables: timetables.map((t) => ({
         dayOfWeek: t.dayOfWeek,
-        // 요일별 팝업 운영 시작/종료 시각
         startTime: t.startTime,
         endTime: t.endTime,
         capacity: t.capacity,
@@ -65,9 +103,12 @@ function PopupReservationSettingPage() {
 
     try {
       setIsSubmitting(true);
-      await apiClient.post(`/api/popup/${popupId}/reservation-setting`, payload);
+      await apiClient.post(
+        `/api/popup/${popupId}/reservation-setting`,
+        payload
+      );
       alert("예약 설정이 저장되었습니다.");
-      navigate("/");
+      navigate(`/popup/${popupId}`);
     } catch (error) {
       console.error(error);
       alert("예약 설정 저장 중 오류가 발생했습니다.");
@@ -83,12 +124,13 @@ function PopupReservationSettingPage() {
           POPUP 예약 등록
         </h1>
 
-        {/* 상단: 왼쪽 폼 + 오른쪽 캘린더 (항상 가로 배치) */}
-        <div className="flex flex-row gap-8">
-          <div className="flex-[7]">
+        {/* 상단: 왼쪽 폼 + 오른쪽 캘린더 */}
+        <div className="flex flex-row gap-8 items-start">
+          {/* 왼쪽을 조금 더 넓게 (6 : 5 비율) */}
+          <div className="flex-[6] flex flex-col">
             <ReservationLeftForm />
           </div>
-          <div className="flex-[5]">
+          <div className="flex-[5] flex flex-col">
             <ReservationCalendar />
           </div>
         </div>
