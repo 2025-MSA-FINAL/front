@@ -17,7 +17,7 @@ export default function ChatRoomItem({ name, img, type }) {
         backdrop-blur-xl
         border border-accent-lemon-soft/50
         shadow-[0_4px_14px_rgba(255,220,150,0.35)] hover:shadow-[0_10px_28px_rgba(255,245,180,0.40)]
-
+        hover:bg-accent-lemon-soft
         hover:-translate-y-0.5
         active:scale-[0.97]
 

@@ -1,13 +1,16 @@
 import { useEffect } from "react";
 import PopupRoomItem from "../common/PopupRoomItem";
 import { useChatPopupStore } from "../../../store/chat/chatPopupStore";
+import LoadingSpinner from "../../common/LoadingSpinner";
 
 export default function PopupRoomSection() {
-  const { popups, fetchPopups, loading } = useChatPopupStore();
+  const { popups, fetchPopups, loading, selectedPopup } = useChatPopupStore();
 
   useEffect(() => {
-    fetchPopups();
-  }, []);
+    if (!selectedPopup) {
+      fetchPopups();
+    }
+  }, [selectedPopup]);
 
   return (
     <section
@@ -17,11 +20,20 @@ export default function PopupRoomSection() {
         rounded-[30px] 
         p-4 
         flex flex-col
+        shadow-card
       "
     >
       <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col gap-4">
-        {loading && (
-          <div className="text-center text-gray-500">불러오는 중...</div>
+        {loading ? (
+          <LoadingSpinner />
+        ) : (
+          popups.map((popup) => (
+            <PopupRoomItem
+              key={popup.popId}
+              name={popup.popName}
+              popup={popup}
+            />
+          ))
         )}
 
         {!loading &&
@@ -29,7 +41,7 @@ export default function PopupRoomSection() {
             <PopupRoomItem
               key={popup.popId}
               name={popup.popName}
-              popup={popup} // ⭐ popup 객체 자체 전달
+              popup={popup}
             />
           ))}
       </div>
