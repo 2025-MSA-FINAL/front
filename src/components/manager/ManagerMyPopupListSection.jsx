@@ -73,7 +73,13 @@ export default function ManagerMyPopupListSection() {
             </div>
 
             {/* 2. 컨트롤 바 (탭 + 정렬) */}
-            <div className="flex flex-col sm:flex-row items-end sm:items-center justify-between gap-2 mb-2 border-b border-secondary-light pb-1">
+            <div className="
+                    flex flex-col sm:flex-row 
+                    items-start sm:items-end    
+                    justify-between 
+                    gap-3 mb-4 
+                    border-b border-secondary-light pb-0
+                ">
                 {/* 좌측: 탭 메뉴 */}
                 <div className="flex-1">
                     <ManagerPopupStatusTabs
