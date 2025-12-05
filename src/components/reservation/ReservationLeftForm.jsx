@@ -1,3 +1,4 @@
+// src/components/reservation/ReservationLeftForm.jsx
 import { usePopupReservationStore } from "../../store/popupReservationStore";
 
 const ENTRY_TIME_UNIT = {
@@ -17,7 +18,7 @@ const WEEKDAYS = [
 ];
 
 export function ReservationLeftForm() {
-  // ❗ 필드별 selector (객체 리턴 X)
+  // 필드별 selector
   const reservationInfo = usePopupReservationStore(
     (state) => state.reservationInfo
   );
@@ -25,22 +26,17 @@ export function ReservationLeftForm() {
     (state) => state.selectedWeekdays
   );
   const timeForm = usePopupReservationStore((state) => state.timeForm);
-  const timetables = usePopupReservationStore((state) => state.timetables);
+  const timetables = usePopupReservationStore((state) => state.timetables); // ✅ 현재 타임테이블들
 
   const setReservationInfo = usePopupReservationStore(
     (state) => state.setReservationInfo
   );
-  const setTimeForm = usePopupReservationStore(
-    (state) => state.setTimeForm
-  );
+  const setTimeForm = usePopupReservationStore((state) => state.setTimeForm);
   const addTimetables = usePopupReservationStore(
     (state) => state.addTimetables
   );
   const toggleWeekday = usePopupReservationStore(
     (state) => state.toggleWeekday
-  );
-  const removeTimetable = usePopupReservationStore(
-    (state) => state.removeTimetable
   );
 
   const handleMaxUserChange = (e) => {
@@ -59,12 +55,12 @@ export function ReservationLeftForm() {
 
   const handleAddTime = () => {
     if (!timeForm.startTime || !timeForm.endTime || !timeForm.capacity) {
-      alert("팝업 시작·종료 시간과 일별 최대 인원을 모두 입력해주세요.");
+      alert("시작시간, 종료시간, 일별 최대 인원을 모두 입력해주세요.");
       return;
     }
 
     if (timeForm.endTime <= timeForm.startTime) {
-      alert("팝업 종료 시간은 시작 시간보다 늦어야 합니다.");
+      alert("종료시간은 시작시간보다 늦어야 합니다.");
       return;
     }
 
@@ -74,23 +70,23 @@ export function ReservationLeftForm() {
       return;
     }
 
-    // ✅ 한 요일에는 하나의 시간대만 유지
-    if (timetables && timetables.length > 0) {
-      const toRemove = [];
-      timetables.forEach((t, idx) => {
-        if (selectedWeekdays.includes(t.dayOfWeek)) {
-          toRemove.push(idx);
-        }
-      });
-      toRemove
-        .sort((a, b) => b - a)
-        .forEach((idx) => removeTimetable(idx));
+    // ✅ 한 요일에는 하나의 시간대만 허용
+    const hasConflict = selectedWeekdays.some((code) =>
+      timetables.some((t) => t.dayOfWeek === code)
+    );
+
+    if (hasConflict) {
+      alert(
+        "선택한 요일 중 이미 시간대가 설정된 요일이 있습니다.\n요약 영역에서 기존 시간대를 삭제하고 다시 추가해주세요."
+      );
+      return;
     }
 
+    // ✅ 여기까지 왔으면 중복 없음 → 그대로 추가
     const entries = selectedWeekdays.map((code) => ({
       dayOfWeek: code,
-      startTime: timeForm.startTime, // 요일별 팝업 시작 시간
-      endTime: timeForm.endTime,     // 요일별 팝업 종료 시간
+      startTime: timeForm.startTime,
+      endTime: timeForm.endTime,
       capacity,
     }));
 
@@ -106,7 +102,7 @@ export function ReservationLeftForm() {
           계정당 최대 예약가능 인원
         </label>
         <select
-          className="w-full rounded-full border border-[#E2D7FF] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
+          className="w-full rounded-full border border-[#E2D7FF] bg-white px-4 pr-8 py-2.5 text-sm outline-none focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
           value={reservationInfo.maxUserCnt ?? ""}
           onChange={handleMaxUserChange}
         >
@@ -143,12 +139,14 @@ export function ReservationLeftForm() {
         </div>
       </div>
 
-      {/* 전역 예약 오픈 시작/종료 시각 (기간과 합쳐서 DTO로 보냄) */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-slate-700">
-            예약 오픈 시작 시각
-          </span>
+      {/* 예약 오픈 시각 (시작/종료 한 줄) */}
+      <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-semibold text-slate-700">
+          예약 오픈 시각
+        </span>
+
+        <div className="flex gap-2">
+          {/* 시작 */}
           <input
             type="time"
             value={reservationInfo.reservationOpenStartTime || ""}
@@ -157,14 +155,10 @@ export function ReservationLeftForm() {
                 reservationOpenStartTime: e.target.value,
               })
             }
-            className="w-full rounded-full border border-[#E2D7FF] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
+            className="w-1/2 rounded-full border border-[#E2D7FF] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
           />
-        </div>
 
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-slate-700">
-            예약 오픈 종료 시각
-          </span>
+          {/* 종료 */}
           <input
             type="time"
             value={reservationInfo.reservationOpenEndTime || ""}
@@ -173,7 +167,7 @@ export function ReservationLeftForm() {
                 reservationOpenEndTime: e.target.value,
               })
             }
-            className="w-full rounded-full border border-[#E2D7FF] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
+            className="w-1/2 rounded-full border border-[#E2D7FF] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
           />
         </div>
       </div>
@@ -181,7 +175,7 @@ export function ReservationLeftForm() {
       {/* 요일 선택 */}
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-semibold text-slate-700">요일 선택</span>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2">
           {WEEKDAYS.map((d) => {
             const active = selectedWeekdays.includes(d.code);
             return (
@@ -202,31 +196,26 @@ export function ReservationLeftForm() {
         </div>
       </div>
 
-      {/* 요일별 팝업 시작/종료 시간 */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-slate-700">
-            팝업 시작 시간
-          </span>
+      {/* 팝업 시작/종료 시간 — 한 줄 (placeholder 세로 정렬 수정) */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex justify-between text-xs font-semibold text-slate-700">
+          <span>팝업 시작시간</span>
+          <span>팝업 종료시간</span>
+        </div>
+        <div className="flex gap-2">
           <input
             type="time"
             name="startTime"
             value={timeForm.startTime}
             onChange={handleTimeFormChange}
-            className="w-full rounded-full border border-[#E2D7FF] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
+            className="w-1/2 h-11 rounded-full border border-[#E2D7FF] bg-white px-4 py-0 text-sm outline-none focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
           />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-slate-700">
-            팝업 종료 시간
-          </span>
           <input
             type="time"
             name="endTime"
             value={timeForm.endTime}
             onChange={handleTimeFormChange}
-            className="w-full rounded-full border border-[#E2D7FF] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
+            className="w-1/2 h-11 rounded-full border border-[#E2D7FF] bg-white px-4 py-0 text-sm outline-none focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
           />
         </div>
       </div>
@@ -247,6 +236,7 @@ export function ReservationLeftForm() {
             className="w-full rounded-full border border-[#E2D7FF] bg-white px-4 py-2.5 text-sm outline-none placeholder:text-slate-300 focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
           />
         </div>
+
         <button
           type="button"
           onClick={handleAddTime}

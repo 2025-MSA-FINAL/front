@@ -1,3 +1,4 @@
+// src/store/popupReservationStore.js
 import { create } from "zustand";
 
 const today = new Date();
@@ -12,6 +13,12 @@ export const usePopupReservationStore = create((set) => ({
     reservationOpenEndTime: "",
   },
 
+  // ✅ 팝업 자체의 운영 기간 (등록 페이지에서 넘어온 값으로 고정)
+  popupPeriod: {
+    startDate: null, // Date
+    endDate: null,   // Date
+  },
+
   // 요일 선택 + 시간 폼 (요일별 팝업 운영 시간)
   selectedWeekdays: ["SUN"], // SUN ~ SAT
   timeForm: {
@@ -23,12 +30,14 @@ export const usePopupReservationStore = create((set) => ({
   // 요일별 타임테이블 (팝업 운영 시간)
   timetables: [], // { dayOfWeek, startTime, endTime, capacity }[]
 
-  // 예약 기간 + 제외일
+  // ✅ 예약 "가능" 기간 (유저가 달력 PERIOD 모드에서 설정하는 값)
   period: {
     startDate: null, // Date
     endDate: null,   // Date
   },
-  excludeDates: [], // ["YYYY-MM-DD", ...]
+
+  // 제외일 (YYYY-MM-DD 배열)
+  excludeDates: [],
 
   // 캘린더 상태
   calendarYear: today.getFullYear(),
@@ -39,6 +48,12 @@ export const usePopupReservationStore = create((set) => ({
   setReservationInfo: (partial) =>
     set((state) => ({
       reservationInfo: { ...state.reservationInfo, ...partial },
+    })),
+
+  // ✅ 팝업 기간 세팅용
+  setPopupPeriod: (partial) =>
+    set((state) => ({
+      popupPeriod: { ...state.popupPeriod, ...partial },
     })),
 
   setTimeForm: (partial) =>
