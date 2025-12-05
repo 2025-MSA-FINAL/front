@@ -9,16 +9,16 @@ export default function ChatRoomItem({ name, img, type }) {
         w-[100px] h-[100px]
         rounded-3xl
         flex flex-col items-center justify-center
-        cursor-pointer flex-shrink-0
+        cursor-pointer shrink-0
         transition-all duration-200 ease-out
 
         /* ★ 밝고 귀여운 파스텔 글라스 */
-        bg-[#FFF7CC]/60
+        bg-accent-lemon-soft/70
         backdrop-blur-xl
-        border border-[#FFEFA3]/70
+        border border-accent-lemon-soft/50
         shadow-[0_4px_14px_rgba(255,220,150,0.35)] hover:shadow-[0_10px_28px_rgba(255,245,180,0.40)]
 
-        hover:-translate-y-[2px]
+        hover:-translate-y-0.5
         active:scale-[0.97]
 
         /* 내부 부드러운 그림자 → 입체감 */

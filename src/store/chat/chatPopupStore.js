@@ -57,26 +57,25 @@ fetchRoomDetail: async (gcrId) => {
 },
 
   // ⭐ 그룹방 참여 → 메시지창 전환
-  joinRoom: async (gcrId) => {
-    try {
-      await joinGroupChatRoom({ gcrId });
+joinRoom: async (gcrId) => {
+  try {
+    await joinGroupChatRoom({ gcrId });
 
-      const detail = await getGroupChatRoomDetail(gcrId);
+    const detail = await getGroupChatRoomDetail(gcrId);
 
-      // ⭐ useChatStore의 activeChatRoom만 수정
-      const { selectRoom } = useChatStore.getState();
-      selectRoom(detail);
+    const { selectRoom } = useChatStore.getState();
+    selectRoom(detail);
 
-      // 그룹방 상세 닫기
-      set({
-        selectedGroupRoom: null,
-        createMode: false,
-      });
+    set({
+      selectedGroupRoom: null,
+      createMode: false,
+    });
 
-    } catch (err) {
-      console.error("채팅방 참여 실패:", err);
-    }
-  },
+  } catch (err) {
+    console.error("채팅방 참여 실패:", err);
+    throw err;  // ★★★ 반드시 다시 throw 해야 alert이 뜸
+  }
+},
 
   // 초기화
   resetPopup: () => {

@@ -13,7 +13,7 @@ export default function PopupRoomSection() {
     <section
       className="
         w-full h-full 
-        bg-rose-200/40
+       bg-primary-soft2/80
         rounded-[30px] 
         p-4 
         flex flex-col
