@@ -1,3 +1,4 @@
+// src/components/reservation/ReservationSummary.jsx
 import { formatDateDisplay } from "../../utils/reservationDateUtils";
 import { usePopupReservationStore } from "../../store/popupReservationStore";
 
@@ -12,15 +13,24 @@ const DAY_LABEL = {
 };
 
 export function ReservationSummary() {
+  // ❗ 각각 따로 selector 사용 (객체 리턴 X)
   const period = usePopupReservationStore((state) => state.period);
-  const excludeDates = usePopupReservationStore(
-    (state) => state.excludeDates
-  );
+  const excludeDates = usePopupReservationStore((state) => state.excludeDates);
   const timetables = usePopupReservationStore((state) => state.timetables);
   const resetPeriod = usePopupReservationStore((state) => state.resetPeriod);
   const removeTimetable = usePopupReservationStore(
     (state) => state.removeTimetable
   );
+
+  // ✅ 한 요일에 하나의 시간대만 보이도록 정리 (같은 요일이면 마지막 값만 사용)
+  const singlePerDayMap = timetables.reduce((acc, t) => {
+    acc[t.dayOfWeek] = t;
+    return acc;
+  }, {});
+
+  const orderedSingleTimetables = Object.keys(DAY_LABEL)
+    .filter((code) => singlePerDayMap[code])
+    .map((code) => singlePerDayMap[code]);
 
   return (
     <div className="mt-6 rounded-3xl bg-gradient-to-br from-[#FBF4FF] to-[#F7F8FF] px-6 py-5">
@@ -30,7 +40,7 @@ export function ReservationSummary() {
           <div className="mb-1 font-semibold flex items-center gap-1">
             <span className="text-[#C65CFF]">●</span> 예약 기간
           </div>
-          {period.startDate && period.endDate ? (
+          {period.startDate && period.endDate && (
             <div className="flex items-center gap-3">
               <span>
                 {formatDateDisplay(period.startDate)} ~{" "}
@@ -44,8 +54,6 @@ export function ReservationSummary() {
                 기간 초기화
               </button>
             </div>
-          ) : (
-            <div className="text-slate-400">선택된 기간이 없습니다.</div>
           )}
         </div>
 
@@ -84,7 +92,7 @@ export function ReservationSummary() {
             </div>
           ) : (
             <ul className="space-y-1.5">
-              {timetables.map((t, idx) => (
+              {orderedSingleTimetables.map((t, idx) => (
                 <li
                   key={`${t.dayOfWeek}-${t.startTime}-${t.endTime}-${idx}`}
                   className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-[11px] shadow-sm"
