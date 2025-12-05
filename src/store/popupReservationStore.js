@@ -116,4 +116,34 @@ export const usePopupReservationStore = create((set) => ({
     })),
 
   setCalendarMode: (mode) => set(() => ({ calendarMode: mode })),
+
+  // ✅ 전체 예약 상태 초기화 (등록 성공 후 사용)
+  resetReservation: () =>
+    set(() => ({
+      reservationInfo: {
+        entryTimeUnit: "ALL_DAY",
+        maxUserCnt: 1,
+        reservationOpenStartTime: "",
+        reservationOpenEndTime: "",
+      },
+      popupPeriod: {
+        startDate: null,
+        endDate: null,
+      },
+      selectedWeekdays: ["SUN"],
+      timeForm: {
+        startTime: "",
+        endTime: "",
+        capacity: "",
+      },
+      timetables: [],
+      period: {
+        startDate: null,
+        endDate: null,
+      },
+      excludeDates: [],
+      calendarYear: today.getFullYear(),
+      calendarMonth: today.getMonth(),
+      calendarMode: "PERIOD",
+    })),
 }));

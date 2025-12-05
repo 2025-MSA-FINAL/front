@@ -33,6 +33,11 @@ function PopupReservationSettingPage() {
     (state) => state.setCalendarMode
   );
 
+  // ✅ 새로 추가: 전체 초기화 함수
+  const resetReservation = usePopupReservationStore(
+    (state) => state.resetReservation
+  );
+
   // ✅ 팝업 등록 페이지에서 넘긴 "팝업 기간"으로 popupPeriod만 세팅
   useEffect(() => {
     const state = location.state;
@@ -108,6 +113,10 @@ function PopupReservationSettingPage() {
         payload
       );
       alert("예약 설정이 저장되었습니다.");
+
+      // ✅ 성공 시 전역 예약 상태 초기화
+      resetReservation();
+
       navigate(`/popup/${popupId}`);
     } catch (error) {
       console.error(error);
