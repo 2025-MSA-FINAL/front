@@ -10,7 +10,11 @@ export default function GroupRoomDetailSection({ room }) {
   if (!room) return null;
 
   const handleJoin = async () => {
-    await joinRoom(room.gcrId); // 참여 + 채팅창으로 이동
+    try {
+      await joinRoom(room.gcrId); // 참여 처리 + activeChatRoom으로 자동 이동
+    } catch (e) {
+      alert(e.response?.data?.message || "참여 실패");
+    }
   };
 
   return (
@@ -95,7 +99,12 @@ export default function GroupRoomDetailSection({ room }) {
       {/* ------------------------------ */}
       <button
         onClick={handleJoin}
-        className="mt-10 px-10 py-3 rounded-full bg-primary-light text-primary-dark"
+        className="
+    mt-12 w-[180px] py-3 rounded-full font-bold
+    text-text-sub border-2 border-primary-light
+    hover:brightness-110 hover:bg-primary-light/50 hover:text-text-black 
+    transition-all shadow-brand active:scale-[0.97]
+  "
       >
         참여하기
       </button>
