@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { uploadImageApi, registerPopupApi } from "../api/popupApi";
 import { extractUploadedUrls } from "../utils/imageUpload";
 import { validatePopup } from "../utils/popupValidation";
+import { buildStartDateTime, buildEndDateTime } from "../utils/popupDate";
+
 
 const MAX_DETAIL_IMAGES = 10;
 
@@ -199,8 +201,8 @@ export function usePopupForm() {
       popName: form.popName,
       popDescription: form.popDescription,
       popLocation: fullLocation,
-      popStartDate: form.popStartDate ? form.popStartDate + ":00" : null,
-      popEndDate: form.popEndDate ? form.popEndDate + ":00" : null,
+      popStartDate: buildStartDateTime(form.popStartDate),
+      popEndDate: buildEndDateTime(form.popEndDate),
       popPrice: priceNumber,
       popInstaUrl: form.popInstaUrl || null,
       popIsReservation: form.popIsReservation,

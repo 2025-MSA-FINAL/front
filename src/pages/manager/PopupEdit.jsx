@@ -11,6 +11,8 @@ import { uploadImageApi } from "../../api/popupApi";
 //Utils
 import { extractUploadedUrls } from "../../utils/imageUpload";
 import { validatePopup } from "../../utils/popupValidation";
+import { buildStartDateTime, buildEndDateTime } from "../../utils/popupDate";
+
 
 //UI Components
 import {
@@ -265,22 +267,13 @@ export default function PopupEdit() {
                 tag.replace(/^#/, "")
             );
 
-            const startDateToSend =
-                form.popStartDate && form.popStartDate.length === 16
-                    ? form.popStartDate + ":00"
-                    : form.popStartDate;
-            const endDateToSend =
-                form.popEndDate && form.popEndDate.length === 16
-                    ? form.popEndDate + ":00"
-                    : form.popEndDate;
-
             const payload = {
                 popName: form.popName,
                 popDescription: form.popDescription,
                 popThumbnail: form.popThumbnail,
                 popLocation: fullLocation,
-                popStartDate: startDateToSend,
-                popEndDate: endDateToSend,
+                popStartDate: buildStartDateTime(form.popStartDate),
+                popEndDate: buildEndDateTime(form.popEndDate),
                 popPriceType: form.popPriceType,
                 popPrice: Number(form.popPrice),
                 popInstaUrl: form.popInstaUrl,
