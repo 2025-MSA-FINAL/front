@@ -6,18 +6,17 @@ export default function ChatSearchBar({ keyword, setKeyword, onSearch }) {
   };
 
   return (
-    <div className="relative w-full flex justify-center">
+    <div className="w-full flex justify-center items-center gap-2">
       {/* 🔍 검색 입력 박스 */}
       <div
         className="
           flex items-center
-          w-[80%] h-[48px] pl-4 pr-14
-          bg-paper
-          border-[2px] border-primary-light
-          rounded-full
-          shadow-sm
+          w-[70%] h-[46px] pl-4 pr-4
+          bg-white
+          border-2 border-primary-soft/70
+          rounded-3xl 
           transition-all duration-200
-          focus-within:border-rose-300/40 focus-within:shadow-dropdown
+          focus-within:border-primary focus-within:shadow-dropdown
         "
       >
         <input
@@ -36,23 +35,19 @@ export default function ChatSearchBar({ keyword, setKeyword, onSearch }) {
         />
       </div>
 
-      {/* 🔍 오른쪽 원형 버튼 */}
+      {/* 🔍 오른쪽 원형 버튼 — 입력창과 완전히 분리됨 */}
       <button
         onClick={onSearch}
         className="
-    absolute right-8 top-1/2 -translate-y-1/2
-    flex items-center justify-center
-    w-[50px] h-[50px]
-    bg-primary
-    rounded-full
-    text-text-white
-    hover:text-text-black
-    hover:bg-rose-300
-    active:scale-95
-    transition-all duration-200
-    shadow-brand
-    cursor-pointer
-  "
+          flex items-center justify-center
+          w-[48px] h-[48px]
+          bg-primary-soft
+          rounded-full
+          text-white
+          hover:bg-primary
+          active:scale-95
+          transition-all duration-200
+        "
         aria-label="검색"
       >
         <svg
@@ -63,7 +58,7 @@ export default function ChatSearchBar({ keyword, setKeyword, onSearch }) {
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="w-5 h-5"
+          className="w-6 h-6"
         >
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />

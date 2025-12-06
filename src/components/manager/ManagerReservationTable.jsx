@@ -26,6 +26,34 @@ function formatPhone(num) {
   return num;
 }
 
+function getStatusLabel(status) {
+  if (status === null || status === undefined) return "-";
+
+  // 1. 문자열로 변환 후 대문자 처리
+  const s = String(status).trim().toUpperCase();
+
+  switch (s) {
+    // 1. 영어 코드 (백엔드 Enum)
+    case "PENDING":   return "예약 대기"; //아직 승인 전
+    case "CONFIRMED": return "예약 완료"; //사용자 페이지와 통일
+    case "CANCELLED": return "예약 취소"; //사용자 페이지와 통일
+    case "CANCELED":  return "예약 취소"; //스펠링 방어 코드
+    case "VISITED":   return "방문 완료";
+    case "NOSHOW":    return "노쇼";
+    
+    // 2. 혹시 boolean으로 올 경우 방어 코드
+    case "TRUE":      return "예약 완료";
+    case "FALSE":     return "예약 취소";
+
+    // 3. 이미 한글로 오는 경우
+    case "대기":      return "예약 대기";
+    case "확정":      return "예약 완료";
+    case "취소":      return "예약 취소";
+
+    default: return status; //알 수 없는 값은 그대로 출력
+  }
+}
+
 export default function ManagerReservationTable({
   reservations,
   page,
@@ -45,8 +73,7 @@ export default function ManagerReservationTable({
             예약자 목록
           </h2>
           <p className="mt-1 text-[13px] text-text-sub">
-            해당 팝업을 예약한 고객 정보를 확인할 수 있어요. (예약 기능은 추후
-            확장 예정)
+            해당 팝업을 예약한 고객 정보를 확인할 수 있어요.
           </p>
         </div>
       </header>
@@ -90,6 +117,7 @@ export default function ManagerReservationTable({
                 <tr className="border-b border-secondary-light text-text-sub">
                   <th className="py-3 pr-4 text-left font-normal">이름</th>
                   <th className="py-3 pr-4 text-left font-normal">전화번호</th>
+                  <th className="py-3 pr-4 text-left font-normal">인원</th>
                   <th className="py-3 pr-4 text-left font-normal">예약일시</th>
                   <th className="py-3 pr-4 text-left font-normal">
                     예약 생성시간
@@ -101,22 +129,33 @@ export default function ManagerReservationTable({
                 {reservations.map((item) => (
                   <tr
                     key={item.reservationId}
-                    className="border-b border-secondary-light last:border-b-0"
+                    className="border-b border-secondary-light last:border-b-0 hover:bg-gray-50 transition-colors"
                   >
-                    <td className="py-3 pr-4 text-text-black">
+                    <td className="py-3 pr-4 text-text-black font-medium">
                       {item.userName ?? "-"}
                     </td>
                     <td className="py-3 pr-4 text-text-black">
                       {formatPhone(item.userPhone)}
                     </td>
+                    {/* 인원수 처리 */}
+                    <td className="py-3 pr-4 text-text-black">
+                      {item.userCount ? `${item.userCount}명` : "-"}
+                    </td>
                     <td className="py-3 pr-4 text-text-black">
                       {formatDateTime(item.reservedDateTime)}
                     </td>
-                    <td className="py-3 pr-4 text-text-black">
+                    <td className="py-3 pr-4 text-text-sub">
                       {formatDateTime(item.createdAt)}
                     </td>
-                    <td className="py-3 pr-4 text-text-sub">
-                      {item.status ? "확정" : "대기"}
+                    {/* 상태 라벨 적용 */}
+                    <td className="py-3 pr-4 font-medium">
+                      <span
+                        className={`
+                          ${String(item.status).includes("CANCEL") ? "text-text-sub" : "text-primary"}
+                        `}
+                      >
+                        {getStatusLabel(item.status)}
+                      </span>
                     </td>
                   </tr>
                 ))}

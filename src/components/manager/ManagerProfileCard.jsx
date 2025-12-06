@@ -95,53 +95,56 @@ export default function ManagerProfileCard({
           기본 이미지로 변경
         </button>
 
-        {/* 정보 카드 – 라벨/값/연필 구조 (MyPage 상단과 동일) */}
+        {/* 정보 카드 – 라벨/값/연필 구조 */}
         <div className="bg-paper rounded-[24px] shadow-card border border-secondary px-14 py-8 w-full max-w-[560px] translate-y-1">
           <div className="space-y-4 text-[15px]">
             {/* 브랜드 명 */}
-            <div className="flex items-center justify-between">
-              <span className="text-text-black w-[90px]">브랜드 명</span>
-              <span className="flex-1 text-text-black font-medium whitespace-nowrap">
+            <div className="flex items-center gap-4">
+              <span className="w-[90px] text-text-black">브랜드 명</span>
+              <span className="flex-1 text-left text-text-black break-all">
                 {displayBrandName}
               </span>
-              <span className="w-[22px]" />
             </div>
 
             {/* 이메일 */}
-            <div className="flex items-center justify-between">
-              <span className="text-text-black w-[90px]">이메일</span>
-              <span className="flex-1 text-text-black whitespace-nowrap">
-                {displayEmail}
-              </span>
-              <button
-                type="button"
-                onClick={onEditEmail}
-                className="text-[14px] text-secondary-dark hover:text-primary-dark"
-                title="이메일 수정"
-              >
-                ✏️
-              </button>
+            <div className="flex items-center gap-4">
+              <span className="w-[90px] text-text-black">이메일</span>
+              <div className="flex flex-1 items-center gap-2">
+                <span className="flex-1 text-left text-text-black break-all">
+                  {displayEmail}
+                </span>
+                <button
+                  type="button"
+                  onClick={onEditEmail}
+                  className="text-[14px] text-secondary-dark hover:text-primary-dark"
+                  title="이메일 수정"
+                >
+                  ✏️
+                </button>
+              </div>
             </div>
 
             {/* 연락처 */}
-            <div className="flex items-center justify-between">
-              <span className="text-text-black w-[90px]">연락처</span>
-              <span className="flex-1 text-text-black whitespace-nowrap">
-                {displayPhone}
-              </span>
-              <button
-                type="button"
-                onClick={onEditPhone}
-                className="text-[14px] text-secondary-dark hover:text-primary-dark"
-                title="연락처 수정"
-              >
-                ✏️
-              </button>
+            <div className="flex items-center gap-4">
+              <span className="w-[90px] text-text-black">연락처</span>
+              <div className="flex flex-1 items-center gap-2">
+                <span className="flex-1 text-left text-text-black">
+                  {displayPhone}
+                </span>
+                <button
+                  type="button"
+                  onClick={onEditPhone}
+                  className="text-[14px] text-secondary-dark hover:text-primary-dark"
+                  title="연락처 수정"
+                >
+                  ✏️
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* 하단 버튼 줄 */}
+        {/* 하단 버튼 줄 (카드 아래 한 줄) */}
         <div className="mt-5 w-full max-w-[560px] flex justify-center text-[13px] text-text-sub">
           <button
             type="button"

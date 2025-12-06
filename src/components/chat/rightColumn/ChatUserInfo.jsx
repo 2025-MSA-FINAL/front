@@ -58,7 +58,7 @@ export default function ChatUserInfo() {
           src={profileImageUrl}
           className="w-9 h-9 rounded-full object-cover shadow-sm bg-white"
         />
-        <span className="text-sm font-medium text-text-black truncate max-w-[120px]">
+        <span className="text-sm font-medium text-text-main truncate max-w-[120px]">
           {username}
         </span>
       </div>
