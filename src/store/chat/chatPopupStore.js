@@ -8,7 +8,7 @@ import {
 
 import { useChatStore } from "./chatStore";  
 
-export const useChatPopupStore = create((set, get) => ({
+export const useChatPopupStore = create((set) => ({
   popups: [],
   selectedPopup: null,
   popupRooms: [],
@@ -17,16 +17,23 @@ export const useChatPopupStore = create((set, get) => ({
   createMode: false,
   error: null,
 
-  // 전체 팝업 불러오기
-  fetchPopups: async () => {
-    try {
-      set({ loading: true });
-      const data = await getAllPopups();
-      set({ popups: data.popups ?? [], loading: false });
-    } catch (err) {
-      set({ loading: false, error: err });
-    }
-  },
+  // 팝업 불러오기
+fetchPopups: async (keyword = "") => {
+  try {
+    set({ loading: true });
+    const data = await getAllPopups(keyword);
+
+    set({
+      popups: data.popups ?? [],
+      loading: false,
+    });
+
+  } catch (err) {
+    console.error("팝업 목록 조회 실패:", err);
+    set({ loading: false, error: err });
+  }
+},
+
 
   // 팝업 선택
   selectPopup: (popup) => set({ selectedPopup: popup }),
