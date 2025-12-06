@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-import logo from "../../assets/logo.png";
+import logo from "../../assets/WhiteLogo.png";
 import debounce from "../../utils/debounce";
 
 import MyChatRoomSection from "../../components/chat/leftColumn/MyChatRoomSection";
@@ -38,11 +38,11 @@ export default function ChatMainPage() {
   }, [keyword]);
 
   return (
-    <div className="w-full h-screen flex p-5 gap-5">
+    <div className="w-full h-screen bg-primary-dark flex p-5 gap-5">
       {/* LEFT COLUMN */}
       <div className="w-[5%] min-w-[140px] h-full flex flex-col items-center">
         {/* 상단 로고 */}
-        <div className="h-[60px] flex items-center justify-center">
+        <div className="h-[60px] flex items-center">
           <img
             src={logo}
             alt="Popspot Logo"
@@ -82,7 +82,7 @@ export default function ChatMainPage() {
         </div>
 
         {/* 채팅창 */}
-        <div className="flex-1 min-h-0 w-full shadow-card rounded-2xl">
+        <div className="flex-1 min-h-0 w-full shadow-card rounded-2xl bg-paper">
           {createMode ? (
             <GroupRoomCreateForm />
           ) : activeChatRoom ? (

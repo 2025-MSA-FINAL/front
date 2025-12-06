@@ -13,9 +13,9 @@ export default function ChatRoomItem({ name, img, type }) {
         transition-all duration-200 ease-out
 
         /* ★ 밝고 귀여운 파스텔 글라스 */
-        bg-accent-lemon-soft/70
+        bg-secondary-light
         backdrop-blur-xl
-        border border-accent-lemon-soft/50
+        border border-white
         shadow-[0_4px_14px_rgba(255,220,150,0.35)] hover:shadow-[0_10px_28px_rgba(255,245,180,0.40)]
         hover:bg-accent-lemon-soft
         hover:-translate-y-0.5
@@ -40,14 +40,6 @@ export default function ChatRoomItem({ name, img, type }) {
             rgba(255,255,255,0)
           )]
           blur-2xl
-        "
-      ></div>
-
-      {/* 위쪽 립(Edge Highlight) */}
-      <div
-        className="
-          absolute top-0 left-0 w-full h-[30%]
-          bg-white/45 rounded-t-3xl blur-xl pointer-events-none
         "
       ></div>
 

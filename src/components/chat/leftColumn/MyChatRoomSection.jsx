@@ -76,7 +76,7 @@ export default function MyChatRoomSection() {
         <div className="w-[100px] h-[40px] flex items-center justify-center mt-2 pointer-events-none shrink-0">
           <ExpandDownDouble
             size={28}
-            className="text-secondary-dark animate-float-down"
+            className="text-secondary-light animate-float-down"
           />
         </div>
       )}
