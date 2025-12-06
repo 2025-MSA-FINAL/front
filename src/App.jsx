@@ -14,6 +14,7 @@ import PopupDetailPage from "./pages/popup/PopupDetailPage.jsx";
 import ManagerMyPage from "./pages/manager/ManagerMyPage.jsx";
 import ChatMainPage from "./pages/chat/ChatMainPage.jsx";
 import ManagerPopupDetailPage from "./pages/manager/ManagerPopupDetailPage.jsx";
+import PopupEdit from "./pages/manager/PopupEdit.jsx";
 import PopupReservationSettingPage from "./pages/reservation/PopupReservationSettingPage.jsx"; 
 
 //관리자 페이지
@@ -60,7 +61,12 @@ function App() {
           <Route path="/manager" element={<ManagerMyPage />} />
 
           <Route path="/manager/popup/:popupId" element={<ManagerPopupDetailPage />} />
+
+
+          {/* 팝업 수정 페이지 */}
+          <Route path="/manager/popup/:popupId/edit" element={<PopupEdit />} />
           
+
           {/* ✅ 팝업 예약 설정 페이지 */}
           <Route
             path="/manager/popup/:popupId/reservation"
