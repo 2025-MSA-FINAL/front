@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { uploadImageApi, registerPopupApi } from "../api/popupApi";
+import { extractUploadedUrls } from "../utils/imageUpload";
 
 const MAX_DETAIL_IMAGES = 10;
 
@@ -177,74 +178,30 @@ export function usePopupForm() {
   const handleImageUpload = async (files, type) => {
     if (!files || files.length === 0) return;
 
-    // 상세 이미지 개수 제한
-    if (type === "detail" && (form.popImages?.length || 0) >= MAX_DETAIL_IMAGES) {
+    if (type === "detail" && form.popImages.length >= MAX_DETAIL_IMAGES) {
       alert(`상세 이미지는 최대 ${MAX_DETAIL_IMAGES}장까지 업로드할 수 있어요.`);
       return;
     }
 
     try {
       setIsUploading(true);
-
-      // FileList 그대로 전달
       const response = await uploadImageApi(files);
 
-      if (!response) {
-        console.warn("업로드 API 응답이 없습니다.", response);
-        return;
-      }
-
-      let uploadedUrls = [];
-
-      // 여러 장 업로드: [{ url, key }, ...] 또는 ["url1", "url2", ...]
-      if (Array.isArray(response)) {
-        if (response.length > 0 && typeof response[0] === "string") {
-          uploadedUrls = response;
-        } else if (response.length > 0 && response[0].url) {
-          uploadedUrls = response.map((item) => item.url);
-        }
-      }
-      // 한 장 업로드: { url, key }
-      else if (response && response.url) {
-        uploadedUrls = [response.url];
-      }
-      // 혹시 { urls: [...] } 같은 형태도 대비
-      else if (Array.isArray(response?.urls)) {
-        uploadedUrls = response.urls;
-      }
-
-      if (!uploadedUrls || uploadedUrls.length === 0) {
-        console.warn("업로드 API 응답 형식을 확인해 주세요.", response);
-        return;
-      }
+      const uploadedUrls = extractUploadedUrls(response);
+      if (!uploadedUrls || uploadedUrls.length === 0) return;
 
       setForm((prev) => {
         if (type === "thumbnail") {
-          return {
-            ...prev,
-            popThumbnail: uploadedUrls[0],
-          };
+          return { ...prev, popThumbnail: uploadedUrls[0] };
         }
-
         if (type === "detail") {
-          const already = prev.popImages?.length || 0;
-          const remain = Math.max(MAX_DETAIL_IMAGES - already, 0);
-
-          const nextImages = [
-            ...(prev.popImages || []),
-            ...uploadedUrls.slice(0, remain),
-          ];
-
-          return {
-            ...prev,
-            popImages: nextImages,
-          };
+          const current = prev.popImages || [];
+          const remain = MAX_DETAIL_IMAGES - current.length;
+          const toAdd = uploadedUrls.slice(0, remain);
+          return { ...prev, popImages: [...current, ...toAdd] };
         }
-
         return prev;
       });
-
-      markFieldTouched(type === "thumbnail" ? "popThumbnail" : "popImages");
     } catch (error) {
       console.error("이미지 업로드 실패:", error);
       alert("이미지 업로드 중 오류가 발생했습니다.");
