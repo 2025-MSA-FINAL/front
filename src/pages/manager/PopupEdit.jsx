@@ -2,10 +2,15 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 //API
-import { fetchManagerPopupDetailApi, updateManagerPopupBasicApi } from "../../api/managerApi";
+import {
+    fetchManagerPopupDetailApi,
+    updateManagerPopupBasicApi,
+} from "../../api/managerApi";
 import { uploadImageApi } from "../../api/popupApi";
 
+//Utils
 import { extractUploadedUrls } from "../../utils/imageUpload";
+import { validatePopup } from "../../utils/popupValidation";
 
 //UI Components
 import {
@@ -15,15 +20,18 @@ import {
     TextArea,
     TagInput,
     AddressInput,
-    InputWrapper
+    InputWrapper,
 } from "../../components/form/FormFields";
-import { ThumbnailUploader, DetailImageUploader } from "../../components/popup/ImageUploader";
+import {
+    ThumbnailUploader,
+    DetailImageUploader,
+} from "../../components/popup/ImageUploader";
 import PrimaryButton from "../../components/button/PrimaryButton";
 import OutlineButton from "../../components/button/OutlineButton";
 
 const MAX_DETAIL_IMAGES = 10;
 
-//날짜 변환 함수 (Date 객체 -> 문자열 "YYYY-MM-DDTHH:mm")
+//날짜 변환 함수 
 function toDatetimeLocal(dateStr) {
     if (!dateStr) return "";
     const d = new Date(dateStr);
@@ -46,7 +54,7 @@ export default function PopupEdit() {
     const [submitting, setSubmitting] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
 
-    // 폼 상태
+    //폼 상태
     const [form, setForm] = useState({
         popName: "",
         popDescription: "",
@@ -63,6 +71,33 @@ export default function PopupEdit() {
         popIsReservation: false,
     });
 
+    //에러 / 터치 상태
+    const [touched, setTouched] = useState({});
+    const errors = validatePopup(form);
+
+    const handleBlur = (e) => {
+        const { name } = e.target || {};
+        if (!name) return;
+        setTouched((prev) => ({ ...prev, [name]: true }));
+    };
+
+    const markAllTouched = () => {
+        setTouched((prev) => ({
+            ...prev,
+            popName: true,
+            popDescription: true,
+            popLocation: true,
+            locationDetail: true,
+            popStartDate: true,
+            popEndDate: true,
+            popPrice: true,
+            popInstaUrl: true,
+            popThumbnail: true,
+            popImages: true,
+            hashtags: true,
+        }));
+    };
+
     // 1. 기존 데이터 불러오기
     useEffect(() => {
         async function loadData() {
@@ -70,7 +105,7 @@ export default function PopupEdit() {
             try {
                 const data = await fetchManagerPopupDetailApi(popupId);
 
-                //주소 처리 (상세주소 분리 없이 전체 주소로 매핑)
+                //주소 처리
                 const fullAddress = data.popLocation || "";
 
                 setForm({
@@ -107,17 +142,17 @@ export default function PopupEdit() {
     const handleChange = (e) => {
         const { name, value } = e.target;
 
-        // 가격 숫자 처리
+        //가격 숫자 처리
         if (name === "popPrice") {
             const numeric = String(value).replace(/[^0-9]/g, "");
-            setForm(prev => ({ ...prev, [name]: numeric }));
+            setForm((prev) => ({ ...prev, [name]: numeric }));
             return;
         }
 
         setForm((prev) => ({ ...prev, [name]: value }));
     };
 
-    // 태그 핸들러
+    //태그 핸들러
     const addTag = (rawTag) => {
         const trimmed = rawTag.trim();
         if (!trimmed) return;
@@ -131,6 +166,7 @@ export default function PopupEdit() {
             if (current.includes(normalized)) return prev;
             return { ...prev, hashtags: [...current, normalized] };
         });
+        setTouched((prev) => ({ ...prev, hashtags: true }));
     };
 
     const removeTag = (tagToRemove) => {
@@ -138,6 +174,7 @@ export default function PopupEdit() {
             ...prev,
             hashtags: prev.hashtags.filter((t) => t !== tagToRemove),
         }));
+        setTouched((prev) => ({ ...prev, hashtags: true }));
     };
 
     // =========================================
@@ -155,7 +192,7 @@ export default function PopupEdit() {
             setIsUploading(true);
             const response = await uploadImageApi(files);
 
-            const uploadedUrls = extractUploadedUrls(response); 
+            const uploadedUrls = extractUploadedUrls(response);
             if (!uploadedUrls || uploadedUrls.length === 0) return;
 
             setForm((prev) => {
@@ -170,6 +207,13 @@ export default function PopupEdit() {
                 }
                 return prev;
             });
+
+            // 업로드 성공 시 touched 처리
+            if (type === "thumbnail") {
+                setTouched((prev) => ({ ...prev, popThumbnail: true }));
+            } else if (type === "detail") {
+                setTouched((prev) => ({ ...prev, popImages: true }));
+            }
         } catch (error) {
             console.error("이미지 업로드 실패:", error);
             alert("이미지 업로드 중 오류가 발생했습니다.");
@@ -183,6 +227,7 @@ export default function PopupEdit() {
             ...prev,
             popImages: prev.popImages.filter((_, i) => i !== index),
         }));
+        setTouched((prev) => ({ ...prev, popImages: true }));
     };
 
     const moveDetailImage = (dragIndex, hoverIndex) => {
@@ -191,19 +236,21 @@ export default function PopupEdit() {
         arr.splice(dragIndex, 1);
         arr.splice(hoverIndex, 0, draggedItem);
         setForm((prev) => ({ ...prev, popImages: arr }));
+        setTouched((prev) => ({ ...prev, popImages: true }));
     };
 
     // =========================================
     // 4. 수정 저장 핸들러
     // =========================================
     const handleSubmit = async () => {
-        if (!form.popName.trim()) return alert("팝업 이름을 입력해주세요.");
-        if (!form.popStartDate || !form.popEndDate) return alert("기간을 설정해주세요.");
+        //공용 검증 함수 사용
+        const currentErrors = validatePopup(form);
 
-        // 문자열 비교 (ISO 포맷이라 문자열 비교 가능)
-        if (form.popStartDate > form.popEndDate) return alert("종료일은 시작일보다 이후여야 합니다.");
-        if (!form.popThumbnail) return alert("대표 이미지는 필수입니다.");
-        if (form.popImages.length === 0) return alert("상세 이미지를 최소 1장 등록해주세요.");
+        if (Object.keys(currentErrors).length > 0) {
+            markAllTouched();
+            alert("필수 정보를 확인해 주세요.");
+            return;
+        }
 
         if (!window.confirm("수정하시겠습니까?")) return;
 
@@ -214,10 +261,18 @@ export default function PopupEdit() {
                 .join(" ")
                 .trim();
 
-            const cleanHashtags = form.hashtags.map(tag => tag.replace(/^#/, ""));
+            const cleanHashtags = (form.hashtags || []).map((tag) =>
+                tag.replace(/^#/, "")
+            );
 
-            const startDateToSend = form.popStartDate.length === 16 ? form.popStartDate + ":00" : form.popStartDate;
-            const endDateToSend = form.popEndDate.length === 16 ? form.popEndDate + ":00" : form.popEndDate;
+            const startDateToSend =
+                form.popStartDate && form.popStartDate.length === 16
+                    ? form.popStartDate + ":00"
+                    : form.popStartDate;
+            const endDateToSend =
+                form.popEndDate && form.popEndDate.length === 16
+                    ? form.popEndDate + ":00"
+                    : form.popEndDate;
 
             const payload = {
                 popName: form.popName,
@@ -244,7 +299,6 @@ export default function PopupEdit() {
         }
     };
 
-
     if (loading) {
         return (
             <div className="min-h-screen bg-secondary-light flex items-center justify-center text-text-sub">
@@ -255,22 +309,20 @@ export default function PopupEdit() {
 
     return (
         <div className="min-h-screen bg-secondary-light flex flex-col items-center pt-[80px] sm:pt-[96px] lg:pt-[104px] pb-20">
-
             <h1 className="text-headline-lg sm:text-display-sm font-normal mb-10 sm:mb-12 text-text-black">
                 팝업 스토어 정보 수정
             </h1>
 
             <div className="w-full flex justify-center px-4">
                 <div className="w-full max-w-[1200px] mx-auto bg-paper rounded-card shadow-card px-8 py-10 sm:px-12 sm:py-12 xl:px-16 xl:py-14 flex flex-col xl:flex-row gap-10 xl:gap-24">
-
                     {/* 왼쪽: 이미지 업로드 */}
                     <div className="w-full max-w-[420px] mx-auto xl:w-[420px] xl:max-w-none xl:mx-0 2xl:w-[460px] xl:flex-shrink-0">
                         <ThumbnailUploader
                             previewUrl={form.popThumbnail}
                             onUpload={(files) => handleImageUpload(files, "thumbnail")}
                             isUploading={isUploading}
-                            touched={false}
-                            error={null}
+                            touched={touched.popThumbnail}
+                            error={errors.popThumbnail}
                         />
                         <DetailImageUploader
                             images={form.popImages}
@@ -279,8 +331,8 @@ export default function PopupEdit() {
                             onMove={moveDetailImage}
                             isUploading={isUploading}
                             maxCount={MAX_DETAIL_IMAGES}
-                            touched={false}
-                            error={null}
+                            touched={touched.popImages}
+                            error={errors.popImages}
                         />
                     </div>
 
@@ -291,8 +343,11 @@ export default function PopupEdit() {
                             name="popName"
                             value={form.popName}
                             onChange={handleChange}
+                            onBlur={handleBlur}
                             placeholder="텍스트 입력"
                             required
+                            error={errors.popName}
+                            touched={touched.popName}
                         />
 
                         <DateInput
@@ -300,7 +355,11 @@ export default function PopupEdit() {
                             startDate={form.popStartDate}
                             endDate={form.popEndDate}
                             onChange={handleChange}
+                            onBlurStart={handleBlur}
+                            onBlurEnd={handleBlur}
                             required
+                            error={errors.popDateRange}
+                            touched={touched.popStartDate || touched.popEndDate}
                         />
 
                         <AddressInput
@@ -311,6 +370,8 @@ export default function PopupEdit() {
                             detailValue={form.locationDetail}
                             onChange={handleChange}
                             required
+                            error={errors.popLocation}
+                            touched={touched.popLocation}
                         />
 
                         <TextArea
@@ -318,8 +379,11 @@ export default function PopupEdit() {
                             name="popDescription"
                             value={form.popDescription}
                             onChange={handleChange}
+                            onBlur={handleBlur}
                             placeholder="설명을 입력해 주세요"
                             required
+                            error={errors.popDescription}
+                            touched={touched.popDescription}
                         />
 
                         <PriceInput
@@ -327,7 +391,10 @@ export default function PopupEdit() {
                             name="popPrice"
                             value={form.popPrice}
                             onChange={handleChange}
+                            onBlur={handleBlur}
                             required
+                            error={errors.popPrice}
+                            touched={touched.popPrice}
                         />
 
                         <TagInput
@@ -336,6 +403,8 @@ export default function PopupEdit() {
                             onAdd={addTag}
                             onRemove={removeTag}
                             required
+                            error={errors.hashtags}
+                            touched={touched.hashtags}
                         />
 
                         <TextInput
@@ -343,14 +412,19 @@ export default function PopupEdit() {
                             name="popInstaUrl"
                             value={form.popInstaUrl}
                             onChange={handleChange}
+                            onBlur={handleBlur}
                             placeholder="링크 입력"
+                            error={errors.popInstaUrl}
+                            touched={touched.popInstaUrl}
                         />
 
                         {/* 예약 유무는 수정 불가 (읽기 전용 UI) */}
                         <InputWrapper label="팝업 스토어 예약 유무">
                             <div className="w-full h-[50px] px-4 border-[1.5px] border-secondary bg-gray-100 rounded-[16px] flex items-center justify-between text-body-lg text-text-sub cursor-not-allowed">
                                 <span>
-                                    {form.popIsReservation ? "예약 기능 사용" : "예약 기능 미사용 (현장 대기)"}
+                                    {form.popIsReservation
+                                        ? "예약 기능 사용"
+                                        : "예약 기능 미사용 (현장 대기)"}
                                 </span>
                                 <span className="text-label-sm text-text-sub/60">
                                     * 등록 후 변경 불가
@@ -380,7 +454,6 @@ export default function PopupEdit() {
                             </PrimaryButton>
                         </div>
                     </div>
-
                 </div>
             </div>
         </div>
