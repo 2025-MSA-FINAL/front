@@ -6,9 +6,9 @@ function MainPage() {
   const user = useAuthStore((s) => s.user);
 
   return (
-    <main className="min-h-[calc(100vh-88px)] flex items-center justify-center px-4 py-12 bg-secondary-light">
+    <main className="min-h-[calc(100vh-88px)] flex items-center justify-center px-4 py-12">
       <div className="bg-paper rounded-card shadow-card px-8 py-10 max-w-xl w-full">
-        <h1 className="text-[24px] font-bold text-text-black mb-3">
+        <h1 className="text-[24px] font-bold text-text-black mb-3 rounded-[]">
           임시 메인 페이지
         </h1>
         {user ? (
