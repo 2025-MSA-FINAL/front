@@ -32,15 +32,16 @@ export async function changeManagerPasswordApi(payload) {
 // ================================
 
 //내가 등록한 팝업 목록 조회
-//params: { page, size, status, sort } 
 export async function fetchManagerPopupListApi(params = {}) {
   const { sort, ...rest } = params;
 
+  //백엔드 요청 파라미터 매핑
   const query = { 
     ...rest, 
     sortBy: sort 
   };
 
+  //null, undefined, 빈 문자열 파라미터 제거
   Object.keys(query).forEach((key) => {
     if (
       query[key] === undefined ||
@@ -91,11 +92,17 @@ export async function fetchManagerReservationListApi(popId, params = {}) {
 }
 
 // ================================
-// 4. 팝업 기본 정보 수정
+// 4. 팝업 수정 및 삭제 (CRUD)
 // ================================
 
-//팝업 기본 정보 수정 (제목, 날짜, 가격 등)
+//팝업 기본 정보 수정
 export async function updateManagerPopupBasicApi(popId, dto) {
   if (!popId) throw new Error("popId가 없습니다.");
   return apiClient.patch(`/api/managers/popups/${popId}`, dto);
+}
+
+//팝업 삭제 (Soft Delete)
+export async function deleteManagerPopupApi(popId) {
+  if (!popId) throw new Error("popId가 없습니다.");
+  return apiClient.delete(`/api/managers/popups/${popId}`);
 }
