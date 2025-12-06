@@ -23,6 +23,7 @@ import Users from "./pages/admin/Users.jsx";
 import Popups from "./pages/admin/Popups.jsx";
 import Reports from "./pages/admin/Reports.jsx";
 import ChatRooms from "./pages/admin/ChatRooms.jsx";
+import UserReportPage from "./pages/user/UserReportPage.jsx";
 
 
 function App() {
@@ -70,6 +71,7 @@ function App() {
             path="/manager/popup/:popupId"
             element={<ManagerPopupDetailPage />}
           />
+          <Route path="/me/report" element={<UserReportPage/>} />
         </Route>
 
         {/* NavBar 없는 페이지 (채팅 + 관리자 등) */}
