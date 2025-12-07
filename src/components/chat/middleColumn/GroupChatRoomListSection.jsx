@@ -20,27 +20,25 @@ export default function GroupChatRoomListSection() {
 
   const { exitRoom, selectRoom } = useChatStore();
 
-  // ⭐ 팝업 선택되면 그 팝업의 그룹채팅방 목록 불러오기
+  // 선택된 팝업의 방 목록 불러오기
   useEffect(() => {
-    if (selectedPopup) {
-      fetchPopupRooms(selectedPopup.popId);
-    }
+    if (selectedPopup) fetchPopupRooms(selectedPopup.popId);
   }, [selectedPopup, fetchPopupRooms]);
 
   return (
     <section
       className="
         w-full h-full
-        bg-primary-soft2/80
-        rounded-[30px]
-        p-4 flex flex-col shadow-card
+        bg-primary-soft2
+        rounded-[24px]
+        p-4 flex flex-col
+        border border-primary-soft
+        shadow-[0_2px_8px_rgba(0,0,0,0.06)]
       "
     >
-      {/* ---------------------------- */}
       {/* HEADER */}
-      {/* ---------------------------- */}
       <div className="flex items-center justify-between mb-4 w-full overflow-hidden">
-        {/* Back Button + Popup Name */}
+        {/* Back + Popup Title */}
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={resetPopup}
@@ -58,48 +56,47 @@ export default function GroupChatRoomListSection() {
           </p>
         </div>
 
-        {/* Create Button */}
+        {/* ⭐ 채팅 생성 버튼 (ghost3 위치 절대 변경 X) */}
         <div
           onClick={() => openCreateForm()}
           className="
             group relative flex-shrink-0 cursor-pointer ml-3
-            transition-transform duration-[220ms]
-            [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]
-            hover:-translate-y-[2px] hover:scale-[1.015]
-            active:translate-y-[1px] active:scale-[0.985]
+            transition-transform duration-200
+            hover:-translate-y-[2px] active:translate-y-[1px]
           "
         >
           <div className="relative w-[136px] h-[40px]">
+            {/* 버튼 바디 (Flat White + Soft Border) */}
             <div
               className="
                 absolute top-[7px] left-[20px]
                 w-[110px] h-[32px]
-                bg-white rounded-[10px] border border-[#dddfe2]
-                transition-colors duration-[220ms]
-                [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]
+                bg-white border border-primary-soft
+                rounded-[10px]
+                shadow-[0_2px_6px_rgba(0,0,0,0.05)]
+                transition-all
                 group-hover:border-primary-light
-                group-hover:shadow-hover
+                group-hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)]
               "
             />
 
+            {/* ghost3 — 위치/크기 수정 금지 */}
             <img
               src={ghost3}
               alt="ghost-create"
               className="
                 absolute top-1 left-4 w-[37px] h-[37px] object-cover
-                transition-transform duration-[220ms]
-                [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]
+                transition-transform duration-200
                 group-hover:scale-[1.05]
               "
             />
 
+            {/* 텍스트 */}
             <div
               className="
                 absolute top-[16px] left-[62px]
-                text-accent-pink text-[14px] font-semibold
+                text-primary-dark text-[14px] font-semibold
                 whitespace-nowrap leading-none
-                transition-colors duration-200
-                group-hover:text-accent-pink
               "
             >
               채팅 생성
@@ -108,10 +105,8 @@ export default function GroupChatRoomListSection() {
         </div>
       </div>
 
-      {/* ---------------------------- */}
       {/* GROUP ROOM LIST */}
-      {/* ---------------------------- */}
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col gap-4">
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col gap-3">
         {loading && (
           <div className="flex justify-center items-center w-full h-full">
             <LoadingSpinner />
@@ -119,7 +114,7 @@ export default function GroupChatRoomListSection() {
         )}
 
         {!loading && popupRooms.length === 0 && (
-          <div className="text-center text-secondary-dark">
+          <div className="text-center text-secondary-dark text-[15px] mt-4">
             이 팝업에는 채팅방이 없습니다.
           </div>
         )}
@@ -129,15 +124,19 @@ export default function GroupChatRoomListSection() {
             <div
               key={room.gcrId}
               className="
-                group relative w-full 
-                rounded-2xl px-4 py-4 
-                cursor-pointer flex items-center justify-between
+                group relative w-full
+                rounded-2xl px-4 py-4
+                flex items-center justify-between
+                cursor-pointer
                 transition-all duration-200 ease-out
-                bg-white/55 backdrop-blur-xl
-                border border-primary-soft2/80
-                shadow-[0_4px_12px_rgba(180, 140, 255, 0.23)]
-                hover:shadow-[0_10px_24px_rgba(180, 140, 255, 0.32)]
+
+                bg-white
+                border border-primary-soft
+                shadow-[0_2px_6px_rgba(0,0,0,0.05)]
+
                 hover:-translate-y-[2px]
+                hover:shadow-[0_6px_14px_rgba(0,0,0,0.08)]
+                hover:border-primary-light
               "
               onClick={async () => {
                 if (room.joined) {
@@ -150,36 +149,32 @@ export default function GroupChatRoomListSection() {
                 await fetchRoomDetail(room.gcrId);
               }}
             >
-              <div
-                className="
-                  absolute inset-0 rounded-2xl opacity-0
-                  group-hover:opacity-100
-                  bg-white/35 backdrop-blur-xl
-                  border border-white/30
-                  transition-all duration-200
-                "
-              />
-
-              <div className="flex items-center gap-3 overflow-hidden flex-1 relative z-10">
+              {/* 아이콘 */}
+              <div className="flex items-center gap-3 relative z-10 flex-1 min-w-0">
                 {room.joined ? (
-                  <LockOpenIcon className="w-6 h-6 text-secondary-dark shrink-0" />
+                  <LockOpenIcon className="w-6 h-6 text-secondary-dark" />
                 ) : (
-                  <LockClosedIcon className="w-6 h-6 text-secondary-dark shrink-0" />
+                  <LockClosedIcon className="w-6 h-6 text-secondary-dark" />
                 )}
 
-                <p className="font-semibold text-text-black text-[15px] truncate w-full">
+                <p
+                  className="
+      font-semibold text-text-black text-[15px]
+      truncate overflow-hidden whitespace-nowrap
+    "
+                >
                   {room.title}
                 </p>
               </div>
 
+              {/* 참여 여부 뱃지 */}
               <span
                 className={`
-                  relative z-10 px-4 py-1 rounded-full shrink-0 text-[13px] font-bold
-                  transition
+                  px-4 py-1 rounded-full text-[13px] font-bold shrink-0
                   ${
                     room.joined
-                      ? "bg-accent-lemon-soft/70 text-text-black"
-                      : "bg-accent-pink/65 text-text-white"
+                      ? "bg-accent-lemon-soft text-text-black"
+                      : "bg-accent-pink-soft text-text-black"
                   }
                 `}
               >
