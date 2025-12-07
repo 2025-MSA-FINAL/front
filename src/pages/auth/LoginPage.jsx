@@ -1,4 +1,5 @@
 // src/pages/auth/LoginPage.jsx
+
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import PrimaryButton from "../../components/button/PrimaryButton.jsx";
@@ -8,13 +9,17 @@ import kakaoBtn from "../../assets/kakaoBtn.png";
 import logo from "../../assets/logo.png";
 import ghost1 from "../../assets/ghost1.png";
 import naverBtn from "../../assets/naverbtn.png";
-import googleBtn from "../../assets/googleBtn.png";   // ✅ 추가
+import googleBtn from "../../assets/googleBtn.png";
+
+import { EyeIcon, EyeOffIcon } from "../../components/icon/EyeIcons.jsx"; // 👈 공용 아이콘
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 const NAVER_AUTH_URL = `${API_BASE}/oauth2/authorization/naver`;
 
 function LoginPage() {
   const [form, setForm] = useState({ loginId: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false); // 👈 비밀번호 보기 상태
+
   const navigate = useNavigate();
 
   const login = useAuthStore((s) => s.login);
@@ -61,18 +66,16 @@ function LoginPage() {
   return (
     <main className="min-h-[calc(100vh-88px)] flex items-center justify-center px-4 py-12 bg-secondary-light">
       <div className="flex max-w-[900px] w-full bg-paper rounded-card shadow-card overflow-hidden flex-col md:flex-row">
-
         {/* Left */}
         <section className="flex-[0.9] bg-primary-light flex flex-col items-center justify-center px-10 py-12 gap-4">
-          <div className="w-[120px] h-[120px] rounded-full bg-paper flex items-center justify-center mb-4 shadow-card overflow-hidden">
-            <img src={ghost1} alt="ghost" className="w-[80px] h-[80px]" />
-          </div>
-
+          {/* 👇 동그란 div 삭제, 이미지만 남김 */}
           <img
-            src={logo}
-            alt="logo"
-            className="w-[120px] object-contain"
+            src={ghost1}
+            alt="ghost"
+            className="w-[80px] h-[80px] mb-4 object-contain"
           />
+
+          <img src={logo} alt="logo" className="w-[120px] object-contain" />
 
           <p className="mt-2 text-[14px] text-text-black text-center leading-relaxed">
             당신이 관심있는 팝업 스토어를
@@ -83,11 +86,10 @@ function LoginPage() {
 
         {/* Right */}
         <section className="flex-[1.1] bg-paper px-8 md:px-14 py-10">
-          <h2 className="text-[22px] font-bold text-text-black mb-6">
-            로그인
-          </h2>
+          <h2 className="text-[22px] font-bold text-text-black mb-6">로그인</h2>
 
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+            {/* 아이디 */}
             <label className="flex flex-col gap-1.5 text-[13px] text-text-sub">
               아이디
               <input
@@ -101,17 +103,30 @@ function LoginPage() {
               />
             </label>
 
+            {/* 비밀번호 + 눈 아이콘 */}
             <label className="flex flex-col gap-1.5 text-[13px] text-text-sub">
               비밀번호
-              <input
-                type="password"
-                name="password"
-                placeholder="비밀번호 입력"
-                className="w-full px-3 py-2.5 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-                value={form.password}
-                onChange={handleChange}
-                disabled={loading}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="비밀번호 입력"
+                  className="w-full px-3 py-2.5 pr-10 rounded-input border border-secondary text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                  value={form.password}
+                  onChange={handleChange}
+                  disabled={loading}
+                />
+
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  tabIndex={-1}
+                  aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+                >
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
+              </div>
             </label>
 
             <PrimaryButton
@@ -133,43 +148,39 @@ function LoginPage() {
 
           {/* Social buttons */}
           <div className="grid grid-cols-3 gap-2 mb-4 h-[40px]">
-
-            {/* 네이버 */}
             <button
+              className="w-full h-full rounded-[8px]"
               type="button"
-              className="w-full h-full"
               onClick={handleNaverLogin}
             >
               <img
                 src={naverBtn}
                 alt="naver-login"
-                className="w-full h-full object-contain block"
+                className="object-scale-down w-full h-full rounded-[8px]"
               />
             </button>
 
-            {/* 카카오 */}
             <button
+              className="w-full h-full rounded-[8px]"
               type="button"
-              className="w-full h-full"
               onClick={() => handleNotReady("카카오")}
             >
               <img
                 src={kakaoBtn}
                 alt="kakao-login"
-                className="w-full h-full object-contain block"
+                className="object-scale-down w-full h-full rounded-[8px]"
               />
             </button>
 
-            {/* 구글 PNG 버튼 */}
             <button
+              className="w-full h-full rounded-[8px]"
               type="button"
-              className="w-full h-full"
               onClick={() => handleNotReady("구글")}
             >
               <img
                 src={googleBtn}
                 alt="google-login"
-                className="w-full h-full object-contain block"
+                className="object-scale-down w-full h-full rounded-[8px]"
               />
             </button>
           </div>
@@ -186,7 +197,6 @@ function LoginPage() {
               </Link>
             </div>
           </div>
-
         </section>
       </div>
     </main>

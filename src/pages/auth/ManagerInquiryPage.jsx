@@ -1,19 +1,27 @@
 // src/pages/manager/ManagerInquiryPage.jsx
 import { Link } from "react-router-dom";
 
+import logo from "../../assets/logo.png";       // ✅ 추가됨
+import ghost1 from "../../assets/ghost1.png";   // ✅ 추가됨
+
 function ManagerInquiryPage() {
   return (
     <main className="min-h-[calc(100vh-88px)] flex items-center justify-center px-4 py-12 bg-secondary-light">
       <div className="flex max-w-[960px] w-full bg-paper rounded-card shadow-card overflow-hidden flex-col md:flex-row">
         {/* LEFT: 보라 영역 + 브랜드 설명 */}
         <section className="flex-[0.9] bg-primary-light flex flex-col items-center justify-center px-8 md:px-10 py-10 gap-4">
-          <div className="w-[120px] h-[120px] rounded-full bg-paper flex items-center justify-center text-[64px] mb-4 shadow-card">
-            👻
+
+          {/* 👻 유령 이모티콘 → 이미지 (동그라미 배경 제거) */}
+          <div className="w-[120px] h-[120px] flex items-center justify-center mb-4">
+            <img src={ghost1} alt="ghost" className="w-[80px] h-[80px]" />
           </div>
 
-          <h2 className="text-[24px] font-extrabold text-primary-dark tracking-[0.1em]">
-            ㅍ ㅅ ㅍ
-          </h2>
+          {/* ㅍㅅㅍ 텍스트 → logo.png 이미지 */}
+          <img
+            src={logo}
+            alt="logo"
+            className="w-[120px] object-contain"
+          />
 
           <h3 className="mt-2 text-[18px] md:text-[20px] font-bold text-text-black text-center">
             매니저 계정이 필요하신가요?
