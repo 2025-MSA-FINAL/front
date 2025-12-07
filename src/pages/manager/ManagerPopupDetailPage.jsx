@@ -1,10 +1,16 @@
+import React, { useState } from "react";
 import useManagerPopupDetailPage from "../../hooks/useManagerPopupDetailPage";
 import PopupDetailTemplate from "../../components/popup/PopupDetailTemplate";
 import ManagerPopupDetailActions from "../../components/manager/ManagerPopupDetailActions";
 import ManagerReservationTable from "../../components/manager/ManagerReservationTable";
+import ManagerDetailTabs from "../../components/manager/ManagerDetailTabs.jsx"; // [New]
+import ManagerReportSection from "../../components/manager/report/ManagerReportSection"; // [New]
 
 export default function ManagerPopupDetailPage() {
   const vm = useManagerPopupDetailPage();
+
+  //탭 상태 관리
+  const [activeTab, setActiveTab] = useState("RESERVATION");
 
   const actions = (
     <ManagerPopupDetailActions
@@ -16,15 +22,25 @@ export default function ManagerPopupDetailPage() {
   );
 
   const bottomSection = (
-    <ManagerReservationTable
-      reservations={vm.reservations}
-      page={vm.reservationPage}
-      totalPages={vm.reservationTotalPages}
-      loading={vm.reservationsLoading}
-      error={vm.reservationsError}
-      onChangePage={vm.setReservationPage}
-      onRetry={vm.handleRetryReservations}
-    />
+    <div className="mt-24">
+      {/* 탭 버튼 영역 */}
+      <ManagerDetailTabs activeTab={activeTab} onChange={setActiveTab} />
+
+      {/* 탭 내용 영역 */}
+      {activeTab === "RESERVATION" ? (
+        <ManagerReservationTable
+          reservations={vm.reservations}
+          page={vm.reservationPage}
+          totalPages={vm.reservationTotalPages}
+          loading={vm.reservationsLoading}
+          error={vm.reservationsError}
+          onChangePage={vm.setReservationPage}
+          onRetry={vm.handleRetryReservations}
+        />
+      ) : (
+        <ManagerReportSection popupId={vm.popup?.popId} />
+      )}
+    </div>
   );
 
   return (
