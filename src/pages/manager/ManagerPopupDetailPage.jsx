@@ -22,7 +22,7 @@ export default function ManagerPopupDetailPage() {
   );
 
   const bottomSection = (
-    <div className="mt-10">
+    <div className="mt-24">
       {/* 탭 버튼 영역 */}
       <ManagerDetailTabs activeTab={activeTab} onChange={setActiveTab} />
 
