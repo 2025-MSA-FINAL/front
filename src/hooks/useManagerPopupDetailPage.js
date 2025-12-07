@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   fetchManagerPopupDetailApi,
   fetchManagerReservationListApi,
+  deleteManagerPopupApi,
 } from "../api/managerApi";
 import { useAuthStore } from "../store/authStore";
 
@@ -75,7 +76,7 @@ export default function useManagerPopupDetailPage() {
         } else {
           setError(
             err?.response?.data?.message ??
-              "팝업 정보를 불러오는 중 오류가 발생했습니다."
+            "팝업 정보를 불러오는 중 오류가 발생했습니다."
           );
         }
       } finally {
@@ -103,7 +104,7 @@ export default function useManagerPopupDetailPage() {
       console.error(err);
       setReservationsError(
         err?.response?.data?.message ??
-          "예약자 목록을 불러오는 중 오류가 발생했습니다."
+        "예약자 목록을 불러오는 중 오류가 발생했습니다."
       );
     } finally {
       setReservationsLoading(false);
@@ -134,7 +135,7 @@ export default function useManagerPopupDetailPage() {
         } else {
           setError(
             err?.response?.data?.message ??
-              "팝업 정보를 불러오는 중 오류가 발생했습니다."
+            "팝업 정보를 불러오는 중 오류가 발생했습니다."
           );
         }
       } finally {
@@ -173,25 +174,32 @@ export default function useManagerPopupDetailPage() {
   };
 
   const handleClickEdit = () => {
-    // TODO: 추후 /manager/popup/:id/edit 또는 동일 페이지에서 편집 모드 진입
-    alert("팝업 수정 기능은 추후 연결 예정입니다.");
+    if (!popupId) return;
+    //수정 페이지로 이동
+    navigate(`/manager/popup/${popupId}/edit`);
   };
 
   const handleClickDelete = async () => {
     if (!popupId) return;
     if (
       !window.confirm(
-        "정말 이 팝업을 삭제하시겠습니까?\n삭제 후에는 되돌릴 수 없습니다."
+        "정말 이 팝업을 삭제하시겠습니까?\n삭제 후에는 복구할 수 없으며, 사용자에게 노출되지 않습니다."
       )
     ) {
       return;
     }
-    // TODO: 추후 삭제 API 연동
+
     setDeleting(true);
     try {
-      alert("삭제 API 연동 후 동작하도록 연결 예정입니다.");
-      // 삭제 성공 시:
-      // navigate("/manager");
+      await deleteManagerPopupApi(popupId);
+      alert("팝업이 성공적으로 삭제되었습니다.");
+      navigate("/manager");
+    } catch (err) {
+      console.error(err);
+      alert(
+        err?.response?.data?.message ??
+        "팝업 삭제 중 오류가 발생했습니다. 다시 시도해주세요."
+      );
     } finally {
       setDeleting(false);
     }

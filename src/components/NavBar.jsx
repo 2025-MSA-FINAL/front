@@ -148,7 +148,7 @@ export default function Navbar() {
                     <div className="flex flex-col pb-1">
                       {/* USER 메뉴 */}
                       {!isManager && !isAdmin && (
-                        <Link
+                        <><Link
                           to="/mypage"
                           className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
                           onClick={() => setIsProfileOpen(false)}
@@ -163,11 +163,25 @@ export default function Navbar() {
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               strokeWidth={2}
-                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                            />
+                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                           </svg>
                           마이 페이지
                         </Link>
+
+                        <Link
+                          to="/me/report"
+                          className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
+                          onClick={() => setIsProfileOpen(false)}
+                        >
+                            <svg className="w-5 h-5 text-text-sub" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            유저 리포트
+                          </Link></>
                       )}
 
                       {/* MANAGER 메뉴 */}
