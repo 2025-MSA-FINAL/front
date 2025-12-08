@@ -74,9 +74,34 @@ export default function Navbar() {
               <Link
                 key={item}
                 to={item === "HOME" ? "/" : `/${item.toLowerCase()}`}
-                className="text-title-md font-normal text-text-black hover:text-primary transition-colors"
+                className="
+                  relative
+                  text-title-md font-normal text-text-black
+                  hover:text-primary
+                  transition-colors
+                  group
+                "
               >
-                {item}
+                <span className="relative inline-block">
+                  {/* 메뉴 텍스트 */}
+                  <span>{item}</span>
+
+                  {/* 가운데에서 양옆으로 퍼지는 보라색 밑줄 */}
+                  <span
+                    className="
+                      pointer-events-none
+                      absolute
+                      left-1/2 -translate-x-1/2
+                      -bottom-1
+                      h-[2px]
+                      w-0
+                      bg-primary
+                      transition-all
+                      duration-300
+                      group-hover:w-full
+                    "
+                  />
+                </span>
               </Link>
             ))}
           </div>
@@ -173,15 +198,23 @@ export default function Navbar() {
                           className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
                           onClick={() => setIsProfileOpen(false)}
                         >
-                            <svg className="w-5 h-5 text-text-sub" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                            유저 리포트
-                          </Link></>
+                          <svg
+                            className="w-5 h-5 text-text-sub"
+                            fill="none"
+                            viewBox="0 0 32 32"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <rect x="10" y="18" width="8" height="2" fill="currentColor"></rect>
+                            <rect x="10" y="13" width="12" height="2" fill="currentColor"></rect>
+                            <rect x="10" y="23" width="5" height="2" fill="currentColor"></rect>
+                            <path
+                              d="M25,5H22V4a2,2,0,0,0-2-2H12a2,2,0,0,0-2,2V5H7A2,2,0,0,0,5,7V28a2,2,0,0,0,2,2H25a2,2,0,0,0,2-2V7A2,2,0,0,0,25,5ZM12,4h8V8H12ZM25,28H7V7h3v3H22V7h3Z"
+                              fill="currentColor"
+                            />
+                          </svg>
+
+                          유저 리포트
+                        </Link></>
                       )}
 
                       {/* MANAGER 메뉴 */}
