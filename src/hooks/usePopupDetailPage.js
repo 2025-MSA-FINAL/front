@@ -165,7 +165,16 @@ export default function usePopupDetailPage() {
 
   //예약 버튼
   const handleReservationClick = () => {
-    alert("예약 기능은 준비 중입니다! 🙇‍♂️");
+    // popupId는 URL 파라미터 기준
+    if (popupId) {
+      navigate(`/popup/${popupId}/reserve`);
+      return;
+    }
+
+    // 혹시라도 popupId가 없고 vm.popup만 있는 경우 대비
+    if (popup?.popId) {
+      navigate(`/popup/${popup.popId}/reserve`);
+    }
   };
 
   //공유하기 버튼 (클립보드 복사)
