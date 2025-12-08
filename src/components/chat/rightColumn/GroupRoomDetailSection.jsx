@@ -6,104 +6,93 @@ import { useChatPopupStore } from "../../../store/chat/chatPopupStore";
 
 export default function GroupRoomDetailSection({ room }) {
   const { joinRoom } = useChatPopupStore();
-
   if (!room) return null;
 
   const handleJoin = async () => {
     try {
-      await joinRoom(room.gcrId); // 참여 처리 + activeChatRoom으로 자동 이동
+      await joinRoom(room.gcrId);
     } catch (e) {
       alert(e.response?.data?.message || "참여 실패");
     }
   };
 
   return (
-    <div className="w-full h-full p-10 flex flex-col justify-center items-center overflow-y-auto">
-      {/* ------------------------------ */}
+    <div className="w-full h-full flex flex-col justify-center items-center text-center overflow-y-auto px-10 gap-3">
       {/* 타이틀 */}
-      {/* ------------------------------ */}
-      <h1 className="text-[24px] font-bold text-text-black mb-3">
+      <h1 className="text-[36px] font-extrabold text-white drop-shadow-xl mb-5 tracking-tight">
         {room.title}
       </h1>
 
-      <p className="text-text-sub text-center text-[15px] leading-relaxed max-w-[600px] mb-10">
+      {/* 설명 */}
+      <p className="text-white/80 text-[17px] max-w-[700px] leading-relaxed mb-14">
         {room.description}
       </p>
 
-      {/* ------------------------------ */}
-      {/* 정보 카드 */}
-      {/* ------------------------------ */}
-      <div
-        className="
-    w-full max-w-[680px]
-    bg-white rounded-2xl shadow-card p-8
-    grid grid-cols-2 gap-6
-  "
-      >
-        {/* -------- 인원 수 -------- */}
-        <div className="col-span-2 flex flex-col items-center">
-          <div className="flex items-center gap-2 mb-2">
-            <UserIcon className="w-5 h-5 text-primary-dark" />
-            <span className="text-[15px] text-text-black font-semibold">
-              인원
-            </span>
+      {/* 카드들 */}
+      <div className="flex gap-10 mb-16 flex-wrap justify-center text-white">
+        {/* 카드 공통 클래스 */}
+        {[
+          {
+            icon: <UserIcon className="w-7 h-7 text-white/95" />,
+            label: "인원",
+            value: `${room.currentUserCnt} / ${room.maxUserCnt}`,
+          },
+          {
+            icon: <HeartIcon className="w-7 h-7 text-white/95" />,
+            label: "연령 조건",
+            value: `${room.minAge} ~ ${room.maxAge}세`,
+          },
+          {
+            icon:
+              room.limitGender === "NONE" || !room.limitGender ? (
+                <LockOpenIcon className="w-7 h-7 text-green-300" />
+              ) : (
+                <LockClosedIcon className="w-7 h-7 text-red-300" />
+              ),
+            label: "성별 조건",
+            value:
+              room.limitGender === "MALE"
+                ? "남성만"
+                : room.limitGender === "FEMALE"
+                ? "여성만"
+                : "제한 없음",
+          },
+        ].map((item, idx) => (
+          <div
+            key={idx}
+            className="
+              min-w-[210px] px-7 py-6
+              bg-white/12 backdrop-blur-2xl
+              border border-white/20 rounded-2xl 
+              shadow-[0_4px_24px_rgba(0,0,0,0.25)]
+              flex flex-col items-center gap-3
+              transition-transform duration-200 hover:scale-[1.04]
+            "
+          >
+            {item.icon}
+            <span className="text-sm">{item.label}</span>
+            <p className="text-[22px] font-extrabold tracking-wide">
+              {item.value}
+            </p>
           </div>
-
-          <p className="text-[18px] font-bold text-primary-dark">
-            {room.currentUserCnt} / {room.maxUserCnt}
-          </p>
-        </div>
-
-        {/* 위쪽 전체 선 */}
-        <div className="col-span-2 border-t border-gray-200"></div>
-
-        {/* -------- 연령 제한 -------- */}
-        <div className="flex flex-col items-center pr-6 border-r border-gray-200">
-          <div className="flex items-center gap-2 mb-2">
-            <HeartIcon className="w-5 h-5 text-secondary-dark" />
-            <span className="text-[15px] text-text-black font-semibold">
-              연령 조건
-            </span>
-          </div>
-
-          <p className="text-[18px] font-bold text-secondary-dark">
-            {room.minAge} ~ {room.maxAge}세
-          </p>
-        </div>
-
-        {/* -------- 성별 제한 -------- */}
-        <div className="flex flex-col items-center pl-6">
-          <div className="flex items-center gap-2 mb-2">
-            {room.limitGender === "NONE" || room.limitGender === null ? (
-              <LockOpenIcon className="w-5 h-5 text-green-500" />
-            ) : (
-              <LockClosedIcon className="w-5 h-5 text-red-500" />
-            )}
-
-            <span className="text-[15px] text-text-black font-semibold">
-              성별 조건
-            </span>
-          </div>
-
-          <p className="text-[18px] font-bold text-gray-700">
-            {room.limitGender === "MALE" && "남성만"}
-            {room.limitGender === "FEMALE" && "여성만"}
-            {(room.limitGender === "NONE" || !room.limitGender) &&
-              "성별 제한 없음"}
-          </p>
-        </div>
+        ))}
       </div>
 
-      {/* ------------------------------ */}
-      {/* 입장 버튼 (실제 참여 X, 화면 전환용) */}
-      {/* ------------------------------ */}
+      {/* 참여 버튼 */}
       <button
         onClick={handleJoin}
         className="
-    mt-12 w-[180px] py-3 rounded-full font-bold
-    text-text-sub border-2 border-primary-light
-    hover:brightness-110 hover:bg-primary-light/50 hover:text-text-black 
-    transition-all shadow-brand active:scale-[0.97]
+    w-[230px] py-4 rounded-full font-bold
+    text-white backdrop-blur-xl
+    bg-white/20 border border-white/30
+    shadow-[0_4px_20px_rgba(180,140,255,0.25)]
+
+    transition-all duration-200 ease-out
+    active:scale-[0.97]
+
+    hover:bg-accent-lemon-soft hover:text-[#363636]
+    hover:shadow-[0_10px_32px_rgba(255,241,200,0.45)]
+    hover:-translate-y-0.5
   "
       >
         참여하기

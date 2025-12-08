@@ -66,7 +66,7 @@ export async function checkPasswordApi(payload) {
 
 // ✅ 찜 토글 (마이페이지/상세 공용)
 export async function toggleWishlistApi(popupId) {
-  const res = await apiClient.post(`/api/popup/${popupId}/wishlist`);
+  const res = await apiClient.post(`/api/popups/${popupId}/wishlist`);
   return res.data; // { isLiked }
 }
 

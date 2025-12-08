@@ -106,3 +106,14 @@ export async function deleteManagerPopupApi(popId) {
   if (!popId) throw new Error("popId가 없습니다.");
   return apiClient.delete(`/api/managers/popups/${popId}`);
 }
+
+// ================================
+// 5. 매니저 리포트(통계)
+// ================================
+
+//팝업 리포트 조회
+export async function fetchManagerReportApi(popId) {
+  if (!popId) throw new Error("popId가 없습니다.");
+  const res = await apiClient.get(`/api/manager/popups/${popId}/report`);
+  return res.data; // ManagerReportResponseDto
+}

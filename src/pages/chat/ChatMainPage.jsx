@@ -82,7 +82,7 @@ export default function ChatMainPage() {
         </div>
 
         {/* 채팅창 */}
-        <div className="flex-1 min-h-0 w-full shadow-card rounded-2xl bg-paper">
+        <div className="flex-1 min-h-0 w-full shadow-card rounded-2xl bg-white/10 backdrop-blur-xl border border-primary-light">
           {createMode ? (
             <GroupRoomCreateForm />
           ) : activeChatRoom ? (
