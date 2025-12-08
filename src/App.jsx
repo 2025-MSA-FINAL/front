@@ -7,7 +7,7 @@ import LoginPage from "./pages/auth/LoginPage.jsx";
 import MainPage from "./pages/MainPage.jsx";
 import MyPage from "./pages/user/MyPage.jsx";
 import SignupPage from "./pages/auth/SignupPage.jsx";
-import ManagerInquiryPage from "./pages/auth/ManagerInquiryPage.jsx"; // ⭐ 추가
+import ManagerInquiryPage from "./pages/auth/ManagerInquiryPage.jsx";
 import PopupCreatePage from "./pages/popup/PopupCreatePage.jsx";
 import PopupListPage from "./pages/popup/PopupListPage.jsx";
 import PopupDetailPage from "./pages/popup/PopupDetailPage.jsx";
@@ -27,6 +27,7 @@ import Popups from "./pages/admin/Popups.jsx";
 import Reports from "./pages/admin/Reports.jsx";
 import ChatRooms from "./pages/admin/ChatRooms.jsx";
 import UserReportPage from "./pages/user/UserReportPage.jsx";
+import PopupUserReservationPage from "./components/reservation/PopupUserReservationPage.jsx";
 
 function App() {
   return (
@@ -80,6 +81,11 @@ function App() {
             element={<ManagerPopupDetailPage />}
           />
           <Route path="/me/report" element={<UserReportPage/>} />
+
+          <Route
+            path="/popup/:popupId/reserve"
+            element={<PopupUserReservationPage/>}
+          />
         </Route>
 
         {/* NavBar 없는 페이지 (채팅 + 관리자 등) */}
