@@ -86,6 +86,9 @@ function App() {
             path="/popup/:popupId/reserve"
             element={<PopupUserReservationPage/>}
           />
+
+          {/* 매니저 계정 문의 페이지 */}
+        <Route path="/manager-inquiry" element={<ManagerInquiryPage />} />
         </Route>
 
         {/* NavBar 없는 페이지 (채팅 + 관리자 등) */}
@@ -93,8 +96,7 @@ function App() {
           <Route path="/chat" element={<ChatMainPage />} />
         </Route>
 
-        {/* 매니저 계정 문의 페이지 */}
-        <Route path="/manager-inquiry" element={<ManagerInquiryPage />} />
+        
 
         {/* 관리자 라우트 */}
         <Route path="/admin" element={<AdminLayout />}>
