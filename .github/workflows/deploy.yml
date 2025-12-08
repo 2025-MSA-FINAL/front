@@ -3,10 +3,10 @@ name: Deploy to S3
 on:
   push:
     branches:
-      - main  # main 브랜치에 푸시할 때 실행
+      - dev  # dev 브랜치에 푸시할 때 실행
   pull_request:
     branches:
-      - main  # PR 시 린트 체크만 실행
+      - dev  # PR 시 린트 체크만 실행
 
 jobs:
   # 린트 검사 (실패해도 계속 진행)
