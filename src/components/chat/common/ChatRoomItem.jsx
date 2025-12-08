@@ -13,7 +13,7 @@ export default function ChatRoomItem({ name, img, type }) {
         transition-all duration-200 ease-out
 
         /* ★ 밝고 귀여운 파스텔 글라스 */
-        bg-secondary-light
+        bg-white
         backdrop-blur-xl
         border border-white
         shadow-[0_4px_14px_rgba(255,220,150,0.35)] hover:shadow-[0_10px_28px_rgba(255,245,180,0.40)]
