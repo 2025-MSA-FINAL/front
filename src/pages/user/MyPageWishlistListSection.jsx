@@ -8,6 +8,7 @@ import {
 } from "../../api/myPageApi";
 import FilterDropdown from "../../components/FilterDropdown";
 import Pagination from "../../components/Pagination";
+import { useNavigate } from "react-router-dom"; // ✅ 추가
 
 const PAGE_SIZE = 6;
 
@@ -34,9 +35,6 @@ function formatDateTime(dateTimeString) {
 }
 
 function WishlistListSection({ authUser }) {
-  // =========================
-  // 찜 리스트 페이징 상태
-  // =========================
   const [wishlistPage, setWishlistPage] = useState(0); // 0-based
   const [wishlistPageData, setWishlistPageData] = useState({
     content: [],
@@ -47,7 +45,6 @@ function WishlistListSection({ authUser }) {
   });
   const [wishlistLoading, setWishlistLoading] = useState(false);
 
-  // 찜: 상태(전체/예정/진행중/종료) + 정렬(최신/오래된)
   const [wishlistStatusFilter, setWishlistStatusFilter] = useState("ALL");
   const [wishlistSortOrder, setWishlistSortOrder] = useState("DESC");
 
@@ -62,11 +59,21 @@ function WishlistListSection({ authUser }) {
         params: {
           page,
           size: PAGE_SIZE,
-          status: wishlistStatusFilter, // ✅ Enum 이름과 매칭
+          status: wishlistStatusFilter,
           sortDir: wishlistSortOrder,
         },
       });
-      setWishlistPageData(res.data);
+
+      const data = res.data;
+
+      // totalPages가 줄어서 현재 page가 범위 밖인 경우 -> 마지막 페이지로 보정
+      if (data.totalPages > 0 && page >= data.totalPages) {
+        const lastPage = data.totalPages - 1;
+        setWishlistPage(lastPage);
+        return;
+      }
+
+      setWishlistPageData(data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -90,14 +97,10 @@ function WishlistListSection({ authUser }) {
     }
     try {
       await deleteAllWishlistApi();
+
+      // 서버 기준으로 다시 0페이지 로드
       setWishlistPage(0);
-      setWishlistPageData((prev) => ({
-        ...prev,
-        content: [],
-        pageNumber: 0,
-        totalElements: 0,
-        totalPages: 0,
-      }));
+      await loadWishlistPage(0);
     } catch (e) {
       console.error(e);
       alert(
@@ -114,19 +117,10 @@ function WishlistListSection({ authUser }) {
     }
     try {
       await deleteCloseWishlistApi();
-      // 프론트에서 현재 페이지에서 종료된 것만 제거
-      setWishlistPageData((prev) => {
-        const filtered = prev.content.filter(
-          (it) => it.popupStatus !== "ENDED"
-        );
-        return {
-          ...prev,
-          content: filtered,
-          // totalElements는 정확히 맞추긴 어렵지만 대략 줄여 줌
-          totalElements:
-            prev.totalElements - (prev.content.length - filtered.length),
-        };
-      });
+
+      // 🔥 핵심: 0페이지로 이동 + 바로 다시 로드
+      setWishlistPage(0);
+      await loadWishlistPage(0);
     } catch (e) {
       console.error(e);
       alert(
@@ -136,20 +130,17 @@ function WishlistListSection({ authUser }) {
     }
   };
 
-  // ✅ 찜 리스트에서 하트 눌렀을 때: 찜 토글 API 호출 후, 해제된 경우 목록에서 제거
+  // ✅ 찜 토글: 카드 안 없애고 isLiked만 변경 (하트 채움/비움)
   const handleToggleWishlistFromMyPage = async (popupId) => {
     try {
       const { isLiked } = await toggleWishlistApi(popupId);
 
-      // false면 해제된 상태이므로 리스트에서 제거
-      if (!isLiked) {
-        setWishlistPageData((prev) => ({
-          ...prev,
-          content: prev.content.filter((it) => it.popupId !== popupId),
-          totalElements:
-            prev.totalElements > 0 ? prev.totalElements - 1 : prev.totalElements,
-        }));
-      }
+      setWishlistPageData((prev) => ({
+        ...prev,
+        content: prev.content.map((it) =>
+          it.popupId === popupId ? { ...it, isLiked } : it
+        ),
+      }));
     } catch (e) {
       console.error(e);
       alert(
@@ -161,7 +152,7 @@ function WishlistListSection({ authUser }) {
 
   return (
     <>
-      {/* 찜 리스트 상단: 상태 필터 + 정렬 + 기존 삭제 버튼 유지 */}
+      {/* 상단 필터 */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-2 gap-2 text-[13px] text-text-sub">
         <div className="flex gap-2">
           <FilterDropdown
@@ -209,13 +200,14 @@ function WishlistListSection({ authUser }) {
         </div>
       </div>
 
-      {/* 리스트 – 카드 2열 */}
+      {/* 카드 리스트 */}
       <div className="mt-4">
         {wishlistLoading && (
           <div className="text-center text-[14px] text-text-sub py-6">
             로딩 중...
           </div>
         )}
+
         {!wishlistLoading && wishlistPageData.content.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {wishlistPageData.content.map((item) => (
@@ -227,6 +219,7 @@ function WishlistListSection({ authUser }) {
             ))}
           </div>
         )}
+
         {!wishlistLoading && wishlistPageData.content.length === 0 && (
           <div className="bg-paper rounded-[18px] px-6 py-6 text-center text-[14px] text-text-sub border border-secondary-light">
             찜한 팝업이 없습니다.
@@ -247,14 +240,18 @@ function WishlistListSection({ authUser }) {
 }
 
 /* =========================================
-   찜 리스트 카드 – 이미지 왼쪽, 설명 박스 오른쪽
+   찜 리스트 카드
    ========================================= */
 function WishlistRow({ item, onToggleWishlist }) {
+  const navigate = useNavigate(); // ✅ 추가
+
   const { date: startDate } = formatDateTime(item.startDate);
   const { date: endDate } = formatDateTime(item.endDate);
 
   const period =
-    startDate !== "-" && endDate !== "-" ? `${startDate} ~ ${endDate}` : "-";
+    startDate !== "-" && endDate !== "-"
+      ? `${startDate} ~ ${endDate}`
+      : "-";
 
   const statusLabel =
     item.popupStatus === "ENDED"
@@ -265,9 +262,19 @@ function WishlistRow({ item, onToggleWishlist }) {
 
   const isEnded = item.popupStatus === "ENDED";
 
+  // 백엔드에서 내려주는 isLiked 사용 (없으면 기본값 true)
+  const isLiked = item.isLiked !== undefined ? item.isLiked : true;
+
+  const handleCardClick = () => {
+    navigate(`/popup/${item.popupId}`); // ✅ 상세 페이지 이동
+  };
+
   return (
-    <div className="flex gap-4 min-w-0">
-      {/* 이미지 영역 */}
+    <div
+      className="flex gap-4 min-w-0 h-[190px] cursor-pointer"
+      onClick={handleCardClick}
+    >
+      {/* 이미지 */}
       <div className="w-[140px] h-full flex-shrink-0">
         <div className="w-full h-full rounded-[18px] bg-secondary-light overflow-hidden">
           {item.popupThumbnail ? (
@@ -286,7 +293,7 @@ function WishlistRow({ item, onToggleWishlist }) {
 
       {/* 설명 박스 */}
       <div className="flex-1 min-w-0 bg-paper rounded-[18px] border border-secondary-light px-4 py-3 flex flex-col justify-between shadow-card">
-        {/* 위쪽 정보 */}
+        {/* 정보 */}
         <div className="flex-1 min-w-0 flex flex-col gap-1">
           <div className="font-semibold text-[16px] text-text-black truncate">
             {item.popupName}
@@ -311,7 +318,7 @@ function WishlistRow({ item, onToggleWishlist }) {
         {/* 상태 + 하트 */}
         <div className="mt-2 flex items-center justify-between">
           <span
-            className={`inline-flex items-center rounded-full px-3 py-0.5 text-[12px] border ${
+            className={`inline-flex items체center rounded-full px-3 py-0.5 text-[12px] border ${
               isEnded
                 ? "border-secondary-dark text-secondary-dark"
                 : "border-primary text-primary"
@@ -322,10 +329,23 @@ function WishlistRow({ item, onToggleWishlist }) {
 
           <button
             type="button"
-            className="text-[18px] text-red-500 hover:scale-110 transition-transform"
-            onClick={() => onToggleWishlist(item.popupId)}
+            className="w-10 h-10 flex items-center justify-center flex-shrink-0 hover:scale-110 transition-transform active:scale-95"
+            onClick={(e) => {
+              e.stopPropagation(); // ✅ 카드 클릭 막기
+              onToggleWishlist(item.popupId);
+            }}
           >
-            ❤
+            <svg
+              viewBox="0 0 24 24"
+              className={`w-[24px] h-[24px] transition-colors duration-300 ${
+                isLiked
+                  ? "fill-primary stroke-primary"
+                  : "fill-transparent stroke-secondary hover:stroke-primary"
+              }`}
+              strokeWidth="2"
+            >
+              <path d="M12 21.1c-.4 0-.75-.12-1.03-.34C7.3 17.7 4 14.8 4 11.15 4 8.6 5.9 6.8 8.4 6.8c1.4 0 2.7.7 3.6 1.9.9-1.2 2.2-1.9 3.6-1.9 2.5 0 4.4 1.8 4.4 4.35 0 3.65-3.3 6.55-6.97 9.61-.28.22-.63.34-1.03.34z" />
+            </svg>
           </button>
         </div>
       </div>
