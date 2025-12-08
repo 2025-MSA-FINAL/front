@@ -37,6 +37,7 @@ export default function ChatMainPage() {
     debouncedSearch(keyword);
   }, [keyword]);
 
+  console.log("[ChatMainPage] activeChatRoom >>>", activeChatRoom);
   return (
     <div className="w-full h-screen bg-primary-dark flex p-5 gap-5">
       {/* LEFT COLUMN */}
@@ -86,7 +87,10 @@ export default function ChatMainPage() {
           {createMode ? (
             <GroupRoomCreateForm />
           ) : activeChatRoom ? (
-            <MessageChatSection room={activeChatRoom} />
+            <MessageChatSection
+              roomId={activeChatRoom.gcrId ?? activeChatRoom.roomId}
+              roomType={activeChatRoom.roomType}
+            />
           ) : selectedGroupRoom ? (
             <GroupRoomDetailSection room={selectedGroupRoom} />
           ) : (
