@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { apiClient } from "../../api/authApi";
 import FilterDropdown from "../../components/FilterDropdown";
 import Pagination from "../../components/Pagination";
+import { useNavigate } from "react-router-dom"; // ✅ 추가
 
 const PAGE_SIZE = 6;
 
@@ -148,13 +149,22 @@ function ReservationListSection({ authUser }) {
    예약 리스트 카드 – 이미지 왼쪽, 설명 박스 오른쪽
    ========================================= */
 function ReservationRow({ item }) {
+  const navigate = useNavigate(); // ✅ 추가
   const { date, time } = formatDateTime(item.reserveDateTime);
 
   const isCancelled = item.reserveStatus === false;
   const statusLabel = isCancelled ? "취소됨" : "예약 완료";
 
+  const handleCardClick = () => {
+    // ✅ 상세 페이지 이동
+    navigate(`/popup/${item.popupId}`);
+  };
+
   return (
-    <div className="flex gap-4 min-w-0">
+    <div
+      className="flex gap-4 min-w-0 h-[190px] cursor-pointer"
+      onClick={handleCardClick}
+    >
       {/* 이미지 영역 */}
       <div className="w-[140px] h-full flex-shrink-0">
         <div className="w-full h-full rounded-[18px] bg-secondary-light overflow-hidden">
@@ -217,6 +227,10 @@ function ReservationRow({ item }) {
             <button
               type="button"
               className="text-[12px] text-text-sub hover:text-primary-dark"
+              onClick={(e) => {
+                e.stopPropagation(); // ✅ 카드 클릭 막기
+                // 여기 나중에 실제 "취소하기" 로직 붙이면 됨
+              }}
             >
               취소하기
             </button>
