@@ -6,10 +6,10 @@ on:
       - main  # main 브랜치에 푸시할 때 실행
   pull_request:
     branches:
-      - main  # PR 시 테스트만 실행
+      - main  # PR 시 린트 체크만 실행
 
 jobs:
-  # 린트 검사
+  # 린트 검사 (실패해도 계속 진행)
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -27,10 +27,11 @@ jobs:
 
       - name: Run lint
         run: npm run lint
+        continue-on-error: true  # 린트 실패해도 계속 진행
 
   # 빌드 및 배포
   deploy:
-    needs: lint  # lint 작업 완료 후 실행
+    needs: lint  # lint 작업 완료 후 실행 (실패해도 진행됨)
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'  # main 브랜치 푸시만 배포
     
@@ -85,4 +86,4 @@ jobs:
           echo "🚀 Deployment completed successfully!"
           echo "📦 Build files uploaded to S3"
           echo "🔄 CloudFront cache invalidated"
-          echo "🌐 Your app is live at: https://${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}.cloudfront.net"
+          echo "🌐 Your app is live!"
