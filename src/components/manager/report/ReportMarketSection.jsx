@@ -3,8 +3,7 @@ import {
   BarChart,
   Bar,
   XAxis,
-  // [수정 1] YAxis 추가
-  YAxis, 
+  YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
@@ -17,6 +16,10 @@ import {
   truncateText,
   mapGenderLabel,
 } from "../../../utils/managerReportUtils";
+
+// 디자인 토큰 기반 회색 사용
+const MARKET_BAR_COLOR = "var(--color-secondary-dark)";   // 시장 데이터 충분
+const MARKET_BAR_LIGHT = "var(--color-secondary)";        // 시장 데이터 부족
 
 const ReportMarketSection = ({
   marketTrends,
@@ -39,6 +42,28 @@ const ReportMarketSection = ({
 
   const hasAnyMarketData = trends.some((t) => t.hasMarketData);
   const hasAnyInsufficient = trends.some((t) => !t.hasMarketData);
+
+  const renderLegend = ({ payload = [] }) => {
+    return (
+      <div className="flex justify-center gap-4 mt-3 text-xs">
+        {payload.map((item) => {
+          const isMine = item.dataKey === "myMetric";
+          const label = isMine ? marketLegendMine : marketLegendMarket;
+          const textColor = isMine ? theme.main : "#6B7280"; // 시장 평균 텍스트는 회색
+
+          return (
+            <div key={item.dataKey} className="flex items-center gap-1.5">
+              <span
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: item.color }}
+              />
+              <span style={{ color: textColor }}>{label}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="bg-white rounded-[24px] p-5 sm:p-6 lg:p-7 shadow-card border border-gray-100 flex flex-col">
@@ -65,7 +90,7 @@ const ReportMarketSection = ({
         </div>
       ) : (
         <>
-          {/* [수정 2] flex-1 min-h-[250px] 대신 h-[250px] 고정 높이 사용 */}
+          {/* 차트 */}
           <div className="h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -96,17 +121,16 @@ const ReportMarketSection = ({
                     truncateText(value, isMobile ? 4 : 6)
                   }
                 />
-                {/* [수정 3] 누락되었던 YAxis 추가 (숨김 처리) */}
                 <YAxis hide />
 
                 <Tooltip
                   cursor={{ fill: "#F3F4F6" }}
                   contentStyle={CustomTooltipStyle}
                 />
-                <Legend
-                  iconType="circle"
-                  wrapperStyle={{ fontSize: 11, paddingTop: 10 }}
-                />
+
+                <Legend content={renderLegend} />
+
+                {/* 내 관심도 막대 */}
                 <Bar
                   dataKey="myMetric"
                   name={marketLegendMine}
@@ -114,16 +138,23 @@ const ReportMarketSection = ({
                   radius={[4, 4, 0, 0]}
                   barSize={18}
                 />
+
+                {/* 시장 평균 막대 */}
                 <Bar
                   dataKey="marketMetric"
                   name={marketLegendMarket}
                   radius={[4, 4, 0, 0]}
                   barSize={18}
+                  fill={MARKET_BAR_COLOR} // 기본 색 (Legend도 이 색 기준)
                 >
                   {marketData.map((entry, index) => (
                     <Cell
                       key={`market-${index}`}
-                      fill={entry.hasMarketData ? "#E5E7EB" : "#F3F4F6"}
+                      fill={
+                        entry.hasMarketData
+                          ? MARKET_BAR_COLOR
+                          : MARKET_BAR_LIGHT
+                      }
                     />
                   ))}
                 </Bar>
@@ -131,6 +162,7 @@ const ReportMarketSection = ({
             </ResponsiveContainer>
           </div>
 
+          {/* 하단 태그별 카드 */}
           <div className="mt-6 space-y-3">
             {marketData.slice(0, 3).map((item, idx) => {
               const denom =
@@ -156,17 +188,17 @@ const ReportMarketSection = ({
                       {item.hasMarketData ? (
                         <>
                           <span className="truncate">
-                            시장 타겟:{" "}
-                            <b className="text-gray-700">
-                              {item.topAge?.market}{" "}
-                              {mapGenderLabel(item.topGender?.market)}
-                            </b>
-                          </span>
-                          <span className="truncate">
                             내 타겟:{" "}
                             <b className="text-[var(--color-primary)]">
                               {item.topAge?.mine}{" "}
                               {mapGenderLabel(item.topGender?.mine)}
+                            </b>
+                          </span>
+                          <span className="truncate">
+                            시장 타겟:{" "}
+                            <b className="text-gray-700">
+                              {item.topAge?.market}{" "}
+                              {mapGenderLabel(item.topGender?.market)}
                             </b>
                           </span>
                         </>

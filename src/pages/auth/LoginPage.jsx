@@ -8,7 +8,7 @@ import { useAuthStore } from "../../store/authStore";
 import kakaoBtn from "../../assets/kakaoBtn.png";
 import logo from "../../assets/logo.png";
 import ghost1 from "../../assets/ghost1.png";
-import naverBtn from "../../assets/naverbtn.png";
+import naverBtn from "../../assets/naverBtn.png";
 import googleBtn from "../../assets/googleBtn.png";
 
 import { EyeIcon, EyeOffIcon } from "../../components/icon/EyeIcons.jsx"; // 👈 공용 아이콘
