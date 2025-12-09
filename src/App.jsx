@@ -14,7 +14,7 @@ import PopupDetailPage from "./pages/popup/PopupDetailPage.jsx";
 import ManagerMyPage from "./pages/manager/ManagerMyPage.jsx";
 import ChatMainPage from "./pages/chat/ChatMainPage.jsx";
 import ManagerPopupDetailPage from "./pages/manager/ManagerPopupDetailPage.jsx";
-
+import PopupNearbyPage from "./pages/popup/PopupNearbyPage";
 import PopupEdit from "./pages/manager/PopupEdit.jsx";
 import PopupReservationSettingPage from "./pages/reservation/PopupReservationSettingPage.jsx"; 
 
@@ -54,6 +54,9 @@ function App() {
 
           {/* 팝업스토어 상세 페이지 */}
           <Route path="/popup/:popupId" element={<PopupDetailPage />} />
+
+          {/* 내 주변 팝업 페이지 */}
+          <Route path="/popup/nearby" element={<PopupNearbyPage />} />
 
           {/* 매니저 페이지 */}
           <Route path="/manager" element={<ManagerMyPage />} />
