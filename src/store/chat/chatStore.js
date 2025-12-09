@@ -25,6 +25,7 @@ export const useChatStore = create((set) => ({
     closeCreateForm();
     set({ activeChatRoom: room });
   },
+  
 
   exitRoom: () => set({ activeChatRoom: null }),
 
@@ -34,4 +35,25 @@ export const useChatStore = create((set) => ({
         (r) => !(r.roomType === roomType && r.roomId === roomId)
       ),
     })),
+    
+  updateRoomOrder: (roomType, roomId) =>
+    set((state) => {
+      const idx = state.rooms.findIndex(
+        (r) => r.roomType === roomType && r.roomId === roomId
+      );
+      if (idx === -1) return state;
+
+      const updated = [...state.rooms];
+      const [target] = updated.splice(idx, 1);
+      updated.unshift(target);
+
+      return { rooms: updated };
+    }),
+
+    resetChatStore: () =>
+    set({
+      rooms: [],
+      activeChatRoom: null,
+      loading: false,
+    }),
 }));

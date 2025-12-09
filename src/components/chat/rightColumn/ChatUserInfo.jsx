@@ -41,6 +41,15 @@ export default function ChatUserInfo() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const handleLogoutClick = async () => {
+    try {
+      await logout();
+      navigate("/");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
     <div
       className="relative w-full flex justify-end items-center pr-2"
@@ -85,7 +94,7 @@ export default function ChatUserInfo() {
           <div className="flex items-end gap-2.5 mb-5">
             <img
               src={profileImageUrl}
-              className="w-[48px] h-[48px] rounded-full object-cover shadow-md border-2 border-white"
+              className="w-12 h-12 rounded-full object-cover shadow-md border-2 border-white"
             />
             <div>
               <p className="text-[15px] font-bold text-text-black leading-tight">
@@ -93,11 +102,7 @@ export default function ChatUserInfo() {
               </p>
               {/* 로그아웃 */}
               <p
-                onClick={() => {
-                  logout?.();
-                  toggleOpen();
-                  navigate("/");
-                }}
+                onClick={handleLogoutClick}
                 className="text-label-sm text-text-main tracking-wide
               hover:text-text-sub transition self-end cursor-pointer
             "

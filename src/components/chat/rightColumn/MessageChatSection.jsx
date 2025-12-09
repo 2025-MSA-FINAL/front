@@ -20,52 +20,56 @@ import ImageUploadIcon from "../../chat/icons/imageIcon";
 import ScheduleIcon from "../../chat/icons/scheduleIcon";
 import MoreIcon from "../../chat/icons/MoreIcon";
 
-/* 날짜 라벨 영어 → 한국어 변환 */
-const convertDateLabel = (label) => {
-  if (!label) return label;
+/* ------------------------------------------------------------------
+ 📌 날짜 / 시간 변환 함수 — 안전한 Date 객체 기반
+------------------------------------------------------------------ */
 
-  const map = {
-    Monday: "월요일",
-    Tuesday: "화요일",
-    Wednesday: "수요일",
-    Thursday: "목요일",
-    Friday: "금요일",
-    Saturday: "토요일",
-    Sunday: "일요일",
-  };
-  const parts = label.split(" ");
-  const eng = parts.pop();
-  return [...parts, map[eng] || eng].join(" ");
+// 시간: "오후 7:03"
+const formatTime = (dt) => {
+  if (!dt) return "";
+  const date = new Date(dt);
+  if (isNaN(date)) return "";
+
+  let hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const ampm = hours < 12 ? "오전" : "오후";
+
+  if (hours === 0) hours = 12;
+  else if (hours > 12) hours -= 12;
+
+  return `${ampm} ${hours}:${minutes}`;
 };
 
-/* createdAt 한국식 변환 */
-const normalizeCreatedAt = (str) => {
-  if (!str) return str;
-  if (str.includes("오전") || str.includes("오후")) return str;
+// 날짜 라벨: "2025년 12월 09일 화요일"
+const formatDateLabel = (dt) => {
+  const date = new Date(dt);
+  if (isNaN(date)) return "";
 
-  let [ampm, hm] = str.split(" ");
-  let [h, m] = hm.split(":");
-  h = Number(h);
+  const days = [
+    "일요일",
+    "월요일",
+    "화요일",
+    "수요일",
+    "목요일",
+    "금요일",
+    "토요일",
+  ];
 
-  const isAM = ampm.toUpperCase() === "AM";
-  const korAmpm = isAM ? "오전" : "오후";
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const week = days[date.getDay()];
 
-  if (h === 0) h = 12;
-  else if (h > 12) h -= 12;
-
-  return `${korAmpm} ${h}:${m}`;
+  return `${y}년 ${m}월 ${d}일 ${week}`;
 };
 
-/* createdAt → 분 단위 key */
-const toMinuteKey = (str) => {
-  if (!str) return "";
-  str = normalizeCreatedAt(str);
-  const [ampm, hm] = str.split(" ");
-  let [h, m] = hm.split(":");
-  h = Number(h);
+// 그룹핑 기준: "19:03" (24시간제)
+const toMinuteKey = (dt) => {
+  const date = new Date(dt);
+  if (isNaN(date)) return "";
 
-  if (ampm === "오후" && h !== 12) h += 12;
-  if (ampm === "오전" && h === 12) h = 0;
+  const h = String(date.getHours()).padStart(2, "0");
+  const m = String(date.getMinutes()).padStart(2, "0");
 
   return `${h}:${m}`;
 };
@@ -77,11 +81,9 @@ export default function MessageChatSection() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
 
-  /* 모달 */
   const [showEditModal, setShowEditModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
 
-  /* Dropdown */
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const menuRef = useRef(null);
@@ -100,10 +102,11 @@ export default function MessageChatSection() {
   const roomType = activeRoom?.roomType;
 
   const removeRoom = useChatStore((s) => s.removeRoom);
+  const updateRoomOrder = useChatStore((s) => s.updateRoomOrder);
 
   const iconSize = roomType === "GROUP" ? "w-11 h-9" : "w-9 h-9";
 
-  /* Dropdown 토글 */
+  /* Dropdown */
   const toggleMenu = () => {
     if (!menuVisible) {
       setMenuVisible(true);
@@ -114,7 +117,6 @@ export default function MessageChatSection() {
     }
   };
 
-  /* Dropdown 바깥 클릭 */
   useEffect(() => {
     const handler = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -130,10 +132,11 @@ export default function MessageChatSection() {
   const handleDeleteRoom = async () => {
     if (
       !window.confirm(
-        `정말 이 ${activeRoom.roomName} 채팅방을(를) 삭제하시겠습니까?`
+        `정말 이 ${activeRoom.roomName} 채팅방을 삭제하시겠습니까?`
       )
     )
       return;
+
     try {
       if (roomType === "GROUP") {
         await deleteGroupChatRoom(activeRoom.gcrId);
@@ -150,14 +153,15 @@ export default function MessageChatSection() {
     }
   };
 
-  /* 스크롤 ↓ */
+  /* 자동 스크롤 */
   const scrollToBottom = () => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   };
+
   useEffect(() => scrollToBottom(), [messages]);
 
-  /* textarea 높이 자동 */
+  /* textarea 자동 높이 */
   useEffect(() => {
     if (textareaRef.current) {
       const ta = textareaRef.current;
@@ -169,17 +173,24 @@ export default function MessageChatSection() {
   /* WebSocket 메시지 수신 */
   const onMessageReceived = (msg) => {
     const body = JSON.parse(msg.body);
-    const createdAt = normalizeCreatedAt(body.createdAt);
+
+    updateRoomOrder(body.roomType, body.roomId);
 
     setMessages((prev) => [
       ...prev,
-      { ...body, createdAt, minuteKey: toMinuteKey(createdAt) },
+      {
+        ...body,
+        createdAt: formatTime(body.createdAt),
+        minuteKey: toMinuteKey(body.createdAt),
+        dateLabel: formatDateLabel(body.createdAt),
+      },
     ]);
   };
 
   /* 메시지 전송 */
   const sendMessage = () => {
     if (!input.trim()) return;
+
     const client = getStompClient();
     if (!client || !client.connected) return;
 
@@ -200,20 +211,24 @@ export default function MessageChatSection() {
 
   /* 초기 메시지 로드 + WebSocket 연결 */
   useEffect(() => {
-    if (!activeRoom?.gcrId || !roomType) return;
+    if (!activeRoom || !roomType) return;
+
+    const roomKey = roomType === "GROUP" ? activeRoom.gcrId : activeRoom.roomId;
+    if (!roomKey) return;
 
     const load = async () => {
       try {
         const res = await axios.get("http://localhost:8080/api/chat/messages", {
-          params: { roomId: activeRoom?.gcrId ?? roomId, roomType, limit: 60 },
+          params: { roomId: roomKey, roomType, limit: 60 },
           withCredentials: true,
         });
 
         setMessages(
           res.data.reverse().map((m) => ({
             ...m,
-            createdAt: normalizeCreatedAt(m.createdAt),
+            createdAt: formatTime(m.createdAt),
             minuteKey: toMinuteKey(m.createdAt),
+            dateLabel: formatDateLabel(m.createdAt),
           }))
         );
       } catch (e) {
@@ -228,7 +243,7 @@ export default function MessageChatSection() {
       const client = getStompClient();
       if (!client.connected) return;
 
-      const topic = `/sub/chat-room-${roomType}-${activeRoom.gcrId}`;
+      const topic = `/sub/chat-room-${roomType}-${roomKey}`;
 
       if (subRef.current) subRef.current.unsubscribe();
       subRef.current = client.subscribe(topic, onMessageReceived);
@@ -253,7 +268,6 @@ export default function MessageChatSection() {
   ======================================================================= */
   return (
     <>
-      {/* 배경 dim 처리 */}
       {(showEditModal || showReportModal) && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[998]"></div>
       )}
@@ -372,10 +386,7 @@ export default function MessageChatSection() {
 
             return (
               <div key={i} className="mb-1">
-                {showDateDivider && (
-                  <DateDivider label={convertDateLabel(msg.dateLabel)} />
-                )}
-
+                {showDateDivider && <DateDivider label={msg.dateLabel} />}
                 <div
                   className={`flex w-full ${
                     isMine ? "justify-end" : "justify-start"
@@ -502,7 +513,7 @@ export default function MessageChatSection() {
               ...data,
               maxUserCnt: data.maxUserCnt,
             });
-            // Zustand 상태 갱신
+
             setActiveRoom({
               ...activeRoom,
               title: data.title,
@@ -519,9 +530,8 @@ export default function MessageChatSection() {
         open={showReportModal}
         onClose={() => setShowReportModal(false)}
       >
-        <ReportForm
+        <ReportForm //이후에 만들 예정
           onSubmit={(data) => {
-            console.log("신고 내용:", data);
             alert("신고가 접수되었습니다.");
             setShowReportModal(false);
           }}
