@@ -7,15 +7,37 @@ export default function MoreIcon({ className }) {
       className={className}
     >
       <g clipPath="url(#clip0_15_64)">
-        <rect width="24" height="24" fill="white" />
+        <rect width="24" height="24" fill="none" />
+
+        {/* circle 색상 → currentColor 로 변경 */}
         <g filter="url(#filter0_d_15_64)">
-          <circle cx="6" cy="12" r="2" stroke="#000" strokeLinejoin="round" />
+          <circle
+            cx="6"
+            cy="12"
+            r="2"
+            stroke="currentColor"
+            strokeLinejoin="round"
+          />
         </g>
+
         <g filter="url(#filter1_d_15_64)">
-          <circle cx="12" cy="12" r="2" stroke="#000" strokeLinejoin="round" />
+          <circle
+            cx="12"
+            cy="12"
+            r="2"
+            stroke="currentColor"
+            strokeLinejoin="round"
+          />
         </g>
+
         <g filter="url(#filter2_d_15_64)">
-          <circle cx="18" cy="12" r="2" stroke="#000" strokeLinejoin="round" />
+          <circle
+            cx="18"
+            cy="12"
+            r="2"
+            stroke="currentColor"
+            strokeLinejoin="round"
+          />
         </g>
       </g>
 
@@ -99,7 +121,7 @@ export default function MoreIcon({ className }) {
         </filter>
 
         <clipPath id="clip0_15_64">
-          <rect width="24" height="24" fill="white" />
+          <rect width="24" height="24" fill="none" />
         </clipPath>
       </defs>
     </svg>
