@@ -70,3 +70,33 @@ export async function fetchPopupDetailApi(popupId) {
   const res = await apiClient.get(`/api/popups/${popupId}`);
   return res.data;
 }
+
+
+
+//내 주변 팝업 조회
+export async function fetchNearbyPopupsApi({
+  latitude,
+  longitude,
+  radiusKm,
+  size,
+} = {}) {
+  if (typeof latitude !== "number" || typeof longitude !== "number") {
+    throw new Error("fetchNearbyPopupsApi: latitude/longitude가 없습니다.");
+  }
+
+  const params = {
+    latitude,
+    longitude,
+  };
+
+  if (radiusKm != null && radiusKm !== "") {
+    params.radiusKm = radiusKm;
+  }
+
+  if (size != null && size !== "") {
+    params.size = size;
+  }
+
+  const res = await apiClient.get("/api/popups/nearby", { params });
+  return res.data;
+}
