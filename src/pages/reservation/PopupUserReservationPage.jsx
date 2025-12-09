@@ -97,13 +97,32 @@ function UserReservationCalendar({
   const goPrevMonth = () => setMonthOffset((prev) => prev - 1);
   const goNextMonth = () => setMonthOffset((prev) => prev + 1);
 
+  // ✅ 오늘 00:00 기준
+  const today = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t;
+  }, []);
+
   const isInRange = (d) => {
-    if (!startDate || !endDate) return true;
     const t = d.getTime();
-    return (
-      t >= new Date(startDate).setHours(0, 0, 0, 0) &&
-      t <= new Date(endDate).setHours(23, 59, 59, 999)
-    );
+
+    // 팝업 운영 기간 내인지 체크
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      if (t < start.getTime()) return false;
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      if (t > end.getTime()) return false;
+    }
+
+    // ✅ 오늘 이전 날짜는 선택 불가
+    if (t < today.getTime()) return false;
+
+    return true;
   };
 
   return (
@@ -167,7 +186,8 @@ function UserReservationCalendar({
 }
 
 /**
- * ⭐ 타임슬롯 버튼 — 요청한 부분만 수정됨
+ * ⭐ 타임슬롯 버튼
+ * remainingCount <= 0 이면 disabled 처리 이미 되어 있음
  */
 function TimeSlotButton({ slot, selected, onClick }) {
   const disabled =
@@ -294,15 +314,12 @@ export default function PopupUserReservationPage() {
   );
 
   // ✅ 예약 설정 기반 최대 인원 / 금액 계산
-  // TODO: 아래 필드명은 백엔드 DTO에 맞게 조정해줘.
   const maxPeoplePerReservation =
     popup?.maxPeoplePerReservation ??
     popup?.reservationMaxPeople ??
     4; // 기본값 4명
 
-  const pricePerPerson =
-    popup?.popPrice ??
-    0;
+  const pricePerPerson = popup?.popPrice ?? 0;
 
   const peopleOptions = useMemo(() => {
     const max = Math.max(1, maxPeoplePerReservation || 1);
@@ -311,6 +328,7 @@ export default function PopupUserReservationPage() {
 
   const totalPrice = pricePerPerson * peopleCount;
 
+  // ✅ 여기만 수정: 성공 시 상세 페이지로 바로 이동
   const handleSubmit = async () => {
     if (!selectedSlot) {
       alert("예약할 시간을 먼저 선택해주세요.");
@@ -324,28 +342,37 @@ export default function PopupUserReservationPage() {
 
     try {
       setHoldLoading(true);
-      // ✅ 인원 수까지 함께 전달 (백엔드/Api 함수에서 두 번째 파라미터 받도록 수정 필요)
-      const res = await createReservationHoldApi(
+
+      const dateKey = formatDateKey(selectedDate);
+
+      // ✅ 홀드 생성만 호출 (결제 연동 전 단계)
+      await createReservationHoldApi(
+        Number(popupId),
         selectedSlot.slotId,
+        dateKey,
         peopleCount
       );
-      navigate(`/reservation/checkout/${res.reservationId}`, {
-        state: {
-          popupId,
-          reservationId: res.reservationId,
-          sessionUuid: res.sessionUuid,
-          slot: selectedSlot,
-          date: formatDateKey(selectedDate),
-          peopleCount,
-          pricePerPerson,
-          totalPrice,
-        },
-      });
+
+      // ✅ 지금은: 성공하면 바로 상세 페이지로 이동
+      // (나중에 토스 콜백에서 이 navigate만 호출하면 됨)
+      navigate(`/popup/${popupId}`);
     } catch (e) {
       if (e?.response?.status === 409) {
+        // 정원 초과 → 알림 + 슬롯 다시 로딩
         alert(
-          "방금 사이에 자리가 모두 마감되었어요. 다른 시간대를 선택해주세요."
+          "해당 시간대가 가득 찼습니다. 다른 시간대를 선택해주세요."
         );
+
+        try {
+          if (selectedDate && popupId) {
+            const key = formatDateKey(selectedDate);
+            const res = await fetchTimeSlotsByDateApi(popupId, key);
+            setTimeSlots(res.timeSlots || []);
+            setSelectedSlotId(null);
+          }
+        } catch {
+          // 재조회 실패는 조용히 무시
+        }
       } else if (e?.response?.status === 400) {
         alert(
           e?.response?.data?.message ||
@@ -503,7 +530,7 @@ export default function PopupUserReservationPage() {
           </div>
         </section>
 
-               {/* ✅ 맨 하단 추가 영역: 예약 인원 + 결제수단/요약 */}
+        {/* ✅ 맨 하단 추가 영역: 예약 인원 + 결제수단/요약 */}
         <section className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-7">
           {/* 왼쪽: 예약 인원 + 총 가격 */}
           <div className="bg-paper rounded-[24px] shadow-card p-6 md:p-7 flex flex-col gap-5">
@@ -617,4 +644,3 @@ export default function PopupUserReservationPage() {
     </div>
   );
 }
-
