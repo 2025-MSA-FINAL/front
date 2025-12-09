@@ -20,7 +20,6 @@ function formatDateKey(date) {
   return `${y}-${m}-${day}`;
 }
 
-
 /**
  * 날짜 셀
  */
@@ -191,7 +190,12 @@ function TimeSlotButton({ slot, selected, onClick }) {
     .join(" ");
 
   return (
-    <button type="button" disabled={disabled} onClick={onClick} className={className}>
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={className}
+    >
       <div className="font-semibold flex items-center gap-1">
         {/* 시작 시간 */}
         <span>{slot.startTime}</span>
@@ -223,6 +227,9 @@ export default function PopupUserReservationPage() {
   const [slotLoading, setSlotLoading] = useState(false);
   const [holdLoading, setHoldLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // ✅ 추가: 예약 인원 상태
+  const [peopleCount, setPeopleCount] = useState(1);
 
   // 전체 API 호출 로직 그대로 유지
   useEffect(() => {
@@ -286,15 +293,42 @@ export default function PopupUserReservationPage() {
     [timeSlots, selectedSlotId]
   );
 
+  // ✅ 예약 설정 기반 최대 인원 / 금액 계산
+  // TODO: 아래 필드명은 백엔드 DTO에 맞게 조정해줘.
+  const maxPeoplePerReservation =
+    popup?.maxPeoplePerReservation ??
+    popup?.reservationMaxPeople ??
+    4; // 기본값 4명
+
+  const pricePerPerson =
+    popup?.popPrice ??
+    0;
+
+  const peopleOptions = useMemo(() => {
+    const max = Math.max(1, maxPeoplePerReservation || 1);
+    return Array.from({ length: max }, (_, i) => i + 1);
+  }, [maxPeoplePerReservation]);
+
+  const totalPrice = pricePerPerson * peopleCount;
+
   const handleSubmit = async () => {
     if (!selectedSlot) {
       alert("예약할 시간을 먼저 선택해주세요.");
       return;
     }
 
+    if (!peopleCount || peopleCount <= 0) {
+      alert("예약 인원을 선택해주세요.");
+      return;
+    }
+
     try {
       setHoldLoading(true);
-      const res = await createReservationHoldApi(selectedSlot.slotId);
+      // ✅ 인원 수까지 함께 전달 (백엔드/Api 함수에서 두 번째 파라미터 받도록 수정 필요)
+      const res = await createReservationHoldApi(
+        selectedSlot.slotId,
+        peopleCount
+      );
       navigate(`/reservation/checkout/${res.reservationId}`, {
         state: {
           popupId,
@@ -302,11 +336,21 @@ export default function PopupUserReservationPage() {
           sessionUuid: res.sessionUuid,
           slot: selectedSlot,
           date: formatDateKey(selectedDate),
+          peopleCount,
+          pricePerPerson,
+          totalPrice,
         },
       });
     } catch (e) {
       if (e?.response?.status === 409) {
-        alert("방금 사이에 자리가 모두 마감되었어요. 다른 시간대를 선택해주세요.");
+        alert(
+          "방금 사이에 자리가 모두 마감되었어요. 다른 시간대를 선택해주세요."
+        );
+      } else if (e?.response?.status === 400) {
+        alert(
+          e?.response?.data?.message ||
+            "선택하신 인원 수로는 예약이 불가능합니다."
+        );
       } else {
         alert("예약 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       }
@@ -348,6 +392,12 @@ export default function PopupUserReservationPage() {
     popup.popThumbnail ||
     popup.images?.[0] ||
     "";
+
+  const selectedDateLabel = selectedDate
+    ? formatDateKey(selectedDate)
+    : "-";
+
+  const selectedTimeLabel = selectedSlot?.startTime || "-";
 
   return (
     <div className="min-h-screen bg-secondary-light">
@@ -432,19 +482,18 @@ export default function PopupUserReservationPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto pr-1">
-              {!slotLoading &&
-                timeSlots.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    {timeSlots.map((slot) => (
-                      <TimeSlotButton
-                        key={slot.slotId}
-                        slot={slot}
-                        selected={slot.slotId === selectedSlotId}
-                        onClick={() => setSelectedSlotId(slot.slotId)}
-                      />
-                    ))}
-                  </div>
-                )}
+              {!slotLoading && timeSlots.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  {timeSlots.map((slot) => (
+                    <TimeSlotButton
+                      key={slot.slotId}
+                      slot={slot}
+                      selected={slot.slotId === selectedSlotId}
+                      onClick={() => setSelectedSlotId(slot.slotId)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             <p className="mt-3 text-[11px] text-primary-dark">
@@ -453,24 +502,119 @@ export default function PopupUserReservationPage() {
             </p>
           </div>
         </section>
-      </div>
 
-      {/* 하단 버튼 */}
-      <div className="fixed bottom-4 left-0 right-0 flex justify-center pointer-events-none">
-        <div className="w-full max-w-6xl flex justify-end px-4 md:px-6 lg:px-8">
-          <div className="pointer-events-auto">
-            <PrimaryButton
-              size="lg"
-              onClick={handleSubmit}
-              loading={holdLoading}
-              disabled={!selectedSlot || holdLoading}
-              className="rounded-full px-8 shadow-card text-[15px]"
-            >
-              결제하러가기
-            </PrimaryButton>
+               {/* ✅ 맨 하단 추가 영역: 예약 인원 + 결제수단/요약 */}
+        <section className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-7">
+          {/* 왼쪽: 예약 인원 + 총 가격 */}
+          <div className="bg-paper rounded-[24px] shadow-card p-6 md:p-7 flex flex-col gap-5">
+            <div>
+              <h2 className="text-[16px] md:text-[18px] font-semibold text-text-black mb-3">
+                예약 인원
+              </h2>
+              <div className="w-full">
+                <select
+                  className="w-full h-11 md:h-12 px-4 rounded-full border border-secondary-light bg-paper-light text-[14px] text-text-black focus:outline-none focus:ring-2 focus:ring-primary/60"
+                  value={peopleCount}
+                  onChange={(e) => setPeopleCount(Number(e.target.value))}
+                >
+                  {peopleOptions.map((n) => (
+                    <option key={n} value={n}>
+                      {n}명
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-1">
+              <h3 className="text-[14px] md:text-[15px] font-semibold text-text-black mb-2">
+                총 가격
+              </h3>
+              <div className="rounded-[18px] border border-primary-light bg-primary-light/20 px-5 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                <div className="text-[13px] text-text-black">
+                  예상 결제 금액
+                </div>
+                <div className="text-[20px] md:text-[22px] font-semibold text-primary-dark">
+                  {totalPrice.toLocaleString("ko-KR")}원
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] text-text-black">
+                날짜, 시간, 인원을 선택하면 금액이 계산됩니다.
+              </p>
+            </div>
           </div>
+
+          {/* 오른쪽: 결제수단 + 선택한 예약 정보 */}
+          <div className="bg-paper rounded-[24px] shadow-card p-6 md:p-7 flex flex-col gap-4">
+            <div>
+              <h2 className="text-[16px] md:text-[18px] font-semibold text-text-black mb-3">
+                결제수단
+              </h2>
+
+              {/* 토스페이 고정 카드 (단일 선택) */}
+              <button
+                type="button"
+                className="w-full flex items-center justify-between rounded-[18px] border border-primary bg-primary-light/30 px-4 py-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-[12px] font-semibold text-white">
+                    TOSS
+                  </div>
+                  <div className="text-left">
+                    <div className="text-[14px] font-semibold text-text-black">
+                      토스페이
+                    </div>
+                    <div className="text-[11px] text-text-black">
+                      간편결제 · 카드 등록 시 한 번에 결제
+                    </div>
+                  </div>
+                </div>
+                <div className="w-4 h-4 rounded-full border border-secondary-dark flex items-center justify-center">
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                </div>
+              </button>
+            </div>
+
+            <div className="mt-1">
+              <h3 className="text-[14px] md:text-[15px] font-semibold text-text-black mb-2">
+                선택한 예약 정보
+              </h3>
+              <div className="rounded-[18px] bg-secondary-light/40 px-5 py-4 text-[13px] text-text-black flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <span>날짜</span>
+                  <span>{selectedDateLabel}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>시간</span>
+                  <span>{selectedTimeLabel}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>인원</span>
+                  <span>{peopleCount}명</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>결제수단</span>
+                  <span>토스페이</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 하단 버튼 */}
+        <div className="mt-6 mb-10 flex justify-end">
+          <PrimaryButton
+            size="lg"
+            onClick={handleSubmit}
+            loading={holdLoading}
+            disabled={!selectedSlot || holdLoading}
+            className="rounded-full px-8 shadow-card text-[15px]"
+          >
+            결제하러가기
+          </PrimaryButton>
         </div>
       </div>
     </div>
   );
 }
+
