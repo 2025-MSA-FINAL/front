@@ -63,6 +63,10 @@ export default function GroupRoomCreateForm() {
 
     const { selectRoom } = useChatStore.getState();
     selectRoom(detail);
+
+    const { fetchRooms } = useChatStore.getState();
+    await fetchRooms();
+
     await fetchPopupRooms(selectedPopup.popId);
     closeCreateForm();
   };
