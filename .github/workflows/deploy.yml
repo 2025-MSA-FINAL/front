@@ -1,0 +1,92 @@
+name: Deploy to S3
+
+on:
+  push:
+    branches:
+      - dev  # dev 브랜치에 푸시할 때 실행
+  pull_request:
+    branches:
+      - dev  # PR 시 린트 체크만 실행
+
+jobs:
+  # 린트 검사 (실패해도 계속 진행)
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+        continue-on-error: true  # 린트 실패해도 계속 진행
+
+  # 빌드 및 배포
+  deploy:
+    needs: lint  # lint 작업 완료 후 실행 (실패해도 진행됨)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'  # main 브랜치 푸시만 배포
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build with Vite
+        run: npm run build
+        env:
+          # GitHub Secrets에서 환경 변수 주입
+          VITE_KAKAO_MAP_KEY: ${{ secrets.VITE_KAKAO_MAP_KEY }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy to S3
+        run: |
+          # assets 폴더 (JS, CSS 등) - 1년 캐싱
+          aws s3 sync dist/assets/ s3://${{ secrets.S3_BUCKET_NAME }}/assets/ \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable"
+          
+          # index.html - 캐싱 안 함 (항상 최신 버전)
+          aws s3 cp dist/index.html s3://${{ secrets.S3_BUCKET_NAME }}/index.html \
+            --cache-control "no-cache, no-store, must-revalidate"
+          
+          # 기타 루트 파일들 (vite.svg, robots.txt 등)
+          aws s3 sync dist/ s3://${{ secrets.S3_BUCKET_NAME }}/ \
+            --exclude "assets/*" \
+            --exclude "index.html" \
+            --cache-control "public, max-age=86400"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+      - name: Deployment complete
+        run: |
+          echo "🚀 Deployment completed successfully!"
+          echo "📦 Build files uploaded to S3"
+          echo "🔄 CloudFront cache invalidated"
+          echo "🌐 Your app is live!"
