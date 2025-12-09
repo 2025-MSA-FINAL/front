@@ -27,7 +27,7 @@ import Popups from "./pages/admin/Popups.jsx";
 import Reports from "./pages/admin/Reports.jsx";
 import ChatRooms from "./pages/admin/ChatRooms.jsx";
 import UserReportPage from "./pages/user/UserReportPage.jsx";
-import PopupUserReservationPage from "./components/reservation/PopupUserReservationPage.jsx";
+import PopupUserReservationPage from "./pages/reservation/PopupUserReservationPage.jsx";
 
 function App() {
   return (
