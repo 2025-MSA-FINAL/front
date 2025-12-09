@@ -87,10 +87,7 @@ export default function ChatMainPage() {
           {createMode ? (
             <GroupRoomCreateForm />
           ) : activeChatRoom ? (
-            <MessageChatSection
-              roomId={activeChatRoom.gcrId ?? activeChatRoom.roomId}
-              roomType={activeChatRoom.roomType}
-            />
+            <MessageChatSection />
           ) : selectedGroupRoom ? (
             <GroupRoomDetailSection room={selectedGroupRoom} />
           ) : (
