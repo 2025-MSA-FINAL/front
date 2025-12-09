@@ -44,13 +44,14 @@ export async function fetchTimeSlotsByDateApi(popupId, dateKey) {
 }
 
 /**
- * 결제 전에 타임슬롯 선점(HOLD)
- * POST /api/reservations/hold
- * body: { slotId }
- * 응답 예: { reservationId: 10, sessionUuid: "..." }
+ * 예약 생성 (HOLD + 즉시 확정)
  */
-export async function createReservationHoldApi(slotId) {
-  if (!slotId) throw new Error("slotId가 없습니다.");
-  const res = await apiClient.post(`/api/reservations/hold`, { slotId });
-  return res.data;
+export async function createReservationHoldApi(popupId, slotId, date, people) {
+  const response = await apiClient.post("/api/reservations", {
+    popupId,
+    slotId,
+    date,
+    people,
+  });
+  return response.data; // { reservationId }
 }
