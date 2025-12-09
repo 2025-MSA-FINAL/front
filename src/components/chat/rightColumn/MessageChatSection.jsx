@@ -4,10 +4,12 @@ import {
   deleteGroupChatRoom,
   deletePrivateChatRoom,
   updateGroupChatRoom,
+  leaveGroupChatRoom,
 } from "../../../api/chatApi";
 import BlurModal from "../../common/BlurModal";
 import EditRoomForm from "../../chat/rightColumn/EditRoomForm";
 import ReportForm from "../../chat/rightColumn/ReportForm";
+import { useChatPopupStore } from "../../../store/chat/chatPopupStore";
 import { useChatStore } from "../../../store/chat/chatStore";
 import { useAuthStore } from "../../../store/authStore";
 import axios from "axios";
@@ -127,31 +129,6 @@ export default function MessageChatSection() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
-
-  /* 삭제 기능 */
-  const handleDeleteRoom = async () => {
-    if (
-      !window.confirm(
-        `정말 이 ${activeRoom.roomName} 채팅방을 삭제하시겠습니까?`
-      )
-    )
-      return;
-
-    try {
-      if (roomType === "GROUP") {
-        await deleteGroupChatRoom(activeRoom.gcrId);
-        removeRoom("GROUP", activeRoom.gcrId);
-      } else {
-        await deletePrivateChatRoom(activeRoom.roomId);
-        removeRoom("PRIVATE", activeRoom.roomId);
-      }
-
-      setActiveRoom(null);
-    } catch (e) {
-      console.error(e);
-      alert("삭제 중 오류가 발생했습니다.");
-    }
-  };
 
   /* 자동 스크롤 */
   const scrollToBottom = () => {
@@ -326,30 +303,65 @@ export default function MessageChatSection() {
                 `}
               >
                 <div className="flex flex-col gap-4">
+                  {/* 수정하기 - GROUP & Owner */}
                   {roomType === "GROUP" &&
                     activeRoom?.ownerId === currentUserId && (
+                      <>
+                        <button
+                          className="mx-2 text-[14px] font-semibold text-left text-text-main hover:text-text-sub transition"
+                          onClick={() => {
+                            setShowEditModal(true);
+                            toggleMenu();
+                          }}
+                        >
+                          수정하기
+                        </button>
+
+                        <div className="w-full h-px bg-white/60"></div>
+                      </>
+                    )}
+
+                  {/* GROUP → Owner는 삭제, 참여자는 나가기 */}
+                  {roomType === "GROUP" ? (
+                    activeRoom?.ownerId === currentUserId ? (
                       <button
-                        className="mx-2 text-[14px] font-semibold text-left text-text-main hover:text-text-sub transition"
-                        onClick={() => {
-                          setShowEditModal(true);
-                          toggleMenu();
+                        className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
+                        onClick={async () => {
+                          await deleteGroupChatRoom(activeRoom.gcrId);
+                          removeRoom("GROUP", activeRoom.gcrId);
+                          setActiveRoom(null);
+                          const { fetchPopupRooms, selectedPopup } =
+                            useChatPopupStore.getState();
+                          await fetchPopupRooms(selectedPopup.popId);
                         }}
                       >
-                        수정하기
+                        채팅방 삭제하기
                       </button>
-                    )}
-
-                  {roomType === "GROUP" &&
-                    activeRoom?.ownerId === currentUserId && (
-                      <div className="w-full h-px bg-white/60"></div>
-                    )}
-
-                  <button
-                    className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
-                    onClick={handleDeleteRoom}
-                  >
-                    채팅방 삭제하기
-                  </button>
+                    ) : (
+                      <button
+                        className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
+                        onClick={async () => {
+                          await leaveGroupChatRoom(activeRoom.gcrId);
+                          removeRoom("GROUP", activeRoom.gcrId);
+                          setActiveRoom(null);
+                        }}
+                      >
+                        채팅방 나가기
+                      </button>
+                    )
+                  ) : (
+                    /* PRIVATE → 항상 삭제 */
+                    <button
+                      className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
+                      onClick={async () => {
+                        await deletePrivateChatRoom(activeRoom.roomId);
+                        removeRoom("PRIVATE", activeRoom.roomId);
+                        setActiveRoom(null);
+                      }}
+                    >
+                      채팅방 삭제하기
+                    </button>
+                  )}
 
                   <button
                     className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
@@ -531,7 +543,7 @@ export default function MessageChatSection() {
         onClose={() => setShowReportModal(false)}
       >
         <ReportForm //이후에 만들 예정
-          onSubmit={(data) => {
+          onSubmit={() => {
             alert("신고가 접수되었습니다.");
             setShowReportModal(false);
           }}
