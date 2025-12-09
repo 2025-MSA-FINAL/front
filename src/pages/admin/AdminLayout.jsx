@@ -17,10 +17,10 @@ export default function AdminLayout() {
 
   const menuItems = [
     { path: "/", icon: Home, label: "대시보드", end: true },
-    { path: "/users", icon: Users, label: "유저 관리" },
-    { path: "/popups", icon: Store, label: "팝업 관리" },
-    { path: "/chatrooms", icon: MessageSquare, label: "채팅방 관리" },
-    { path: "/reports", icon: AlertCircle, label: "신고 관리" },
+    { path: "users", icon: Users, label: "유저 관리" },
+    { path: "popups", icon: Store, label: "팝업 관리" },
+    { path: "chatrooms", icon: MessageSquare, label: "채팅방 관리" },
+    { path: "reports", icon: AlertCircle, label: "신고 관리" },
   ];
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
