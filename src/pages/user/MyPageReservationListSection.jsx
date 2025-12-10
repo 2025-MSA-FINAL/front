@@ -102,8 +102,8 @@ function ReservationListSection({ authUser }) {
               setReservationPage(0);
             }}
             options={[
-              { value: "DESC", label: "최신순" },
-              { value: "ASC", label: "오래된순" },
+              { value: "DESC", label: "가까운 날짜 순" },
+              { value: "ASC", label: "먼 날짜 순" },
             ]}
           />
         </div>

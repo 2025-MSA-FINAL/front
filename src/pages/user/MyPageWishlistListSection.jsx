@@ -175,8 +175,8 @@ function WishlistListSection({ authUser }) {
               setWishlistPage(0);
             }}
             options={[
-              { value: "DESC", label: "최신순" },
-              { value: "ASC", label: "오래된순" },
+              { value: "DESC", label: "최신 찜순" },
+              { value: "ASC", label: "과거 찜순" },
             ]}
           />
         </div>
