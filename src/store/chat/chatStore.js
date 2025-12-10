@@ -35,7 +35,7 @@ export const useChatStore = create((set) => ({
         (r) => !(r.roomType === roomType && r.roomId === roomId)
       ),
     })),
-    
+
   updateRoomOrder: (roomType, roomId) =>
     set((state) => {
       const idx = state.rooms.findIndex(
@@ -55,5 +55,29 @@ export const useChatStore = create((set) => ({
       rooms: [],
       activeChatRoom: null,
       loading: false,
+    }),
+
+    addOrSelectPrivateRoom: (room) =>
+    set((state) => {
+      const exists = state.rooms.find(
+        (r) => r.roomType === "PRIVATE" && r.roomId === room.roomId
+      );
+
+      if (exists) {
+        // 이미 있으면 active 상태만 업데이트
+        return { activeChatRoom: room };
+      }
+
+      // 없으면 rooms 배열 앞쪽에 추가
+      return {
+        rooms: [{ 
+          roomName: room.roomName,
+          roomId: room.roomId,
+          roomType: "PRIVATE",
+          otherUserNickname: room.otherUserNickname,
+          otherUserProfileImage: room.otherUserProfileImage
+        }, ...state.rooms],
+        activeChatRoom: room,
+      };
     }),
 }));

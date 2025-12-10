@@ -119,8 +119,7 @@ function UserInfoSection({ authUser, setUser }) {
   const newPwdLengthOk = newPwd.length >= 8;
   const newPwdHasLetter = /[A-Za-z]/.test(newPwd);
   const newPwdHasSpecial = /[^A-Za-z0-9]/.test(newPwd);
-  const newPwdComplexOk =
-    newPwdLengthOk && newPwdHasLetter && newPwdHasSpecial;
+  const newPwdComplexOk = newPwdLengthOk && newPwdHasLetter && newPwdHasSpecial;
 
   // ✅ 모달에서 비밀번호/확인 일치 여부
   const passwordsMatchInModal =
@@ -218,8 +217,7 @@ function UserInfoSection({ authUser, setUser }) {
     } catch (e) {
       console.error(e);
       showToast(
-        e?.response?.data?.message ??
-          "인증번호 전송 중 오류가 발생했습니다.",
+        e?.response?.data?.message ?? "인증번호 전송 중 오류가 발생했습니다.",
         "error"
       );
     } finally {
@@ -358,8 +356,7 @@ function UserInfoSection({ authUser, setUser }) {
       showToast("자기소개가 저장되었습니다.", "success");
     } catch (err) {
       showToast(
-        err?.response?.data?.message ??
-          "자기소개 저장 중 오류가 발생했습니다.",
+        err?.response?.data?.message ?? "자기소개 저장 중 오류가 발생했습니다.",
         "error"
       );
     } finally {
@@ -439,8 +436,7 @@ function UserInfoSection({ authUser, setUser }) {
       setIsPasswordModalOpen(false);
     } catch (err) {
       const msg =
-        err?.response?.data?.message ??
-        "비밀번호 변경 중 오류가 발생했습니다.";
+        err?.response?.data?.message ?? "비밀번호 변경 중 오류가 발생했습니다.";
       setPasswordError(msg);
       showToast(msg, "error");
     } finally {
@@ -452,14 +448,19 @@ function UserInfoSection({ authUser, setUser }) {
   // 회원탈퇴
   // =========================
   const handleDeleteUser = async () => {
-    if (!window.confirm("정말 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+    if (
+      !window.confirm("정말 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
+    ) {
       return;
     }
 
     try {
       setUpdating(true);
       await deleteMeApi();
-      showToast("회원탈퇴가 완료되었습니다. 메인 페이지로 이동합니다.", "success");
+      showToast(
+        "회원탈퇴가 완료되었습니다. 메인 페이지로 이동합니다.",
+        "success"
+      );
 
       // ✅ 프론트 상태 정리
       setUser(null);
@@ -468,8 +469,7 @@ function UserInfoSection({ authUser, setUser }) {
       window.location.href = "/";
     } catch (err) {
       showToast(
-        err?.response?.data?.message ??
-          "회원탈퇴 처리 중 오류가 발생했습니다.",
+        err?.response?.data?.message ?? "회원탈퇴 처리 중 오류가 발생했습니다.",
         "error"
       );
     } finally {
@@ -520,11 +520,7 @@ function UserInfoSection({ authUser, setUser }) {
               className="absolute -bottom-1 right-2 w-7 h-7 rounded-full bg-paper border border-secondary flex items-center justify-center text-secondary-dark hover:bg-secondary-light disabled:opacity-60"
               title="프로필 사진 수정"
             >
-              <img
-                src={editIcon}
-                alt="프로필 수정"
-                className="w-3.5 h-3.5"
-              />
+              <img src={editIcon} alt="프로필 수정" className="w-3.5 h-3.5" />
             </button>
 
             <input
@@ -881,9 +877,7 @@ function UserInfoSection({ authUser, setUser }) {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[13px] text-text-sub">
-                  새 비밀번호
-                </label>
+                <label className="text-[13px] text-text-sub">새 비밀번호</label>
                 <input
                   type="password"
                   className="w-full h-[42px] rounded-[10px] border border-secondary bg-paper px-3 text-[14px] focus:outline-none focus:border-primary"

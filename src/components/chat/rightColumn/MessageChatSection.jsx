@@ -7,8 +7,11 @@ import {
   leaveGroupChatRoom,
 } from "../../../api/chatApi";
 import BlurModal from "../../common/BlurModal";
+import MessageItem from "../../chat/common/MessageItem";
 import EditRoomForm from "../../chat/rightColumn/EditRoomForm";
 import ReportForm from "../../chat/rightColumn/ReportForm";
+import GroupRoomInfoPopover from "../../chat/common/GroupRoomInfoPopover";
+import UserProfilePopover from "../../chat/common/UserProfilePopover";
 import { useChatPopupStore } from "../../../store/chat/chatPopupStore";
 import { useChatStore } from "../../../store/chat/chatStore";
 import { useAuthStore } from "../../../store/authStore";
@@ -82,29 +85,30 @@ const toMinuteKey = (dt) => {
 export default function MessageChatSection() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-
   const [showEditModal, setShowEditModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-
+  const [showRoomInfo, setShowRoomInfo] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
-  const menuRef = useRef(null);
+  const [openUserPopover, setOpenUserPopover] = useState(null);
+  const [userAnchorRef, setUserAnchorRef] = useState(null);
 
   const subRef = useRef(null);
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
   const isComposingRef = useRef(false);
+  const menuRef = useRef(null);
+  const roomInfoRef = useRef(null);
 
   const currentUserId = useAuthStore((s) => s.user?.userId);
-
   const activeRoom = useChatStore((s) => s.activeChatRoom);
   const setActiveRoom = useChatStore((s) => s.setActiveChatRoom);
-
   const roomId = activeRoom?.gcrId ?? activeRoom?.roomId;
   const roomType = activeRoom?.roomType;
-
   const removeRoom = useChatStore((s) => s.removeRoom);
   const updateRoomOrder = useChatStore((s) => s.updateRoomOrder);
+
+  const toggleRoomInfo = () => setShowRoomInfo((prev) => !prev);
 
   const iconSize = roomType === "GROUP" ? "w-11 h-9" : "w-9 h-9";
 
@@ -138,12 +142,22 @@ export default function MessageChatSection() {
 
   useEffect(() => scrollToBottom(), [messages]);
 
-  /* textarea 자동 높이 */
+  /* textarea 자동 높이 (최대 120px) */
   useEffect(() => {
     if (textareaRef.current) {
       const ta = textareaRef.current;
+
       ta.style.height = "auto";
-      ta.style.height = ta.scrollHeight + "px";
+
+      const fullHeight = ta.scrollHeight;
+      const newHeight = Math.min(fullHeight, 120);
+      ta.style.height = newHeight + "px";
+
+      if (fullHeight > 120) {
+        ta.style.overflowY = "auto";
+      } else {
+        ta.style.overflowY = "hidden";
+      }
     }
   }, [input]);
 
@@ -260,12 +274,18 @@ export default function MessageChatSection() {
               />
             </div>
 
-            <div className="flex flex-col justify-center h-[48px]">
+            <div
+              className="flex flex-col justify-center h-[48px]"
+              ref={roomInfoRef}
+            >
               {roomType === "GROUP" ? (
                 <div className="flex flex-row items-end gap-3">
-                  <span className="text-white font-semibold text-lg">
+                  <button
+                    onClick={toggleRoomInfo}
+                    className="text-white font-semibold text-lg hover:text-white/80 transition"
+                  >
                     {activeRoom?.title}
-                  </span>
+                  </button>
                   <span className="text-white/60 text-[11px]">
                     인원 {activeRoom?.currentUserCnt} / {activeRoom?.maxUserCnt}
                   </span>
@@ -378,6 +398,16 @@ export default function MessageChatSection() {
           </div>
         </div>
 
+        {roomType === "GROUP" && (
+          <GroupRoomInfoPopover
+            room={activeRoom}
+            currentUserId={currentUserId}
+            anchorRef={roomInfoRef}
+            open={showRoomInfo}
+            onClose={() => setShowRoomInfo(false)}
+          />
+        )}
+
         {/* 메시지 리스트 */}
         <div
           className="flex flex-col flex-1 overflow-y-auto scrollbar-hide justify-start border-t border-white/20"
@@ -396,82 +426,36 @@ export default function MessageChatSection() {
               prev?.senderId === msg.senderId &&
               prev?.minuteKey === msg.minuteKey;
 
+            // 시간 보여 줄지 여부 (마지막 말풍선에만)
+            const showTime =
+              !next ||
+              next.senderId !== msg.senderId ||
+              next.minuteKey !== msg.minuteKey;
+
             return (
               <div key={i} className="mb-1">
                 {showDateDivider && <DateDivider label={msg.dateLabel} />}
-                <div
-                  className={`flex w-full ${
-                    isMine ? "justify-end" : "justify-start"
-                  } mb-1`}
-                >
-                  {/* LEFT */}
-                  {!isMine && (
-                    <div className="flex gap-2 w-full max-w-[75%]">
-                      {!isGroupWithPrev ? (
-                        <img
-                          src={msg.senderProfileUrl}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="min-w-10 h-full"></div>
-                      )}
 
-                      <div className="flex flex-col">
-                        {!isGroupWithPrev && (
-                          <span className="text-white font-semibold text-[15px] ml-1">
-                            {msg.senderNickname}
-                          </span>
-                        )}
-
-                        <div className="flex items-end gap-2">
-                          <div
-                            className={`
-                              px-4 py-2 rounded-2xl whitespace-pre-line break-words max-w-[80%]
-                              bg-white/20 text-white
-                              ${isGroupWithPrev ? "mt-1" : "mt-2"}
-                            `}
-                          >
-                            {msg.content}
-                          </div>
-
-                          {(!next ||
-                            next.senderId !== msg.senderId ||
-                            next.minuteKey !== msg.minuteKey) && (
-                            <span className="text-white/50 text-xs mb-1">
-                              {msg.createdAt}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* RIGHT */}
-                  {isMine && (
-                    <div className="flex gap-2 w-full max-w-[75%] justify-end items-end">
-                      {(!next ||
-                        next.senderId !== msg.senderId ||
-                        next.minuteKey !== msg.minuteKey) && (
-                        <span className="text-white/50 text-xs mb-1">
-                          {msg.createdAt}
-                        </span>
-                      )}
-
-                      <div
-                        className={`
-                          px-4 py-2 rounded-2xl whitespace-pre-line break-words max-w-[80%]
-                          bg-white text-purple-700
-                          ${isGroupWithPrev ? "mt-1" : "mt-2"}
-                        `}
-                      >
-                        {msg.content}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <MessageItem
+                  msg={msg}
+                  isMine={isMine}
+                  isGroupWithPrev={isGroupWithPrev}
+                  showTime={showTime}
+                  onOpenUserPopover={(id, ref) => {
+                    setOpenUserPopover(id);
+                    setUserAnchorRef(ref);
+                  }}
+                />
               </div>
             );
           })}
+          <UserProfilePopover
+            userId={openUserPopover}
+            anchorRef={userAnchorRef}
+            open={!!openUserPopover}
+            onClose={() => setOpenUserPopover(null)}
+            scrollParentRef={scrollRef}
+          />
         </div>
 
         {/* 입력창 */}
@@ -484,8 +468,12 @@ export default function MessageChatSection() {
             ref={textareaRef}
             value={input}
             rows={1}
+            maxLength={3000}
             placeholder="메시지 입력"
-            className="flex-1 bg-white/10 border border-white/30 rounded-xl px-4 py-2 text-white placeholder:text-white/60 resize-none overflow-hidden focus:outline-none"
+            className="flex-1 bg-white/10 border border-white/30 rounded-xl px-4 py-2 
+                    text-white placeholder:text-white/60
+                    resize-none overflow-y-auto focus:outline-none max-h-[120px]
+                    chat-textarea-scroll"
             onCompositionStart={() => (isComposingRef.current = true)}
             onCompositionEnd={() => (isComposingRef.current = false)}
             onChange={(e) => setInput(e.target.value)}
@@ -542,7 +530,7 @@ export default function MessageChatSection() {
         open={showReportModal}
         onClose={() => setShowReportModal(false)}
       >
-        <ReportForm //이후에 만들 예정
+        <ReportForm
           onSubmit={() => {
             alert("신고가 접수되었습니다.");
             setShowReportModal(false);
