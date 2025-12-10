@@ -101,7 +101,7 @@ function AxisItem({ axis }) {
     <div className="bg-paper rounded-[14px] border border-secondary-light px-4 py-3 shadow-card flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          <span className="text-[14px] font-medium text-black">
+          <span className="text-[15px] font-bold text-black">
             {axis.axisLabel}
           </span>
           <span className="text-[12px] text-gray-700">({axis.axisKey})</span>
@@ -131,16 +131,17 @@ function AxisItem({ axis }) {
   );
 }
 
-
-// 육각형 레이더 차트 (행동 성향)
+// =========================
+// 레이더 차트 (육각형 영역 분할, 각 영역 다른 색 / 점수 텍스트 제거)
+// =========================
 function AxisRadarChart({ axes }) {
-  const displayedAxes = (axes || []).slice(0, 6); // 최대 6개까지
+  const displayedAxes = (axes || []).slice(0, 6); // 최대 6개
   if (displayedAxes.length < 3) return null;
 
-  const count = 6; // 육각형 기준
+  const count = displayedAxes.length;
   const centerX = 100;
   const centerY = 100;
-  const radius = 70;
+  const radius = 50;
   const angleStep = (2 * Math.PI) / count;
 
   const clampScore = (score) => {
@@ -148,244 +149,121 @@ function AxisRadarChart({ axes }) {
     return Math.min(Math.max(s, 0), 100);
   };
 
-  const getPoint = (score, index, r = radius) => {
+  // 점(스코어)에 대한 좌표
+  const getPoint = (score, index) => {
     const angle = -Math.PI / 2 + angleStep * index;
-    const scaledR = (r * clampScore(score)) / 100;
-    const x = centerX + scaledR * Math.cos(angle);
-    const y = centerY + scaledR * Math.sin(angle);
-    return { x, y };
+    const r = (radius * clampScore(score)) / 100;
+    return {
+      x: centerX + r * Math.cos(angle),
+      y: centerY + r * Math.sin(angle),
+    };
   };
 
-  const makeRingPoints = (ratio) =>
-    Array.from({ length: count })
-      .map((_, idx) => {
-        const angle = -Math.PI / 2 + angleStep * idx;
-        const r = radius * ratio;
-        const x = centerX + r * Math.cos(angle);
-        const y = centerY + r * Math.sin(angle);
-        return `${x},${y}`;
-      })
-      .join(" ");
+  const ringRatios = [1, 0.75, 0.5, 0.25];
 
-
-  const dataPoints = displayedAxes
-    .map((axis, idx) => {
-      const { x, y } = getPoint(axis.score ?? 0, idx);
-      return `${x},${y}`;
-    })
-    .join(" ");
+  // 6축 기준 색 팔레트
+  const colors = [
+    "#C33DFF",
+    "#FF2A7E",
+    "#7E00CC",
+    "#FFD93D",
+    "#B7F731",
+    "#45DFD3",
+  ];
 
   return (
-    <div className="mb-6 flex items-center justify-center bg-gradient-to-br from-primary-soft2/5 via-white to-primary-soft2/10 rounded-[24px] py-8 px-4 border border-primary-soft2/30 shadow-lg">
-      <svg viewBox="0 0 200 200" className="max-w-[600px] h-auto" style={{ filter: 'drop-shadow(0 4px 20px rgba(139, 92, 246, 0.08))' }}>
-        {/* 그래디언트 정의 */}
-        <defs>
-          {/* 메인 데이터 영역 그래디언트 */}
-          <linearGradient id="radar-fill" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.4" />
-            <stop offset="50%" stopColor="#6366f1" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.2" />
-          </linearGradient>
-          
-          {/* 배경 원형 그래디언트 */}
-          <radialGradient id="bg-gradient" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#f5f3ff" stopOpacity="0.6" />
-            <stop offset="70%" stopColor="#ede9fe" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#e0e7ff" stopOpacity="0.1" />
-          </radialGradient>
+    <div className="mb-6 w-full overflow-visible flex items-center justify-center">
+      <svg viewBox="0 0 200 200" className="max-w-[600px] h-auto overflow-visible">
+        {/* 원형 그리드 */}
+        {ringRatios.map((ratio, idx) => (
+          <circle
+            key={`ring-${idx}`}
+            cx={centerX}
+            cy={centerY}
+            r={radius * ratio}
+            fill="none"
+            stroke="#e5e7ff"
+            strokeWidth="1"
+            opacity={0.6 - idx * 0.1}
+          />
+        ))}
 
-          {/* 데이터 영역 그림자 */}
-          <filter id="data-glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
-            <feOffset dx="0" dy="2" result="offsetblur" />
-            <feComponentTransfer>
-              <feFuncA type="linear" slope="0.4" />
-            </feComponentTransfer>
-            <feMerge>
-              <feMergeNode />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-
-          {/* 점 글로우 효과 */}
-          <filter id="point-glow">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-        </defs>
-
-        {/* 배경 원형 */}
-        <circle
-          cx={centerX}
-          cy={centerY}
-          r={radius + 18}
-          fill="url(#bg-gradient)"
-          opacity="0.8"
-        />
-
-        {/* 격자 링 (육각형 5단계) */}
-        <polygon
-          points={makeRingPoints(1)}
-          fill="none"
-          stroke="#c4b5fd"
-          strokeWidth="2"
-          opacity="0.4"
-        />
-        <polygon
-          points={makeRingPoints(0.75)}
-          fill="none"
-          stroke="#c4b5fd"
-          strokeWidth="1.5"
-          strokeDasharray="4 4"
-          opacity="0.35"
-        />
-        <polygon
-          points={makeRingPoints(0.5)}
-          fill="none"
-          stroke="#ddd6fe"
-          strokeWidth="1.5"
-          strokeDasharray="3 3"
-          opacity="0.3"
-        />
-        <polygon
-          points={makeRingPoints(0.25)}
-          fill="none"
-          stroke="#e9d5ff"
-          strokeWidth="1"
-          strokeDasharray="2 2"
-          opacity="0.25"
-        />
-
-        {/* 축선 */}
-        {Array.from({ length: count }).map((_, idx) => {
-          const angle = -Math.PI / 2 + angleStep * idx;
-          const x = centerX + radius * Math.cos(angle);
-          const y = centerY + radius * Math.sin(angle);
+        {/* 각 축선 */}
+        {displayedAxes.map((axis, idx) => {
+          const end = getPoint(100, idx); // 최대 반지름까지
           return (
             <line
-              key={`axis-line-${idx}`}
+              key={`axis-line-${axis.axisKey}`}
               x1={centerX}
               y1={centerY}
-              x2={x}
-              y2={y}
-              stroke="#c4b5fd"
+              x2={end.x}
+              y2={end.y}
+              stroke="#e5e7ff"
               strokeWidth="1"
-              opacity="0.4"
             />
           );
         })}
 
-        {/* 데이터 영역 (메인) */}
-        <polygon
-          points={dataPoints}
-          fill="url(#radar-fill)"
-          stroke="#8b5cf6"
-          strokeWidth="2.5"
-          strokeLinejoin="round"
-          filter="url(#data-glow)"
-        />
-
-        {/* 각 축의 데이터 포인트와 라벨 */}
+        {/* 색 영역: 중심 + 인접 두 점으로 이루어진 삼각형, 축별로 색 다르게 */}
         {displayedAxes.map((axis, idx) => {
-          const score = clampScore(axis.score ?? 0);
-          const scorePoint = getPoint(score, idx);
-          const labelPoint = getPoint(115, idx);
+          const nextIdx = idx + 1 < count ? idx + 1 : 0;
+          const p1 = getPoint(axis.score, idx);
+          const p2 = getPoint(displayedAxes[nextIdx].score, nextIdx);
+          const color = colors[idx % colors.length];
+
+          const d = `
+            M ${centerX},${centerY}
+            L ${p1.x},${p1.y}
+            L ${p2.x},${p2.y}
+            Z
+          `;
+
+          return (
+            <path
+              key={`area-${axis.axisKey}`}
+              d={d}
+              fill={color}
+              fillOpacity="0.18"
+              stroke="none"
+            />
+          );
+        })}
+
+        {/* 라벨 (점수 텍스트 제거, 모든 라벨이 원과 동일 거리) */}
+        {displayedAxes.map((axis, idx) => {
           const angle = -Math.PI / 2 + angleStep * idx;
+
+          // 바깥 원(radius)에서 일정 거리만큼 바깥쪽 → 모든 라벨이 같은 반지름
+          const labelR = radius + 10;
+          const x = centerX + labelR * Math.cos(angle);
+          const y = centerY + labelR * Math.sin(angle);
+
           const cos = Math.cos(angle);
           const anchor =
             Math.abs(cos) < 0.3 ? "middle" : cos > 0 ? "start" : "end";
 
           return (
-            <g key={axis.axisKey}>
-              {/* 포인트 외곽 글로우 */}
-              <circle
-                cx={scorePoint.x}
-                cy={scorePoint.y}
-                r="8"
-                fill="#8b5cf6"
-                opacity="0.2"
-              />
-              <circle
-                cx={scorePoint.x}
-                cy={scorePoint.y}
-                r="5"
-                fill="#8b5cf6"
-                opacity="0.3"
-              />
-              
-              {/* 메인 포인트 */}
-              <circle
-                cx={scorePoint.x}
-                cy={scorePoint.y}
-                r="4"
-                fill="white"
-                stroke="#8b5cf6"
-                strokeWidth="2.5"
-                filter="url(#point-glow)"
-              />
-
-              {/* 라벨 배경 */}
-              <rect
-                x={labelPoint.x - (anchor === "middle" ? 35 : anchor === "start" ? 0 : 70)}
-                y={labelPoint.y - 20}
-                width="70"
-                height="36"
-                rx="8"
-                fill="white"
-                opacity="0.95"
-                stroke="#e9d5ff"
-                strokeWidth="1"
-              />
-
-              {/* 라벨 텍스트 */}
-              <text
-                x={labelPoint.x}
-                y={labelPoint.y - 8}
-                textAnchor={anchor}
-                className="fill-gray-900"
-              >
-                <tspan className="text-[11px] font-semibold">
-                  {axis.axisLabel}
-                </tspan>
-              </text>
-              <text
-                x={labelPoint.x}
-                y={labelPoint.y + 6}
-                textAnchor={anchor}
-                className="fill-primary"
-              >
-                <tspan className="text-[13px] font-bold">
-                  {score}점
-                </tspan>
-              </text>
-            </g>
+            <text
+              key={`label-${axis.axisKey}`}
+              x={x}
+              y={y}
+              textAnchor={anchor}
+              dominantBaseline="middle" // 중심 기준
+              className="fill-gray-900"
+              style={{ fontSize: "6px", fontWeight: 600 }}
+            >
+              {axis.axisLabel}
+            </text>
           );
         })}
 
-        {/* 중심 포인트 */}
-        <circle
-          cx={centerX}
-          cy={centerY}
-          r="6"
-          fill="white"
-          stroke="#a78bfa"
-          strokeWidth="2"
-          opacity="0.9"
-        />
-        <circle
-          cx={centerX}
-          cy={centerY}
-          r="3"
-          fill="#8b5cf6"
-          opacity="0.6"
-        />
+        {/* 중심점 */}
+        <circle cx={centerX} cy={centerY} r="3" fill="#a855f7" />
       </svg>
     </div>
   );
 }
+
 
 // 해시태그 / 지역 칩: 화면에 보일 때 아래에서 올라오는 애니메이션
 function TagChip({ label, delay = 0 }) {
@@ -653,7 +531,7 @@ function UserPersonaReportPage() {
                 표현했어요.
               </p>
 
-              {/* 육각형 레이더 차트 */}
+              {/* 레이더 차트 */}
               <AxisRadarChart axes={report.axes} />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
