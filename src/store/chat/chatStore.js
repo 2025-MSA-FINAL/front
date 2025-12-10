@@ -17,13 +17,43 @@ export const useChatStore = create((set) => ({
       set({ loading: false });
     }
   },
- 
 
-selectRoom: (room) => {
-  const { closeCreateForm } = useChatPopupStore.getState();
-  closeCreateForm();        // 🔥 채팅 생성 모드 끄기
-  set({ activeChatRoom: room });
-},
+  setActiveChatRoom: (room) => set({ activeChatRoom: room }),
+
+  selectRoom: (room) => {
+    const { closeCreateForm } = useChatPopupStore.getState();
+    closeCreateForm();
+    set({ activeChatRoom: room });
+  },
+  
 
   exitRoom: () => set({ activeChatRoom: null }),
+
+  removeRoom: (roomType, roomId) =>
+    set((state) => ({
+      rooms: state.rooms.filter(
+        (r) => !(r.roomType === roomType && r.roomId === roomId)
+      ),
+    })),
+    
+  updateRoomOrder: (roomType, roomId) =>
+    set((state) => {
+      const idx = state.rooms.findIndex(
+        (r) => r.roomType === roomType && r.roomId === roomId
+      );
+      if (idx === -1) return state;
+
+      const updated = [...state.rooms];
+      const [target] = updated.splice(idx, 1);
+      updated.unshift(target);
+
+      return { rooms: updated };
+    }),
+
+    resetChatStore: () =>
+    set({
+      rooms: [],
+      activeChatRoom: null,
+      loading: false,
+    }),
 }));

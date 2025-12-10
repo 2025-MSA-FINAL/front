@@ -1,231 +1,554 @@
 import { useEffect, useState, useRef } from "react";
 import { connectStomp, getStompClient } from "../../../api/socket";
+import {
+  deleteGroupChatRoom,
+  deletePrivateChatRoom,
+  updateGroupChatRoom,
+  leaveGroupChatRoom,
+} from "../../../api/chatApi";
+import BlurModal from "../../common/BlurModal";
+import EditRoomForm from "../../chat/rightColumn/EditRoomForm";
+import ReportForm from "../../chat/rightColumn/ReportForm";
+import { useChatPopupStore } from "../../../store/chat/chatPopupStore";
+import { useChatStore } from "../../../store/chat/chatStore";
 import { useAuthStore } from "../../../store/authStore";
 import axios from "axios";
 
-// === createdAt → 시간/분만 추출 ===
-const extractHourMinute = (str) => {
-  if (!str) return null;
-  const [ampm, hm] = str.split(" ");
-  const [h, m] = hm.split(":");
+/* SVG Icons */
+import groupChatIcon from "../../../assets/groupChat.png";
+import privateChatIcon from "../../../assets/privateChat.png";
+import EmojiIcon from "../../chat/icons/emojiIcon";
+import ImageUploadIcon from "../../chat/icons/imageIcon";
+import ScheduleIcon from "../../chat/icons/scheduleIcon";
+import MoreIcon from "../../chat/icons/MoreIcon";
 
-  let hour = Number(h);
-  if (ampm === "오후" && hour !== 12) hour += 12;
-  if (ampm === "오전" && hour === 12) hour = 0;
+/* ------------------------------------------------------------------
+ 📌 날짜 / 시간 변환 함수 — 안전한 Date 객체 기반
+------------------------------------------------------------------ */
 
-  return `${hour}:${m}`;
+// 시간: "오후 7:03"
+const formatTime = (dt) => {
+  if (!dt) return "";
+  const date = new Date(dt);
+  if (isNaN(date)) return "";
+
+  let hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const ampm = hours < 12 ? "오전" : "오후";
+
+  if (hours === 0) hours = 12;
+  else if (hours > 12) hours -= 12;
+
+  return `${ampm} ${hours}:${minutes}`;
 };
 
-export default function MessageChatSection({ roomId, roomType }) {
+// 날짜 라벨: "2025년 12월 09일 화요일"
+const formatDateLabel = (dt) => {
+  const date = new Date(dt);
+  if (isNaN(date)) return "";
+
+  const days = [
+    "일요일",
+    "월요일",
+    "화요일",
+    "수요일",
+    "목요일",
+    "금요일",
+    "토요일",
+  ];
+
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const week = days[date.getDay()];
+
+  return `${y}년 ${m}월 ${d}일 ${week}`;
+};
+
+// 그룹핑 기준: "19:03" (24시간제)
+const toMinuteKey = (dt) => {
+  const date = new Date(dt);
+  if (isNaN(date)) return "";
+
+  const h = String(date.getHours()).padStart(2, "0");
+  const m = String(date.getMinutes()).padStart(2, "0");
+
+  return `${h}:${m}`;
+};
+
+/* =======================================================================
+ 📌 MAIN COMPONENT
+======================================================================= */
+export default function MessageChatSection() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const menuRef = useRef(null);
+
   const subRef = useRef(null);
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
-
-  // 한글 입력 중 여부 확인용
   const isComposingRef = useRef(false);
 
-  const user = useAuthStore((state) => state.user);
-  const currentUserId = user?.userId;
+  const currentUserId = useAuthStore((s) => s.user?.userId);
 
-  // === 스크롤 맨 아래로 ===
-  const scrollToBottom = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  const activeRoom = useChatStore((s) => s.activeChatRoom);
+  const setActiveRoom = useChatStore((s) => s.setActiveChatRoom);
+
+  const roomId = activeRoom?.gcrId ?? activeRoom?.roomId;
+  const roomType = activeRoom?.roomType;
+
+  const removeRoom = useChatStore((s) => s.removeRoom);
+  const updateRoomOrder = useChatStore((s) => s.updateRoomOrder);
+
+  const iconSize = roomType === "GROUP" ? "w-11 h-9" : "w-9 h-9";
+
+  /* Dropdown */
+  const toggleMenu = () => {
+    if (!menuVisible) {
+      setMenuVisible(true);
+      setTimeout(() => setMenuOpen(true), 10);
+    } else {
+      setMenuOpen(false);
+      setTimeout(() => setMenuVisible(false), 180);
     }
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+        setTimeout(() => setMenuVisible(false), 180);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
-  // === textarea 자동 높이 조절 ===
+  /* 자동 스크롤 */
+  const scrollToBottom = () => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  };
+
+  useEffect(() => scrollToBottom(), [messages]);
+
+  /* textarea 자동 높이 */
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height =
-        textareaRef.current.scrollHeight + "px";
+      const ta = textareaRef.current;
+      ta.style.height = "auto";
+      ta.style.height = ta.scrollHeight + "px";
     }
   }, [input]);
 
-  // === 메시지 불러오기 ===
-  const fetchMessages = async () => {
-    try {
-      const res = await axios.get("http://localhost:8080/api/chat/messages", {
-        params: { roomId, roomType, limit: 60 },
-        withCredentials: true,
-      });
-      setMessages(res.data.reverse());
-    } catch (err) {
-      console.error("❌ fetchMessages 실패:", err);
-    }
-  };
-
-  // === WebSocket 수신 ===
+  /* WebSocket 메시지 수신 */
   const onMessageReceived = (msg) => {
     const body = JSON.parse(msg.body);
-    setMessages((prev) => [...prev, body]);
+
+    updateRoomOrder(body.roomType, body.roomId);
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        ...body,
+        createdAt: formatTime(body.createdAt),
+        minuteKey: toMinuteKey(body.createdAt),
+        dateLabel: formatDateLabel(body.createdAt),
+      },
+    ]);
   };
 
-  // === 메시지 전송 ===
+  /* 메시지 전송 */
   const sendMessage = () => {
     if (!input.trim()) return;
+
     const client = getStompClient();
     if (!client || !client.connected) return;
 
-    const payload = {
-      roomId,
-      roomType,
-      content: input,
-      senderId: currentUserId,
-      messageType: "TEXT",
-    };
-
     client.publish({
       destination: "/pub/chat/message",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        roomId,
+        roomType,
+        content: input,
+        senderId: currentUserId,
+        messageType: "TEXT",
+      }),
     });
 
     setInput("");
-
-    // 전송 후 즉시 스크롤 내려가기
-    setTimeout(scrollToBottom, 30);
+    setTimeout(scrollToBottom, 20);
   };
 
-  // === 방 변경 시 초기화 + 구독 ===
+  /* 초기 메시지 로드 + WebSocket 연결 */
   useEffect(() => {
-    if (!roomId || !roomType) return;
+    if (!activeRoom || !roomType) return;
 
-    setMessages([]);
-    fetchMessages();
+    const roomKey = roomType === "GROUP" ? activeRoom.gcrId : activeRoom.roomId;
+    if (!roomKey) return;
 
-    const setup = async () => {
+    const load = async () => {
+      try {
+        const res = await axios.get("http://localhost:8080/api/chat/messages", {
+          params: { roomId: roomKey, roomType, limit: 60 },
+          withCredentials: true,
+        });
+
+        setMessages(
+          res.data.reverse().map((m) => ({
+            ...m,
+            createdAt: formatTime(m.createdAt),
+            minuteKey: toMinuteKey(m.createdAt),
+            dateLabel: formatDateLabel(m.createdAt),
+          }))
+        );
+      } catch (e) {
+        console.error("❌ fetchMessages:", e);
+      }
+    };
+
+    load();
+
+    const run = async () => {
       await connectStomp();
       const client = getStompClient();
       if (!client.connected) return;
 
-      const topic = `/sub/chat-room-${roomType}-${roomId}`;
-      if (subRef.current) subRef.current.unsubscribe();
+      const topic = `/sub/chat-room-${roomType}-${roomKey}`;
 
+      if (subRef.current) subRef.current.unsubscribe();
       subRef.current = client.subscribe(topic, onMessageReceived);
     };
 
-    setup();
+    run();
+
     return () => subRef.current?.unsubscribe();
-  }, [roomId, roomType]);
+  }, [activeRoom, roomType]);
 
+  /* 날짜 구분선 */
+  const DateDivider = ({ label }) => (
+    <div className="flex justify-center my-4">
+      <span className="text-gray-300 text-sm bg-white/10 px-4 py-1 rounded-full">
+        {label}
+      </span>
+    </div>
+  );
+
+  /* =======================================================================
+        📌 RENDER
+  ======================================================================= */
   return (
-    <div className="w-full h-full flex flex-col justify-between px-8 py-6">
-      {/* === 메시지 리스트 === */}
-      <div
-        className="flex flex-col gap-6 overflow-y-auto no-scrollbar"
-        ref={scrollRef}
-      >
-        {/* 스크롤바 숨기기 위한 Tailwind 커스텀 */}
-        <style>
-          {`
-            .no-scrollbar::-webkit-scrollbar { display: none; }
-            .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-          `}
-        </style>
+    <>
+      {(showEditModal || showReportModal) && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[998]"></div>
+      )}
 
-        {messages.map((msg, i) => {
-          const prev = messages[i - 1];
+      <div className="w-full h-full flex flex-col justify-start px-8 py-6 relative z-[1]">
+        {/* HEADER */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <div className="w-12 flex items-center justify-center">
+              <img
+                src={roomType === "GROUP" ? groupChatIcon : privateChatIcon}
+                className={iconSize}
+              />
+            </div>
 
-          const isMine = msg.senderId === currentUserId;
+            <div className="flex flex-col justify-center h-[48px]">
+              {roomType === "GROUP" ? (
+                <div className="flex flex-row items-end gap-3">
+                  <span className="text-white font-semibold text-lg">
+                    {activeRoom?.title}
+                  </span>
+                  <span className="text-white/60 text-[11px]">
+                    인원 {activeRoom?.currentUserCnt} / {activeRoom?.maxUserCnt}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-white font-semibold text-lg">
+                  {activeRoom?.roomName}
+                </span>
+              )}
+            </div>
+          </div>
 
-          const isSameSender = prev?.senderId === msg.senderId;
-          const isSameMinute =
-            extractHourMinute(prev?.createdAt) ===
-            extractHourMinute(msg.createdAt);
+          {/* More 메뉴 */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={toggleMenu}
+              className="p-2 hover:bg-white/10 rounded-full"
+            >
+              <MoreIcon className="w-6 h-6 text-white" />
+            </button>
 
-          const isGrouped = isSameSender && isSameMinute;
-
-          return (
-            <div key={i} className="w-full">
+            {menuVisible && (
               <div
-                className={`flex ${
-                  isMine ? "justify-end" : "justify-start"
-                } w-full`}
+                className={`
+                  absolute right-0 top-10 w-[200px]
+                  rounded-2xl py-5 px-6 z-50
+                  bg-white/40 backdrop-blur-xl
+                  shadow-dropdown border border-white/20
+                  transition-all duration-200
+                  ${
+                    menuOpen
+                      ? "opacity-100 translate-y-0"
+                      : "opacity-0 -translate-y-2"
+                  }
+                `}
               >
-                <div className="flex flex-col max-w-[75%]">
-                  {!isGrouped && (
-                    <div
-                      className={`flex items-center gap-3 ${
-                        isMine ? "flex-row-reverse" : ""
-                      }`}
+                <div className="flex flex-col gap-4">
+                  {/* 수정하기 - GROUP & Owner */}
+                  {roomType === "GROUP" &&
+                    activeRoom?.ownerId === currentUserId && (
+                      <>
+                        <button
+                          className="mx-2 text-[14px] font-semibold text-left text-text-main hover:text-text-sub transition"
+                          onClick={() => {
+                            setShowEditModal(true);
+                            toggleMenu();
+                          }}
+                        >
+                          수정하기
+                        </button>
+
+                        <div className="w-full h-px bg-white/60"></div>
+                      </>
+                    )}
+
+                  {/* GROUP → Owner는 삭제, 참여자는 나가기 */}
+                  {roomType === "GROUP" ? (
+                    activeRoom?.ownerId === currentUserId ? (
+                      <button
+                        className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
+                        onClick={async () => {
+                          await deleteGroupChatRoom(activeRoom.gcrId);
+                          removeRoom("GROUP", activeRoom.gcrId);
+                          setActiveRoom(null);
+                          const { fetchPopupRooms, selectedPopup } =
+                            useChatPopupStore.getState();
+                          await fetchPopupRooms(selectedPopup.popId);
+                        }}
+                      >
+                        채팅방 삭제하기
+                      </button>
+                    ) : (
+                      <button
+                        className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
+                        onClick={async () => {
+                          await leaveGroupChatRoom(activeRoom.gcrId);
+                          removeRoom("GROUP", activeRoom.gcrId);
+                          setActiveRoom(null);
+                        }}
+                      >
+                        채팅방 나가기
+                      </button>
+                    )
+                  ) : (
+                    /* PRIVATE → 항상 삭제 */
+                    <button
+                      className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
+                      onClick={async () => {
+                        await deletePrivateChatRoom(activeRoom.roomId);
+                        removeRoom("PRIVATE", activeRoom.roomId);
+                        setActiveRoom(null);
+                      }}
                     >
-                      {!isMine && (
+                      채팅방 삭제하기
+                    </button>
+                  )}
+
+                  <button
+                    className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
+                    onClick={() => {
+                      setShowReportModal(true);
+                      toggleMenu();
+                    }}
+                  >
+                    채팅방 신고하기
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 메시지 리스트 */}
+        <div
+          className="flex flex-col flex-1 overflow-y-auto scrollbar-hide justify-start border-t border-white/20"
+          ref={scrollRef}
+        >
+          {messages.map((msg, i) => {
+            const prev = messages[i - 1];
+            const next = messages[i + 1];
+            const isMine = msg.senderId === currentUserId;
+
+            const showDateDivider =
+              i === 0 || prev?.dateLabel !== msg.dateLabel;
+
+            const isGroupWithPrev =
+              i > 0 &&
+              prev?.senderId === msg.senderId &&
+              prev?.minuteKey === msg.minuteKey;
+
+            return (
+              <div key={i} className="mb-1">
+                {showDateDivider && <DateDivider label={msg.dateLabel} />}
+                <div
+                  className={`flex w-full ${
+                    isMine ? "justify-end" : "justify-start"
+                  } mb-1`}
+                >
+                  {/* LEFT */}
+                  {!isMine && (
+                    <div className="flex gap-2 w-full max-w-[75%]">
+                      {!isGroupWithPrev ? (
                         <img
                           src={msg.senderProfileUrl}
                           className="w-10 h-10 rounded-full object-cover"
                         />
+                      ) : (
+                        <div className="w-10 h-10"></div>
                       )}
 
-                      <div
-                        className={`flex flex-col ${
-                          isMine ? "items-end" : "items-start"
-                        }`}
-                      >
-                        {!isMine && (
-                          <span className="text-white text-[15px] font-semibold">
+                      <div className="flex flex-col">
+                        {!isGroupWithPrev && (
+                          <span className="text-white font-semibold text-[15px] ml-1">
                             {msg.senderNickname}
                           </span>
                         )}
-                        <span className="text-white/60 text-xs">
-                          {msg.createdAt}
-                        </span>
+
+                        <div className="flex items-end gap-2">
+                          <div
+                            className={`
+                              px-4 py-2 rounded-2xl whitespace-pre-line
+                              bg-white/20 text-white
+                              ${isGroupWithPrev ? "mt-1" : "mt-2"}
+                            `}
+                          >
+                            {msg.content}
+                          </div>
+
+                          {(!next ||
+                            next.senderId !== msg.senderId ||
+                            next.minuteKey !== msg.minuteKey) && (
+                            <span className="text-white/50 text-xs mb-1">
+                              {msg.createdAt}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  <div
-                    className={`mt-2 text-[16px] leading-relaxed whitespace-pre-line ${
-                      isMine
-                        ? "text-white font-medium text-right"
-                        : "text-white/90"
-                    } ${isGrouped ? "mt-1" : ""}`}
-                  >
-                    {msg.content}
-                  </div>
+                  {/* RIGHT */}
+                  {isMine && (
+                    <div className="flex gap-2 w-full max-w-[75%] justify-end items-end">
+                      {(!next ||
+                        next.senderId !== msg.senderId ||
+                        next.minuteKey !== msg.minuteKey) && (
+                        <span className="text-white/50 text-xs mb-1">
+                          {msg.createdAt}
+                        </span>
+                      )}
+
+                      <div
+                        className={`
+                          px-4 py-2 rounded-2xl whitespace-pre-line
+                          bg-white text-purple-700
+                          ${isGroupWithPrev ? "mt-1" : "mt-2"}
+                        `}
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+
+        {/* 입력창 */}
+        <div className="flex items-end gap-4 border-t border-white/20 pt-4 mt-4">
+          <button className="p-2 hover:bg-white/10 rounded-full">
+            <EmojiIcon className="w-6 h-6" fill="#fff" />
+          </button>
+
+          <textarea
+            ref={textareaRef}
+            value={input}
+            rows={1}
+            placeholder="메시지 입력"
+            className="flex-1 bg-white/10 border border-white/30 rounded-xl px-4 py-2 text-white placeholder:text-white/60 resize-none overflow-hidden focus:outline-none"
+            onCompositionStart={() => (isComposingRef.current = true)}
+            onCompositionEnd={() => (isComposingRef.current = false)}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                if (e.shiftKey) return;
+                if (isComposingRef.current) return;
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
+          />
+
+          <button className="p-2 hover:bg-white/10 rounded-full">
+            <ImageUploadIcon className="w-6 h-6" fill="#fff" />
+          </button>
+
+          <button className="p-2 hover:bg-white/10 rounded-full">
+            <ScheduleIcon className="w-6 h-6" fill="#fff" />
+          </button>
+
+          <button
+            onClick={sendMessage}
+            className="px-5 py-2 bg-white text-purple-700 font-semibold rounded-xl hover:bg-white/80 transition"
+          >
+            전송
+          </button>
+        </div>
       </div>
 
-      {/* === 입력창 === */}
-      <div className="flex items-end gap-3 border-t border-white/20 pt-4 mt-4">
-        <textarea
-          ref={textareaRef}
-          value={input}
-          rows={1}
-          onCompositionStart={() => (isComposingRef.current = true)}
-          onCompositionEnd={() => (isComposingRef.current = false)}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="메시지를 입력하세요…"
-          className="flex-1 bg-white/10 border border-white/30 rounded-xl px-4 py-2 text-white placeholder:text-white/60 resize-none overflow-hidden focus:outline-none"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              if (e.shiftKey) return; // Shift+Enter 줄바꿈
+      {/* ------------------ MODALS ------------------ */}
+      <BlurModal open={showEditModal} onClose={() => setShowEditModal(false)}>
+        <EditRoomForm
+          room={activeRoom}
+          onSubmit={async (data) => {
+            await updateGroupChatRoom(activeRoom.gcrId, {
+              ...data,
+              maxUserCnt: data.maxUserCnt,
+            });
 
-              if (isComposingRef.current) return; // ⛔ 한글 조합 중에는 전송 금지
+            setActiveRoom({
+              ...activeRoom,
+              title: data.title,
+              description: data.description,
+              maxUserCnt: data.maxUserCnt,
+            });
 
-              e.preventDefault();
-              sendMessage();
-            }
+            setShowEditModal(false);
           }}
         />
+      </BlurModal>
 
-        <button
-          onClick={sendMessage}
-          className="px-5 py-2 bg-white/90 hover:bg-white text-purple-600 font-semibold rounded-xl"
-        >
-          전송
-        </button>
-      </div>
-    </div>
+      <BlurModal
+        open={showReportModal}
+        onClose={() => setShowReportModal(false)}
+      >
+        <ReportForm //이후에 만들 예정
+          onSubmit={() => {
+            alert("신고가 접수되었습니다.");
+            setShowReportModal(false);
+          }}
+        />
+      </BlurModal>
+    </>
   );
 }
