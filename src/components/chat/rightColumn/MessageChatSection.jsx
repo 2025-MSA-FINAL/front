@@ -413,7 +413,7 @@ export default function MessageChatSection() {
                           className="w-10 h-10 rounded-full object-cover"
                         />
                       ) : (
-                        <div className="w-10 h-10"></div>
+                        <div className="min-w-10 h-full"></div>
                       )}
 
                       <div className="flex flex-col">
@@ -426,7 +426,7 @@ export default function MessageChatSection() {
                         <div className="flex items-end gap-2">
                           <div
                             className={`
-                              px-4 py-2 rounded-2xl whitespace-pre-line
+                              px-4 py-2 rounded-2xl whitespace-pre-line break-words max-w-[80%]
                               bg-white/20 text-white
                               ${isGroupWithPrev ? "mt-1" : "mt-2"}
                             `}
@@ -459,7 +459,7 @@ export default function MessageChatSection() {
 
                       <div
                         className={`
-                          px-4 py-2 rounded-2xl whitespace-pre-line
+                          px-4 py-2 rounded-2xl whitespace-pre-line break-words max-w-[80%]
                           bg-white text-purple-700
                           ${isGroupWithPrev ? "mt-1" : "mt-2"}
                         `}
