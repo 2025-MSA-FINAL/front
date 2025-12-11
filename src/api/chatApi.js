@@ -1,13 +1,6 @@
 // src/api/chatApi.js
-import axios from "axios";
+import { apiClient } from "./authApi";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
-
-// 공통 axios 클라이언트
-export const apiClient = axios.create({
-  baseURL: API_BASE,
-  withCredentials: true, // httpOnly 쿠키 사용
-});
 
 /* -------------------------------------------
     1) 내가 참여한 채팅방 목록 조회
