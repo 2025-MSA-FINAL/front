@@ -1,18 +1,19 @@
-// src/components/manager/ManagerPopupStatusTabs.jsx
 import React from "react";
 
-const STATUS_ITEMS = [
+// 승인 상태 탭
+// 순서: 전체 > 완료 > 대기 > 반려
+const MODERATION_ITEMS = [
   { value: "ALL", label: "전체" },
-  { value: "UPCOMING", label: "오픈예정" },
-  { value: "ONGOING", label: "진행중" },
-  { value: "ENDED", label: "종료" },
+  { value: "APPROVED", label: "승인 완료" },
+  { value: "PENDING", label: "승인 대기" },
+  { value: "REJECTED", label: "승인 반려" },
 ];
 
 export default function ManagerPopupStatusTabs({ value, onChange }) {
   return (
-    <div className="w-full max-w-[900px] mx-auto mt-10 border-b border-secondary-light">
-      <div className="flex gap-10 px-4">
-        {STATUS_ITEMS.map((item) => {
+    <div className="w-full max-w-[1120px] mx-auto mt-6 border-b border-secondary-light">
+      <div className="flex gap-8 px-4">
+        {MODERATION_ITEMS.map((item) => {
           const active = value === item.value;
           return (
             <button
