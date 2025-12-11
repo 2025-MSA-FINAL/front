@@ -16,7 +16,7 @@ export function usePopupList() {
   // =========================================
   // 1. 상태 관리
   // =========================================
-  
+
   //데이터 상태
   const [popups, setPopups] = useState([]);
   const [cursor, setCursor] = useState(null);
@@ -24,7 +24,7 @@ export function usePopupList() {
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
   const [isInitialLoaded, setIsInitialLoaded] = useState(false);
-  
+
   //DEADLINE 2단계 이어달리기 상태 (false: 1단계, true: 2단계)
   const [isLoadingEnded, setIsLoadingEnded] = useState(false);
 
@@ -34,7 +34,7 @@ export function usePopupList() {
 
   //검색 & 필터 상태
   const [searchQuery, setSearchQuery] = useState("");
-  const [appliedKeyword, setAppliedKeyword] = useState("");
+  const [appliedKeywords, setAppliedKeywords] = useState([]);
   const [sort, setSort] = useState("DEADLINE");
   const [filter, setFilter] = useState({
     regions: [],
@@ -64,7 +64,7 @@ export function usePopupList() {
         const hasExplicitStatus = filter.statusList?.length > 0;
         const isDeadlineSort = sort === "DEADLINE" && !hasExplicitStatus;
         let effectivePhase = deadlinePhase;
-        
+
         //현재 상태에 따라 1단계(진행중)인지 2단계(종료)인지 판단
         if (deadlinePhase === "AUTO") {
           effectivePhase = isLoadingEnded ? "ENDED" : "ONGOING";
@@ -83,7 +83,7 @@ export function usePopupList() {
         const params = {
           cursor: cursorParam,
           size: PAGE_SIZE,
-          keyword: appliedKeyword || undefined,
+          keywords: appliedKeywords && appliedKeywords.length > 0 ? appliedKeywords : undefined,
           sort: sort,
           status: statusParam,
           minPrice: filter.freeOnly ? 0 : filter.minPrice > 0 ? filter.minPrice : undefined,
@@ -127,7 +127,7 @@ export function usePopupList() {
         setIsInitialLoaded(true);
       }
     },
-    [isLoading, hasNext, appliedKeyword, sort, filter, isLoadingEnded]
+    [isLoading, hasNext, appliedKeywords, sort, filter, isLoadingEnded]
   );
 
   //Effect: DEADLINE 2단계(종료된 팝업) 이어달리기 자동 시작
@@ -146,7 +146,7 @@ export function usePopupList() {
     setIsInitialLoaded(false);
     setIsLoadingEnded(false);
     loadPopupList({ cursorParam: null, append: false, deadlinePhase: "ONGOING" });
-  }, [appliedKeyword, sort, filter]);
+  }, [appliedKeywords, sort, filter]);
 
   //Effect: 무한 스크롤 Observer
   useEffect(() => {
@@ -166,7 +166,16 @@ export function usePopupList() {
   // =========================================
   // 3. 핸들러 및 헬퍼
   // =========================================
-  const handleSearch = () => setAppliedKeyword(searchQuery.trim());
+  const handleSearch = () => {
+    // 예: "굿즈, 카페, 팝업 스토어"
+    //  -> ["굿즈", "카페", "팝업 스토어"]
+    const tokens = searchQuery
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+
+    setAppliedKeywords(tokens);
+  };
 
   const handleToggleWishlist = async (popupId) => {
     if (!popupId || wishlistLoadingId) return;
@@ -190,13 +199,13 @@ export function usePopupList() {
   //퀵 필터 헬퍼 로직
   const todayStr = getTodayYmd();
   const isFilterDefault =
-    !(filter.regions?.length) && 
-    !filter.startDate && 
-    !filter.endDate && 
-    !(filter.statusList?.length) && 
-    !filter.freeOnly && 
+    !(filter.regions?.length) &&
+    !filter.startDate &&
+    !filter.endDate &&
+    !(filter.statusList?.length) &&
+    !filter.freeOnly &&
     (filter.minPrice === 0 && filter.maxPrice === 100000);
-    
+
   const isTodayQuickActive = filter.startDate === todayStr && filter.endDate === todayStr;
   const isOngoingQuickActive = filter.statusList?.length === 1 && filter.statusList[0] === "ONGOING";
   const isFilterDirty = !isFilterDefault;
@@ -220,7 +229,7 @@ export function usePopupList() {
       setFilter({
         regions: [], startDate: null, endDate: null, statusList: [], minPrice: 0, maxPrice: 100000, freeOnly: false,
       });
-      setAppliedKeyword("");
+      setAppliedKeywords([]);
       setSearchQuery("");
       setSort("DEADLINE");
     }
@@ -233,23 +242,23 @@ export function usePopupList() {
     isError,
     isInitialLoaded,
     wishlistLoadingId,
-    
+
     // UI State
     viewMode, setViewMode,
     isFilterOpen, setIsFilterOpen,
     loadMoreRef,
-    
+
     // Search & Filter State
     searchQuery, setSearchQuery,
     sort, setSort,
     filter, setFilter,
-    
+
     // Computed Values (for UI)
     isFilterDefault,
     isTodayQuickActive,
     isOngoingQuickActive,
     isFilterDirty,
-    
+
     // Actions
     handleSearch,
     handleToggleWishlist,
