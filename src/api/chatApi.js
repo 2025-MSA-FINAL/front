@@ -130,6 +130,14 @@ export async function unhideChatRoom(crhType, crhRoomId) {
 }
 
 /* -------------------------------------------
+    5) 유저 프로필 조회
+------------------------------------------- */
+export async function getMiniUserProfile(userId) {
+  const res = await apiClient.get(`/api/chat/users/${userId}`);
+  return res.data; 
+}
+
+/* -------------------------------------------
     기본 export
 ------------------------------------------- */
 export default {
@@ -149,4 +157,5 @@ export default {
 
   hideChatRoom,
   unhideChatRoom,
+  getMiniUserProfile,
 };

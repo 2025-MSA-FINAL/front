@@ -73,6 +73,14 @@ joinRoom: async (gcrId) => {
     const { selectRoom } = useChatStore.getState();
     selectRoom(detail);
 
+    const { fetchRooms } = useChatStore.getState();
+    fetchRooms();
+
+    const { selectedPopup, fetchPopupRooms } = useChatPopupStore.getState();
+    if (selectedPopup) {
+      fetchPopupRooms(selectedPopup.popId);
+    }
+
     set({
       selectedGroupRoom: null,
       createMode: false,
@@ -80,9 +88,10 @@ joinRoom: async (gcrId) => {
 
   } catch (err) {
     console.error("채팅방 참여 실패:", err);
-    throw err;  // ★★★ 반드시 다시 throw 해야 alert이 뜸
+    throw err;
   }
 },
+
 
   // 초기화
   resetPopup: () => {
