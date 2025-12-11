@@ -249,7 +249,6 @@ export default function KakaoMap({
       popupMarkersRef.current.push({ marker, infoWindow, id: m.id });
     });
 
-    // ❌ setBounds 제거: 내 주변 검색에서는 사용자가 맞춰둔 뷰 유지
   }, [markers, onMarkerClick, address]);
 
   // 6) 내 위치 마커
