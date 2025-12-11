@@ -1,337 +1,290 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect } from "react";
+import { useAuthStore } from "../../store/authStore";
+import { usePopupList } from "../../hooks/usePopupList"; // 훅 import
 
+//컴포넌트 임포트
 import PopupCard from "../../components/popup/PopupCard";
-import PopupSearchBar from "../../components/popup/PopupSearchBar";
 import PopupFilterPanel from "../../components/popup/PopupFilterPanel";
-import PopupSortSelect from "../../components/popup/PopupSortSelect";
 
-import {
-  fetchPopupListApi,
-  togglePopupWishlistApi,
-} from "../../api/popupApi";
-
-import { useAuthStore } from "../../store/authStore"; //
-
-const PAGE_SIZE = 12;
+//뷰 모드 상수
+const VIEW_MODES = {
+  GRID: "grid",
+  LIST_2: "list2",
+  LIST_1: "list1",
+};
 
 export default function PopupListPage() {
-  // =========================================
-  // 1. 상태 관리
-  // =========================================
-
-  //로그인 유저 정보 가져오기
   const user = useAuthStore((state) => state.user);
 
-  const [popups, setPopups] = useState([]);
-  const [cursor, setCursor] = useState(null);
-  const [hasNext, setHasNext] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [isInitialLoaded, setIsInitialLoaded] = useState(false);
+  const {
+    popups, isLoading, isError, isInitialLoaded, wishlistLoadingId,
+    viewMode, setViewMode, isFilterOpen, setIsFilterOpen, loadMoreRef,
+    searchQuery, setSearchQuery, sort, setSort, filter, setFilter,
+    isFilterDefault, isTodayQuickActive, isOngoingQuickActive, isFilterDirty,
+    handleSearch, handleToggleWishlist, toggleQuickFilter, retryLoad
+  } = usePopupList();
 
-  //검색어
-  const [searchQuery, setSearchQuery] = useState("");
-  const [appliedKeyword, setAppliedKeyword] = useState("");
-
-  //필터
-  const [filter, setFilter] = useState({
-    regions: [],
-    startDate: null,
-    endDate: null,
-    statusList: [],
-    minPrice: 0,
-    maxPrice: 100000,
-  });
-
-  //정렬
-  const [sort, setSort] = useState("DEADLINE");
-
-  //찜 로딩 방지
-  const [wishlistLoadingId, setWishlistLoadingId] = useState(null);
-
-  //무한 스크롤 타겟
-  const loadMoreRef = useRef(null);
-
-  //상단 상태
-  const [isLoadingEnded, setIsLoadingEnded] = useState(false);
-
-
-  // =========================================
-  // 2. 데이터 호출 로직 (수정완료: 이어달리기 적용)
-  // =========================================
-
-  const loadPopupList = useCallback(async ({ cursorParam = null, append = false } = {}) => {
-    //이어달리기로 넘어가는 순간에 isLoading 체크를 무시
-    if (append && isLoading) return;
-    
-    //더 이상 불러올 게 없는데(hasNext: false), 이어달리기(isLoadingEnded)도 아니라면 진짜 끝
-    if (append && !hasNext && !isLoadingEnded) return;
-
-    setIsLoading(true);
-    setIsError(false);
-
-    try {
-      //마감임박순(DEADLINE)일 때만 자동 이어달리기 필터 적용
-      let statusParam;
-      
-      // 1. 사용자가 필터에서 직접 상태를 골랐으면 그걸 최우선으로 따름
-      if (filter.statusList?.length > 0) {
-        statusParam = filter.statusList.join(",");
-      } 
-      // 2. 사용자가 상태 필터를 안 걸었고, 정렬이 마감임박순이라면 자동 분기
-      else if (sort === "DEADLINE") {
-        if (isLoadingEnded) {
-            statusParam = "ENDED";            // 2단계: 종료된 것만 불러오기
-        } else {
-            statusParam = "ONGOING,UPCOMING"; // 1단계: 진행중/예정만 불러오기
-        }
-      } 
-      // 3. 그 외에는 파라미터 안 보냄 (전체 조회)
-      else {
-        statusParam = undefined;
-      }
-
-      const params = {
-        cursor: cursorParam,
-        size: PAGE_SIZE,
-        keyword: appliedKeyword || undefined,
-        sort: sort,
-        status: statusParam, //위에서 결정한 값 사용
-        minPrice: filter.minPrice > 0 ? filter.minPrice : undefined,
-        maxPrice: filter.maxPrice < 100000 ? filter.maxPrice : undefined,
-        startDate: filter.startDate || undefined,
-        endDate: filter.endDate || undefined,
-        regions: filter.regions?.length > 0 ? filter.regions : undefined,
-      };
-
-      const data = await fetchPopupListApi(params);
-      const { content = [], nextCursor, hasNext: serverHasNext } = data;
-
-      //중복 제거
-      setPopups((prev) => {
-        if (!append) return content;
-        const combined = [...prev, ...content];
-        const uniqueMap = new Map(combined.map((item) => [item.popId, item]));
-        return Array.from(uniqueMap.values());
-      });
-
-      //이어달리기 전환 판단
-      //마감임박순이고, 유저가 따로 상태 필터를 안 걸었을 때만 작동
-      if (sort === "DEADLINE" && !filter.statusList?.length) {
-        
-        //서버가 더 없음(false)이라고 했는데, 아직 1단계(진행중)였다면
-        if (!serverHasNext && !isLoadingEnded) {
-            console.log("진행중 팝업 소진. 종료된 팝업 로딩 모드 전환");
-            setIsLoadingEnded(true); //2단계 ON
-            setCursor(null);         //커서 초기화 (종료된 팝업 1페이지부터 시작)
-            setHasNext(true);        //스크롤 계속 되게 강제 설정
-        } else {
-            //평범한 상황 (계속 1단계거나 이미 2단계거나)
-            setCursor(nextCursor ?? null);
-            setHasNext(serverHasNext ?? false);
-        }
-      } else {
-        //다른 정렬일 때는 서버 응답 그대로 따름
-        setCursor(nextCursor ?? null);
-        setHasNext(serverHasNext ?? false);
-      }
-
-    } catch (e) {
-      console.error("팝업 목록 조회 실패", e);
-      setIsError(true);
-    } finally {
-      setIsLoading(false);
-      setIsInitialLoaded(true);
-    }
-  }, [isLoading, hasNext, appliedKeyword, sort, filter, isLoadingEnded]); // isLoadingEnded 의존성 필수!
-
-  //이어달리기 모드가 켜지면, 자동으로 종료된 팝업 1페이지를 호출
+  //모달 열림 시 스크롤 잠금
   useEffect(() => {
-    if (isLoadingEnded) {
-      loadPopupList({ cursorParam: null, append: true });
-    }
-  }, [isLoadingEnded]);
+    document.body.style.overflow = isFilterOpen ? "hidden" : "unset";
+    return () => (document.body.style.overflow = "unset");
+  }, [isFilterOpen]);
 
-  // =========================================
-  // 3. 이펙트
-  // =========================================
-
-  // 초기화 & 리로드
-  useEffect(() => {
-    //정렬이나 필터가 바뀌면 즉시 화면 비우기
-    setPopups([]);
-    setCursor(null);
-    setHasNext(true);
-    setIsInitialLoaded(false); // 로딩 표시를 위해 초기화
-
-    setIsLoadingEnded(false);
-
-    loadPopupList({ cursorParam: null, append: false });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appliedKeyword, sort, filter]);
-
-  // 무한 스크롤
-  useEffect(() => {
-    if (!loadMoreRef.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0];
-        if (first.isIntersecting && hasNext && !isLoading && cursor) {
-          loadPopupList({ cursorParam: cursor, append: true });
-        }
-      },
-      { threshold: 1.0 }
-    );
-
-    observer.observe(loadMoreRef.current);
-    return () => observer.disconnect();
-  }, [cursor, hasNext, isLoading, loadPopupList]);
-
-
-  // =========================================
-  // 4. 핸들러
-  // =========================================
-
-  const handleSearch = () => {
-    setAppliedKeyword(searchQuery.trim());
-  };
-
-  const handleToggleWishlist = async (popupId) => {
-    if (!popupId || wishlistLoadingId) return;
-
-    try {
-      setWishlistLoadingId(popupId);
-      const result = await togglePopupWishlistApi(popupId);
-      const { isLiked } = result;
-
-      setPopups((prev) =>
-        prev.map((item) =>
-          item.popId === popupId ? { ...item, isLiked } : item
-        )
-      );
-    } catch (e) {
-      // 401 Unauthorized 처리
-      if (e.response?.status === 401) {
-        if (window.confirm("로그인이 필요한 기능입니다. 로그인 페이지로 이동할까요?")) {
-          window.location.href = "/login";
-        }
-      } else {
-        alert("찜 처리 중 오류가 발생했어요.");
-      }
-    } finally {
-      setWishlistLoadingId(null);
-    }
-  };
-
-
-  // =========================================
-  // 5. 렌더링
-  // =========================================
   return (
-    <main className="min-h-screen bg-paper-light pb-20">
-
-      {/* 1. 헤더 영역 */}
-      <section className="pt-[60px] pb-[40px] px-6 text-center">
-        <h1 className="text-headline-lg font-bold text-text-black mb-3">
+    <div className="min-h-screen bg-[var(--color-secondary-light)] font-[var(--font-sans)] pb-20">
+      {/* 1. 헤더 */}
+      <div className="max-w-6xl mx-auto px-4 pt-12 pb-8 animate-[fade-up_0.5s_ease-out_forwards]">
+        <h1 className="text-[32px] font-bold tracking-tight text-[var(--color-text-black)] mb-2">
           지금 가볼 만한 팝업 스토어
         </h1>
-      </section>
+        <p className="text-[16px] text-[var(--color-text-sub)]">
+          서울부터 제주까지, 전국의 트렌디한 공간을 큐레이션 해드립니다.
+        </p>
+      </div>
 
-      {/* 2. 검색 & 필터 영역 */}
-      <section className="max-w-[1000px] mx-auto px-5 mb-4">
-        <div className="flex flex-col gap-4">
-          <PopupSearchBar
-            keyword={searchQuery}
-            setKeyword={setSearchQuery}
-            onSearch={handleSearch}
-          />
-          <PopupFilterPanel
-            filter={filter}
-            onChange={setFilter}
-          />
-          <div className="flex justify-end items-center gap-2">
-            <PopupSortSelect
-              value={sort}
-              onChange={setSort}
+      <div className="max-w-6xl mx-auto px-4 space-y-6">
+        {/* 2. 컨트롤 바 */}
+        <section className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+          <div className="relative w-full md:w-96 group">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-secondary-dark)] group-focus-within:text-[var(--color-primary)] transition-colors">
+              <SearchIcon />
+            </div>
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              className="w-full bg-[var(--color-paper)] pl-11 pr-4 py-3 rounded-[8px] border border-transparent shadow-[var(--shadow-card)] outline-none focus:border-[var(--color-primary)] focus:shadow-[var(--shadow-brand)] transition-all text-[14px] placeholder:text-[var(--color-text-sub)]"
+              placeholder="팝업 이름으로 검색"
             />
           </div>
-        </div>
-      </section>
 
-      {/* 3. 목록 리스트 영역 */}
-      <section className="max-w-[1000px] mx-auto px-5">
+          <div className="flex items-center gap-2 ml-auto">
+            <div className="bg-[var(--color-paper)] p-1 rounded-[8px] border border-[var(--color-secondary)] flex shadow-sm">
+              <ViewModeBtn
+                mode={VIEW_MODES.GRID}
+                current={viewMode}
+                onClick={setViewMode}
+                icon={<GridIcon />}
+              />
+              <ViewModeBtn
+                mode={VIEW_MODES.LIST_2}
+                current={viewMode}
+                onClick={setViewMode}
+                icon={<ListTwoIcon />}
+              />
+              <ViewModeBtn
+                mode={VIEW_MODES.LIST_1}
+                current={viewMode}
+                onClick={setViewMode}
+                icon={<ListOneIcon />}
+              />
+            </div>
 
-        {/* 에러 상태 */}
-        {isError && (
-          <div className="py-20 flex flex-col items-center gap-4">
-            <p className="text-body-md text-text-sub">
-              목록을 불러오는 중 문제가 생겼어요.
-            </p>
-            <button
-              onClick={() => loadPopupList({ cursorParam: null, append: false })}
-              className="px-6 py-2 rounded-full bg-primary text-text-white text-body-sm hover:bg-primary-dark transition"
-            >
-              다시 시도하기
-            </button>
+            <div className="relative">
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+                className="appearance-none pl-4 pr-8 py-2.5 bg-[var(--color-paper)] border border-[var(--color-secondary)] rounded-[8px] text-[13px] text-[var(--color-text-sub)] font-medium outline-none cursor-pointer hover:border-[var(--color-secondary-dark)] transition-colors"
+              >
+                <option value="DEADLINE">마감 임박순</option>
+                <option value="POPULAR">인기순 (찜+조회)</option>
+                <option value="VIEW">조회 많은순</option>
+                <option value="CREATED">최신 등록순</option>
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--color-text-sub)] text-xs">
+                ▼
+              </div>
+            </div>
           </div>
-        )}
+        </section>
 
-        {/* 빈 결과 상태 */}
-        {!isError && isInitialLoaded && popups.length === 0 && (
-          <div className="py-32 flex flex-col items-center gap-3 text-center">
-            <div className="text-4xl mb-2">🤔</div>
-            <p className="text-headline-sm text-text-black">
-              조건에 맞는 팝업 스토어가 없어요.
-            </p>
-            <p className="text-body-md text-text-sub">
-              필터를 변경하거나 다른 검색어로 찾아보세요.
-            </p>
-            <button
-              onClick={() => {
-                setFilter({
-                  regions: [],
-                  startDate: null,
-                  endDate: null,
-                  statusList: [],
-                  minPrice: 0,
-                  maxPrice: 100000,
-                });
-                setAppliedKeyword("");
-                setSearchQuery("");
-              }}
-              className="mt-4 px-5 py-2 border border-secondary rounded-full text-body-sm hover:bg-paper transition"
+        {/* 3. 필터 바 */}
+        <section className="flex flex-wrap gap-2 items-center">
+          <QuickFilterChip
+            label="전체"
+            active={isFilterDefault}
+            onClick={() => toggleQuickFilter("RESET")}
+          />
+          <QuickFilterChip
+            label="오늘"
+            active={isTodayQuickActive}
+            onClick={() => toggleQuickFilter("TODAY")}
+          />
+          <QuickFilterChip
+            label="진행 중"
+            active={isOngoingQuickActive}
+            onClick={() => toggleQuickFilter("ONGOING_ONLY")}
+          />
+          <QuickFilterChip
+            label="무료 입장"
+            active={filter.freeOnly}
+            onClick={() => toggleQuickFilter("FREE")}
+          />
+
+          <div className="w-[1px] h-5 bg-[var(--color-secondary)] mx-2 hidden sm:block"></div>
+
+          <button
+            onClick={() => setIsFilterOpen(true)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-[13px] font-medium transition-all shadow-sm
+              ${
+                isFilterDirty
+                  ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-dark)]"
+                  : "border-[var(--color-secondary)] bg-[var(--color-paper)] text-[var(--color-text-sub)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+              }
+            `}
+          >
+            <FilterIcon />
+            <span>상세 필터</span>
+            {isFilterDirty && (
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary-dark)]" />
+            )}
+          </button>
+        </section>
+
+        {/* 4. 리스트 렌더링 영역 */}
+        <section>
+          {isError ? (
+            <div className="py-20 flex flex-col items-center justify-center text-center">
+              <p className="text-[var(--color-text-sub)] mb-4">
+                목록을 불러오는 중 문제가 발생했습니다.
+              </p>
+              <button
+                onClick={retryLoad}
+                className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                다시 시도하기
+              </button>
+            </div>
+          ) : !isInitialLoaded && isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
+              {[...Array(4)].map((_, i) => (
+                <div
+                  key={i}
+                  className="aspect-[4/5] bg-gray-200 rounded-[20px] animate-pulse"
+                />
+              ))}
+            </div>
+          ) : popups.length === 0 ? (
+            <div className="py-20 flex flex-col items-center justify-center text-center opacity-70">
+              <span className="text-4xl mb-2">🤔</span>
+              <p className="text-[var(--color-text-black)] font-bold">
+                조건에 맞는 팝업이 없어요
+              </p>
+              <p className="text-[var(--color-text-sub)] text-sm">
+                필터를 변경하거나 다른 검색어로 찾아보세요
+              </p>
+              <button
+                onClick={() => toggleQuickFilter("RESET")}
+                className="mt-4 px-4 py-2 bg-white border rounded-full text-sm"
+              >
+                초기화
+              </button>
+            </div>
+          ) : (
+            <div
+              className={
+                viewMode === VIEW_MODES.GRID
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10"
+                  : viewMode === VIEW_MODES.LIST_2
+                  ? "grid grid-cols-1 md:grid-cols-2 gap-4"
+                  : "space-y-4" // LIST_1
+              }
             >
-              필터 초기화
-            </button>
-          </div>
-        )}
-
-        {/* 카드 그리드 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
-          {popups.map((popup) => (
-            <PopupCard
-              key={popup.popId}
-              popup={popup}
-              onClick={() => window.location.href = `/popup/${popup.popId}`}
-              onToggleWishlist={handleToggleWishlist}
-              isWishlistLoading={wishlistLoadingId === popup.popId}
-              userRole={user?.role}
-            />
-          ))}
-        </div>
-
-        {/* 하단 무한 스크롤 트리거 & 로딩 */}
-        <div ref={loadMoreRef} className="h-20 mt-10 flex justify-center items-center">
-          {isLoading && (
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+              {popups.map((popup) => (
+                <PopupCard
+                  key={popup.popId}
+                  popup={popup}
+                  viewMode={viewMode}
+                  onClick={() =>
+                    (window.location.href = `/popup/${popup.popId}`)
+                  }
+                  onToggleWishlist={handleToggleWishlist}
+                  isWishlistLoading={wishlistLoadingId === popup.popId}
+                  userRole={user?.role}
+                />
+              ))}
             </div>
           )}
-        </div>
-      </section>
-    </main>
+
+          {!isError && (
+            <div
+              ref={loadMoreRef}
+              className="h-20 mt-10 flex justify-center items-center"
+            >
+              {isLoading && (
+                <div className="w-6 h-6 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {isFilterOpen && (
+        <PopupFilterPanel
+          filter={filter}
+          onChange={setFilter}
+          onClose={() => setIsFilterOpen(false)}
+        />
+      )}
+    </div>
   );
 }
+
+// ─────────── [Sub Components] ───────────
+function ViewModeBtn({ mode, current, onClick, icon }) {
+  const isActive = mode === current;
+  return (
+    <button
+      onClick={() => onClick(mode)}
+      className={`p-2 rounded-[6px] transition-all ${
+        isActive
+          ? "bg-[var(--color-primary-soft)] text-[var(--color-primary-dark)]"
+          : "text-[var(--color-text-sub)] hover:text-[var(--color-text-main)]"
+      }`}
+    >
+      {icon}
+    </button>
+  );
+}
+
+function QuickFilterChip({ label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all duration-200 border
+      ${
+        active
+          ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md"
+          : "bg-[var(--color-paper)] text-[var(--color-text-sub)] border-[var(--color-secondary)] hover:border-[var(--color-primary-soft)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-paper-light)]"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+const SearchIcon = () => (
+  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+);
+const FilterIcon = () => (
+  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+  </svg>
+);
+const GridIcon = () => (
+  <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M10 3H3v7h7V3zm11 0h-7v7h7V3zm0 11h-7v7h7v-7zM10 14H3v7h7v-7z" />
+  </svg>
+);
+const ListTwoIcon = () => (
+  <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M3 5h8v4H3V5zm10 0h8v4h-8V5zM3 13h8v4H3v-4zm10 0h8v4h-8v-4z" />
+  </svg>
+);
+const ListOneIcon = () => (
+  <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M4 10.5c-.83 0-1.5.67-1.5 1.5S3.17 13.5 4 13.5 5.5 12.83 5.5 12 4.83 10.5 4 10.5zm0-6C3.17 4.5 2.5 5.17 2.5 6S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5S3.17 19.5 4 19.5 5.5 18.83 5.5 18 4.83 16.5 4 16.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z" />
+  </svg>
+);

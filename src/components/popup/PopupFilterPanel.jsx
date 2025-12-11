@@ -1,18 +1,17 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Slider from "rc-slider";
 import "rc-slider/assets/index.css";
-import DateRangePicker from "../form/DateRangePicker";
-import { SEOUL_DISTRICTS } from "../../data/regions";
 
+//내부용 칩 컴포넌트
 const FilterChip = ({ label, isSelected, onClick }) => (
   <button
     onClick={onClick}
     className={`
-      px-4 py-2 rounded-full text-body-sm transition-all border
+      px-3.5 py-1.5 rounded-full text-[13px] font-medium transition-all border
       ${
         isSelected
-          ? "bg-primary text-text-white border-primary font-bold shadow-brand"
-          : "bg-paper text-text-sub border-secondary-light hover:border-primary-light hover:text-primary"
+          ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md"
+          : "bg-[var(--color-paper)] text-[var(--color-text-sub)] border-[var(--color-secondary)] hover:border-[var(--color-primary-light)] hover:text-[var(--color-primary)]"
       }
     `}
   >
@@ -20,115 +19,161 @@ const FilterChip = ({ label, isSelected, onClick }) => (
   </button>
 );
 
+//백엔드 status 값
 const STATUS_OPTIONS = [
-  { label: "진행중", value: "ONGOING" },
-  { label: "오픈예정", value: "UPCOMING" },
+  { label: "오픈 예정", value: "UPCOMING" },
+  { label: "진행 중", value: "ONGOING" },
   { label: "종료", value: "ENDED" },
 ];
 
-export default function PopupFilterPanel({ filter, onChange }) {
+//로컬 날짜 → YYYY-MM-DD (타임존 보정 포함)
+const toYMD = (d) => {
+  if (!d) return null;
+  const offset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - offset).toISOString().split("T")[0];
+};
+
+//PopupFilterPanel (모달 버전, 실시간 반영)
+export default function PopupFilterPanel({ filter, onChange, onClose }) {
   // -----------------------------
-  // 1. 지역 (Region)
+  // 1. 지역 (전국 대응 - 자유 입력)
   // -----------------------------
   const [regionInput, setRegionInput] = useState("");
-  const [showRegionSuggestions, setShowRegionSuggestions] = useState(false);
-  const [focusedIndex, setFocusedIndex] = useState(-1);
-  const regionInputRef = useRef(null);
-  const suggestionsListRef = useRef(null);
 
-  const suggestedRegions = useMemo(() => {
-    if (!regionInput.trim()) return [];
-    return SEOUL_DISTRICTS.filter((dist) => dist.includes(regionInput));
-  }, [regionInput]);
+  const addRegion = () => {
+    const val = regionInput.trim();
+    if (!val) return;
 
-  useEffect(() => {
-    if (suggestionsListRef.current && focusedIndex >= 0) {
-      const activeItem = suggestionsListRef.current.children[focusedIndex];
-      if (activeItem) {
-        activeItem.scrollIntoView({ block: "nearest" });
-      }
-    }
-  }, [focusedIndex]);
-
-  const addRegion = (region) => {
-    if (filter.regions?.includes(region)) {
+    const currentRegions = filter.regions || [];
+    if (currentRegions.includes(val)) {
       setRegionInput("");
-      setShowRegionSuggestions(false);
-      setFocusedIndex(-1);
       return;
     }
-    const newRegions = [...(filter.regions || []), region];
+
+    const newRegions = [...currentRegions, val];
     onChange({ ...filter, regions: newRegions });
     setRegionInput("");
-    setShowRegionSuggestions(false);
-    setFocusedIndex(-1);
   };
 
   const removeRegion = (regionToRemove) => {
-    const newRegions = filter.regions.filter((r) => r !== regionToRemove);
+    const currentRegions = filter.regions || [];
+    const newRegions = currentRegions.filter((r) => r !== regionToRemove);
     onChange({ ...filter, regions: newRegions });
   };
 
   const handleRegionKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addRegion();
+    }
     if (
       e.key === "Backspace" &&
       regionInput === "" &&
-      filter.regions?.length > 0
+      (filter.regions || []).length > 0
     ) {
-      const lastRegion = filter.regions[filter.regions.length - 1];
-      removeRegion(lastRegion);
-      return;
-    }
-
-    if (suggestedRegions.length === 0) return;
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setFocusedIndex((prev) =>
-        prev < suggestedRegions.length - 1 ? prev + 1 : prev
-      );
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setFocusedIndex((prev) => (prev > 0 ? prev - 1 : -1));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (focusedIndex >= 0 && suggestedRegions[focusedIndex]) {
-        addRegion(suggestedRegions[focusedIndex]);
-      } else if (suggestedRegions.length > 0) {
-        addRegion(suggestedRegions[0]);
-      }
+      const currentRegions = filter.regions || [];
+      removeRegion(currentRegions[currentRegions.length - 1]);
     }
   };
 
   // -----------------------------
-  // 2. 기간 (Date)
+  // 2. 기간 (네이티브 date 인풋 2개 + 바보 방지)
   // -----------------------------
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const datePickerRef = useRef(null);
+  const startInputRef = useRef(null);
+  const endInputRef = useRef(null);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        datePickerRef.current &&
-        !datePickerRef.current.contains(event.target)
-      ) {
-        setShowDatePicker(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const openStartPicker = () => {
+    if (startInputRef.current?.showPicker) {
+      startInputRef.current.showPicker();
+    } else {
+      startInputRef.current?.focus();
+    }
+  };
 
-  const handleDateChange = ({ startDate, endDate }) => {
-    const formatDate = (d) => {
-      if (!d) return null;
-      const offset = d.getTimezoneOffset() * 60000;
-      return new Date(d.getTime() - offset).toISOString().split("T")[0];
-    };
+  const openEndPicker = () => {
+    if (endInputRef.current?.showPicker) {
+      endInputRef.current.showPicker();
+    } else {
+      endInputRef.current?.focus();
+    }
+  };
+
+  const handleStartDateChange = (e) => {
+    const newStart = e.target.value || null;
+    const currentEnd = filter.endDate || null;
+
+    let nextStart = newStart;
+    let nextEnd = currentEnd;
+
+    //start > end 인 경우 → 하루짜리 구간으로 자동 보정
+    if (newStart && currentEnd && newStart > currentEnd) {
+      nextEnd = newStart;
+    }
+
     onChange({
       ...filter,
-      startDate: formatDate(startDate),
-      endDate: formatDate(endDate),
+      startDate: nextStart,
+      endDate: nextEnd,
+    });
+  };
+
+  const handleEndDateChange = (e) => {
+    const newEnd = e.target.value || null;
+    const currentStart = filter.startDate || null;
+
+    let nextEnd = newEnd;
+    let nextStart = currentStart;
+
+    //end < start 인 경우 → 하루짜리 구간으로 자동 보정
+    if (newEnd && currentStart && newEnd < currentStart) {
+      nextStart = newEnd;
+    }
+
+    onChange({
+      ...filter,
+      startDate: nextStart,
+      endDate: nextEnd,
+    });
+  };
+
+  //퀵 기간 (오늘 / 이번 주말 / 다음 주)
+  const setQuickRange = (type) => {
+    const today = new Date();
+    let start = new Date(today);
+    let end = new Date(today);
+
+    if (type === "TODAY") {
+      // 이미 today 로 초기화 되어 있음
+    } else if (type === "THIS_WEEKEND") {
+      const day = today.getDay(); // 0(일) ~ 6(토)
+      const distToSat = 6 - day;
+      start.setDate(today.getDate() + distToSat);
+      end.setDate(today.getDate() + distToSat + 1); // 토~일
+    } else if (type === "NEXT_WEEK") {
+      const day = today.getDay();
+      const distToMon = day === 0 ? 1 : 8 - day; // 다음주 월
+      start.setDate(today.getDate() + distToMon);
+      end = new Date(start);
+      end.setDate(start.getDate() + 6); // 월~일
+    }
+
+    const s = toYMD(start);
+    const e = toYMD(end);
+
+    onChange({
+      ...filter,
+      startDate: s,
+      endDate: e,
+    });
+  };
+
+  //방문 일정만 초기화 (전체 초기화와 분리)
+  const clearDateRange = () => {
+    if (!filter.startDate && !filter.endDate) return;
+    onChange({
+      ...filter,
+      startDate: null,
+      endDate: null,
     });
   };
 
@@ -138,6 +183,7 @@ export default function PopupFilterPanel({ filter, onChange }) {
   const [priceRange, setPriceRange] = useState([0, 100000]);
   const isFreeOnly = !!filter.freeOnly;
 
+  // 외부 filter 값이 바뀌면 슬라이더 동기화
   useEffect(() => {
     const nextMin = filter.minPrice ?? 0;
     const nextMax = filter.maxPrice ?? 100000;
@@ -154,9 +200,7 @@ export default function PopupFilterPanel({ filter, onChange }) {
 
   const toggleFreeOnly = () => {
     const nextFreeOnly = !isFreeOnly;
-
     if (nextFreeOnly) {
-      // 무료만 보기 켜면 가격 범위를 0으로 고정
       onChange({
         ...filter,
         freeOnly: true,
@@ -164,7 +208,6 @@ export default function PopupFilterPanel({ filter, onChange }) {
         maxPrice: 0,
       });
     } else {
-      // 끌 때는 기본 범위로 복원 (원하면 여기 값 조정해도 됨)
       onChange({
         ...filter,
         freeOnly: false,
@@ -175,105 +218,96 @@ export default function PopupFilterPanel({ filter, onChange }) {
   };
 
   // -----------------------------
-  // 4. 현황 (Status)
+  // 4. 진행 상태 (Status) - "전체" 포함 UX
   // -----------------------------
-  const toggleStatus = (value) => {
-    const currentStatuses = filter.statusList || [];
+  const selectedStatuses = filter.statusList || [];
+  const isAllSelected = selectedStatuses.length === 0; // [] = 전체
 
-    // 1. "전체" 클릭 시 -> 즉시 초기화
+  const toggleStatus = (value) => {
+    //전체 클릭 시 그냥 모두 해제 = 전체
     if (value === "ALL") {
       onChange({ ...filter, statusList: [] });
       return;
     }
 
-    // 2. 개별 상태 토글 계산
-    let newStatuses;
-    if (currentStatuses.includes(value)) {
-      newStatuses = currentStatuses.filter((s) => s !== value);
-    } else {
-      newStatuses = [...currentStatuses, value];
+    const current = filter.statusList || [];
+    let next = current.includes(value)
+      ? current.filter((s) => s !== value)
+      : [...current, value];
+
+    //0개 선택 또는 3개 전부 선택 시 전체로 취급해서 []로 통일
+    if (next.length === 0 || next.length === STATUS_OPTIONS.length) {
+      next = [];
     }
 
-    //애니메이션 로직 적용
-    if (newStatuses.length === STATUS_OPTIONS.length) {
-      onChange({ ...filter, statusList: newStatuses });
-
-      setTimeout(() => {
-        onChange({ ...filter, statusList: [] });
-      }, 75);
-    } else {
-      onChange({ ...filter, statusList: newStatuses });
-    }
+    onChange({ ...filter, statusList: next });
   };
-
-  const isAllStatus = (filter.statusList || []).length === 0;
 
   // -----------------------------
   // 5. 초기화
   // -----------------------------
   const handleReset = () => {
     onChange({
+      ...filter,
       regions: [],
       startDate: null,
       endDate: null,
       minPrice: 0,
       maxPrice: 100000,
-      statusList: [],
+      statusList: [], //전체
       freeOnly: false,
     });
+    setRegionInput("");
+    setPriceRange([0, 100000]);
   };
 
   return (
-    <div className="w-full bg-paper rounded-[20px] border border-secondary-light shadow-sm mb-0">
-      
-      <div className="px-6 py-6 flex flex-col gap-6">
-        
-        {/* 상단 헤더: 상세 필터 / 초기화 */}
-        <div className="flex items-start justify-between mb-0">
-          <span className="text-label-lg font-semibold text-text-black">
+    // 1. 배경 (Backdrop)
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      {/* 2. 모달 컨테이너 */}
+      <div
+        className="bg-[var(--color-paper)] rounded-[20px] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 헤더 */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-secondary-light)] bg-[var(--color-paper)]">
+          <h2 className="text-[18px] font-bold text-[var(--color-text-black)]">
             상세 필터
-          </span>
+          </h2>
           <button
-            onClick={handleReset}
-            className="text-label-sm text-text-sub hover:text-primary transition-colors flex items-center gap-1"
+            onClick={onClose}
+            className="text-[var(--color-text-sub)] hover:text-[var(--color-text-black)] p-1"
           >
-            <span>↻</span> 필터 초기화
+            ✕
           </button>
         </div>
-        
-        {/* 상단: 지역 & 기간 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          {/* 1. 지역 선택 */}
-          <div className="relative z-20" ref={regionInputRef}>
-            <label className="block text-label-md text-text-sub mb-2 font-medium">
-              지역
-            </label>
-            <div
-              className="
-                  flex items-center gap-1 pl-4 pr-3 
-                  bg-paper border border-secondary rounded-[12px] 
-                  focus-within:border-primary transition-colors 
-                  h-[50px]
-                  overflow-x-auto scrollbar-hide
-                "
-            >
+
+        {/* 바디 (스크롤 가능) */}
+        <div className="p-6 space-y-8 overflow-y-auto custom-scrollbar flex-1">
+          {/* 섹션 1: 지역 */}
+          <section>
+            <div className="flex justify-between items-baseline mb-3">
+              <h3 className="text-[15px] font-bold text-[var(--color-text-black)]">
+                지역
+              </h3>
+              <span className="text-[12px] text-[var(--color-text-sub)]">
+                원하는 지역을 입력하고 엔터를 눌러주세요
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 p-3 bg-[var(--color-paper)] border border-[var(--color-secondary)] rounded-[12px] focus-within:border-[var(--color-primary)] transition-colors min-h-[50px]">
               {(filter.regions || []).map((region) => (
                 <span
                   key={region}
-                  className="
-                      inline-flex items-center gap-1 px-2 py-1 
-                      bg-primary-light/20 text-primary text-label-sm 
-                      rounded-[6px] border border-primary-light
-                      transition-colors duration-200
-                      hover:bg-primary-light/60 hover:border-primary
-                      whitespace-nowrap flex-shrink-0
-                    "
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-[var(--color-primary-soft2)] text-[var(--color-primary-dark)] text-[13px] font-medium rounded-[6px]"
                 >
                   {region}
                   <button
                     onClick={() => removeRegion(region)}
-                    className="hover:text-primary-dark font-bold px-1"
+                    className="hover:text-red-500 ml-1"
                   >
                     ✕
                   </button>
@@ -282,192 +316,217 @@ export default function PopupFilterPanel({ filter, onChange }) {
               <input
                 type="text"
                 value={regionInput}
-                onChange={(e) => {
-                  setRegionInput(e.target.value);
-                  setShowRegionSuggestions(true);
-                  setFocusedIndex(-1);
-                }}
+                onChange={(e) => setRegionInput(e.target.value)}
                 onKeyDown={handleRegionKeyDown}
-                onFocus={() => regionInput && setShowRegionSuggestions(true)}
-                placeholder={filter.regions?.length ? "" : "지역 검색"}
-                className="flex-1 min-w-[80px] bg-transparent outline-none text-body-sm placeholder:text-secondary h-full"
+                placeholder={
+                  (filter.regions || []).length ? "" : "예: 강남, 부산, 성수동"
+                }
+                className="flex-1 min-w-[120px] bg-transparent outline-none text-[14px] placeholder:text-[var(--color-secondary)]"
               />
             </div>
+          </section>
 
-            {showRegionSuggestions && suggestedRegions.length > 0 && (
-              <ul
-                ref={suggestionsListRef}
-                className="absolute top-full left-0 w-full mt-2 bg-paper border border-secondary-light rounded-[12px] shadow-dropdown overflow-hidden z-20 max-h-[240px] overflow-y-auto"
-              >
-                {suggestedRegions.map((region, idx) => (
-                  <li
-                    key={region}
-                    onClick={() => addRegion(region)}
-                    className={`
-                        px-4 py-3 text-body-sm cursor-pointer transition-colors
-                        ${
-                          idx === focusedIndex
-                            ? "bg-primary-light/20 text-primary font-bold"
-                            : "hover:bg-secondary-light text-text-black"
-                        } 
-                    `}
-                  >
-                    {region}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* 2. 기간 선택 */}
-          <div className="relative z-[20]" ref={datePickerRef}>
-            <label className="block text-label-md text-text-sub mb-2 font-medium">
-              기간
-            </label>
-            <button
-              onClick={() => setShowDatePicker(!showDatePicker)}
-              className={`
-                  w-full h-[50px] px-4 bg-paper border rounded-[12px] text-left flex items-center justify-between
-                  ${
-                    showDatePicker
-                      ? "border-primary ring-1 ring-primary"
-                      : "border-secondary"
-                  }
-              `}
-            >
-              <span
-                className={`text-body-sm ${
-                  filter.startDate ? "text-text-black" : "text-secondary"
-                }`}
-              >
-                {filter.startDate && filter.endDate
-                  ? `${filter.startDate} ~ ${filter.endDate}`
-                  : "방문 희망 날짜 선택"}
+          {/* 섹션 2: 방문 일정 (네이티브 date 인풋 + 퀵 버튼) */}
+          <section>
+            <div className="flex justify-between items-baseline mb-3 gap-4">
+              <h3 className="text-[15px] font-bold text-[var(--color-text-black)]">
+                방문 일정
+              </h3>
+              <span className="text-[12px] text-[var(--color-text-sub)] text-right">
+                시작일과 종료일을 비워두면 전체 기간의 팝업이 보여요
               </span>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="w-5 h-5 text-secondary"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"
-                />
-              </svg>
-            </button>
+            </div>
 
-            {showDatePicker && (
-              <div className="absolute top-full right-0 mt-2 z-20 bg-paper rounded-[24px] shadow-dropdown p-1 border border-secondary-light">
-                <div className="flex justify-end p-2 pb-0">
-                  <button
-                    onClick={() => setShowDatePicker(false)}
-                    className="text-label-sm text-secondary hover:text-black"
-                  >
-                    닫기 ✕
-                  </button>
-                </div>
-                <DateRangePicker
-                  startDate={
-                    filter.startDate ? new Date(filter.startDate) : null
+            {/* 날짜 인풋 2개 (라벨 제거 + ~ + 전체 영역 클릭 시 달력 열림) */}
+            <div className="flex items-center gap-2 mb-3">
+              {/* 시작일 */}
+              <div
+                className="flex-1"
+                onClick={(e) => {
+                  if (e.target.tagName !== "INPUT") {
+                    openStartPicker();
                   }
-                  endDate={filter.endDate ? new Date(filter.endDate) : null}
-                  onChange={handleDateChange}
+                }}
+              >
+                <input
+                  ref={startInputRef}
+                  type="date"
+                  value={filter.startDate || ""}
+                  max={filter.endDate || undefined}
+                  onChange={handleStartDateChange}
+                  className="w-full h-[44px] px-3 bg-[var(--color-paper)] border border-[var(--color-secondary)] rounded-[10px] text-[14px] text-[var(--color-text-black)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-colors cursor-pointer"
                 />
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* 하단: 현황 & 가격 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-          {/* 3. 현황 */}
-          <div>
-            <label className="block text-label-md text-text-sub mb-3 font-medium">
-              진행 현황
-            </label>
+              {/* 가운데 ~ 표시 */}
+              <span className="text-[14px] text-[var(--color-secondary)] px-1">
+                ~
+              </span>
+
+              {/* 종료일 */}
+              <div
+                className="flex-1"
+                onClick={(e) => {
+                  if (e.target.tagName !== "INPUT") {
+                    openEndPicker();
+                  }
+                }}
+              >
+                <input
+                  ref={endInputRef}
+                  type="date"
+                  value={filter.endDate || ""}
+                  min={filter.startDate || undefined}
+                  onChange={handleEndDateChange}
+                  className="w-full h-[44px] px-3 bg-[var(--color-paper)] border border-[var(--color-secondary)] rounded-[10px] text-[14px] text-[var(--color-text-black)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-colors cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* 퀵 버튼들 + 기간 지우기 */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQuickRange("TODAY")}
+                  className="px-3 py-1.5 rounded-[8px] bg-[var(--color-secondary-light)] text-[12px] text-[var(--color-text-sub)] hover:bg-[var(--color-secondary)] hover:text-white transition-colors"
+                >
+                  오늘
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuickRange("THIS_WEEKEND")}
+                  className="px-3 py-1.5 rounded-[8px] bg-[var(--color-secondary-light)] text-[12px] text-[var(--color-text-sub)] hover:bg-[var(--color-secondary)] hover:text-white transition-colors"
+                >
+                  이번 주말
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuickRange("NEXT_WEEK")}
+                  className="px-3 py-1.5 rounded-[8px] bg-[var(--color-secondary-light)] text-[12px] text-[var(--color-text-sub)] hover:bg-[var(--color-secondary)] hover:text-white transition-colors"
+                >
+                  다음 주
+                </button>
+              </div>
+
+              {(filter.startDate || filter.endDate) && (
+                <button
+                  type="button"
+                  onClick={clearDateRange}
+                  className="text-[12px] text-[var(--color-text-sub)] underline underline-offset-2 hover:text-[var(--color-text-main)]"
+                >
+                  기간 지우기
+                </button>
+              )}
+            </div>
+          </section>
+
+          {/* 섹션 3: 입장료 */}
+          <section>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-[15px] font-bold text-[var(--color-text-black)]">
+                입장료 범위
+              </h3>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={isFreeOnly}
+                  onChange={toggleFreeOnly}
+                  className="accent-[var(--color-primary)] w-4 h-4"
+                />
+                <span className="text-[13px] text-[var(--color-text-sub)]">
+                  무료만 보기
+                </span>
+              </label>
+            </div>
+
+            <div className="px-2 pb-2">
+              <Slider
+                range
+                min={0}
+                max={100000}
+                step={1000}
+                value={priceRange}
+                onChange={setPriceRange}
+                onAfterChange={handlePriceChangeComplete}
+                disabled={isFreeOnly}
+                trackStyle={{ backgroundColor: "var(--color-primary)", height: 6 }}
+                handleStyle={{
+                  borderColor: "var(--color-primary)",
+                  backgroundColor: "white",
+                  opacity: 1,
+                  height: 20,
+                  width: 20,
+                  marginTop: -7,
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+                }}
+                railStyle={{
+                  backgroundColor: "var(--color-secondary-light)",
+                  height: 6,
+                }}
+              />
+              <div className="flex justify-between mt-3 text-[12px] text-[var(--color-text-sub)] font-medium">
+                <span>
+                  {isFreeOnly ? "0원" : `${priceRange[0].toLocaleString()}원`}
+                </span>
+                <span>
+                  {isFreeOnly
+                    ? "0원"
+                    : `${priceRange[1].toLocaleString()}${
+                        priceRange[1] === 100000 ? "+" : ""
+                      }원`}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {/* 섹션 4: 진행 상태 */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[15px] font-bold text-[var(--color-text-black)]">
+                진행 상태
+              </h3>
+              <span className="text-[11px] text-[var(--color-text-sub)]">
+                선택하지 않거나 전체 선택 시 전체 팝업이 보여요
+              </span>
+            </div>
             <div className="flex flex-wrap gap-2">
+              {/* 전체 칩 */}
               <FilterChip
                 label="전체"
-                isSelected={isAllStatus}
+                isSelected={isAllSelected}
                 onClick={() => toggleStatus("ALL")}
               />
+              {/* 개별 상태 칩 */}
               {STATUS_OPTIONS.map((opt) => (
                 <FilterChip
                   key={opt.value}
                   label={opt.label}
-                  isSelected={(filter.statusList || []).includes(opt.value)}
+                  isSelected={
+                    !isAllSelected && selectedStatuses.includes(opt.value)
+                  }
                   onClick={() => toggleStatus(opt.value)}
                 />
               ))}
             </div>
-          </div>
-
-          {/* 4. 가격 */}
-          <div className="px-2">
-            <div className="flex justify-between items-center mb-2">
-              <div className="flex items-center gap-2">
-                <label className="text-label-md text-text-sub font-medium">
-                  가격 범위
-                </label>
-                <button
-                  type="button"
-                  onClick={toggleFreeOnly}
-                  className={`
-                    px-3 py-1 rounded-full text-label-sm border
-                    transition-colors
-                    ${
-                      isFreeOnly
-                        ? "bg-primary-light text-primary border-primary"
-                        : "bg-paper text-secondary border-secondary-light hover:border-primary-light hover:text-primary"
-                    }
-                  `}
-                >
-                  무료만 보기
-                </button>
-              </div>
-              <span className="text-label-sm text-primary font-bold">
-                {isFreeOnly ? (
-                    "무료만 보기"
-                ) : (
-                    <>
-                    {priceRange[0].toLocaleString()}원 ~{" "}
-                    {priceRange[1].toLocaleString()}
-                    {priceRange[1] === 100000 ? "원 이상" : "원"}
-                    </>
-                )}
-            </span>
-            </div>
-            <Slider
-              range
-              min={0}
-              max={100000}
-              step={1000}
-              value={priceRange}
-              onChange={setPriceRange}
-              onAfterChange={handlePriceChangeComplete}
-              disabled={isFreeOnly}
-              trackStyle={[{ backgroundColor: "var(--color-primary)" }]}
-              handleStyle={[
-                {
-                  borderColor: "var(--color-primary)",
-                  backgroundColor: "var(--color-paper)",
-                  opacity: 1,
-                },
-                {
-                  borderColor: "var(--color-primary)",
-                  backgroundColor: "var(--color-paper)",
-                  opacity: 1,
-                },
-              ]}
-              railStyle={{ backgroundColor: "var(--color-secondary-light)" }}
-            />
-          </div>
+          </section>
         </div>
 
+        {/* 푸터 */}
+        <div className="p-4 border-t border-[var(--color-secondary-light)] bg-[var(--color-paper-light)] flex gap-3">
+          <button
+            onClick={handleReset}
+            className="flex-1 py-3 rounded-[12px] border border-[var(--color-secondary)] bg-white text-[var(--color-text-sub)] text-[14px] font-medium hover:bg-[var(--color-secondary-light)] transition-colors"
+          >
+            초기화
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-[2] py-3 rounded-[12px] bg-[var(--color-primary)] text-white text-[14px] font-bold shadow-md hover:opacity-90 transition-opacity"
+          >
+            필터 적용
+          </button>
+        </div>
       </div>
     </div>
   );
