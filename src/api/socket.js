@@ -1,11 +1,12 @@
 import { Client } from "@stomp/stompjs";
+import { WS_BASE } from "../utils/env";
 
 let stompClient = null;
 
 export function connectStomp() {
   return new Promise((resolve) => {
     stompClient = new Client({
-      brokerURL: "ws://localhost:8080/ws-stomp",  // ★ WebSocket 직접 연결
+      brokerURL: WS_BASE,  // ★ WebSocket 직접 연결
       reconnectDelay: 5000,
       debug: (str) => console.log("[STOMP]", str),
 
