@@ -16,6 +16,9 @@ export default function KakaoMap({
   onViewportChange, // { center, radiusKm } 콜백
   searchCircleCenter, // { lat, lng }
   searchCircleRadiusKm, // number, km
+
+  //사이드바 열림 여부
+  sidebarOpen,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -79,7 +82,7 @@ export default function KakaoMap({
     });
     mapRef.current = map;
 
-    //뷰포트 변경 이벤트 (idle) - 최초 1회만 등록
+    //뷰포트 변경 이벤트 (idle) - 최초 1회만 등록 
     if (onViewportChange) {
       kakao.maps.event.addListener(map, "idle", () => {
         const c = map.getCenter();
@@ -90,10 +93,10 @@ export default function KakaoMap({
           path: [c, ne],
         });
         //화면 전체 거리의 0.8배 정도만 반경으로 사용
-        let distKm = (poly.getLength() / 1000) * 0.8;
+        let distKm = (poly.getLength() / 1000) * 0.75;
 
         //너무 작거나 크지 않게 제한
-        if (distKm < 0.5) distKm = 0.5;
+        if (distKm < 0.1) distKm = 0.1;
         if (distKm > 50) distKm = 50;
 
         onViewportChange({
@@ -336,6 +339,26 @@ export default function KakaoMap({
       target.infoWindow.open(map, target.marker);
     }
   }, [selectedPopupId]);
+
+  // 9) 사이드바 열림/닫힘에 따른 지도 리레이아웃 + 검색 원 중심으로 맞추기
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (!window.kakao?.maps) return;
+
+    const map = mapRef.current;
+    const kakao = window.kakao;
+
+    const targetCenter =
+      searchCircleCenter && searchCircleCenter.lat && searchCircleCenter.lng
+        ? new kakao.maps.LatLng(searchCircleCenter.lat, searchCircleCenter.lng)
+        : map.getCenter();
+
+    setTimeout(() => {
+      map.relayout();
+      map.setCenter(targetCenter);
+    }, 0);
+  }, [sidebarOpen, searchCircleCenter]);
+
 
   return (
     <div
