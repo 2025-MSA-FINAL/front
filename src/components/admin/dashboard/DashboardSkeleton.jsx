@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/admin/dashboard/skeleton";
+import { Skeleton } from "@/components/admin/dashboard/Skeleton";
 import KpiCard from "@/components/admin/dashboard/KpiCard"; // KpiCard만 사용한다고 가정
 
 /**
