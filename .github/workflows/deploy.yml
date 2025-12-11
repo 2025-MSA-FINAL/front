@@ -1,8 +1,12 @@
 name: Deploy to S3
+
 on:
   pull_request:
     branches:
-      - dev  # dev 브랜치로 PR이 merge될 때 실행
+      - dev          # dev 브랜치 대상으로 PR 생성/업데이트 시 실행 (lint만)
+  push:
+    branches:
+      - dev          # dev 브랜치에 push(= PR merge 포함)될 때 실행 (lint + deploy)
 
 jobs:
   # 린트 검사 (실패해도 계속 진행)
@@ -27,10 +31,10 @@ jobs:
 
   # 빌드 및 배포
   deploy:
-    needs: lint  # lint 작업 완료 후 실행 (실패해도 진행됨)
+    needs: lint                      # lint 작업 완료 후 실행
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true  # PR이 merge되었을 때만 실행
-    
+    if: github.event_name == 'push'  # dev 브랜치에 push 되었을 때만 실행 (PR 이벤트에서는 skip)
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
