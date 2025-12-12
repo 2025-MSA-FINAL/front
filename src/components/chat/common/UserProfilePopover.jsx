@@ -1,40 +1,40 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { startPrivateChat, getMiniUserProfile } from "../../../api/chatApi";
 import { useChatStore } from "../../../store/chat/chatStore";
 import privateChatIcon from "../../../assets/privateChat.png";
 
+/* --------------------------------------------------------
+   📌 Follow Motion 설정
+   -------------------------------------------------------- */
+const lerp = (start, end, factor) => start + (end - start) * factor;
+const FOLLOW_SPEED = 0.18;
+
 export default function UserProfilePopover({
   userId,
   anchorRef,
+  scrollParentRef,
   open,
   onClose,
-  scrollParentRef, // 👈 새로 추가됨
 }) {
   const popRef = useRef(null);
+  const posRef = useRef({ x: 0, y: 0 });
+
+  // ⭐ 꼬리 방향을 위한 상태값 (렌더에서 ref 접근 금지 해결)
+  const [side, setSide] = useState("right");
+
   const [user, setUser] = useState(null);
+  const [ready, setReady] = useState(false);
+
+  // 첫 프레임인지 체크하는 ref
+  const firstFrameRef = useRef(true);
 
   const { addOrSelectPrivateRoom } = useChatStore();
+  const portalRoot = document.getElementById("popover-root");
 
-  /* 외부 클릭 감지 */
-  useEffect(() => {
-    if (!open) return;
-
-    const handler = (e) => {
-      if (
-        popRef.current &&
-        !popRef.current.contains(e.target) &&
-        anchorRef?.current &&
-        !anchorRef.current.contains(e.target)
-      ) {
-        onClose();
-      }
-    };
-
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open, anchorRef, onClose]);
-
-  /* Mini Profile 불러오기 */
+  /* --------------------------------------
+      프로필 로드
+  -------------------------------------- */
   useEffect(() => {
     if (!open || !userId) return;
 
@@ -53,85 +53,166 @@ export default function UserProfilePopover({
     load();
   }, [open, userId]);
 
-  /* Popover 위치 계산 */
+  /* ---------------------------------------
+      외부 클릭 닫기
+  --------------------------------------- */
   useEffect(() => {
-    if (
-      !open ||
-      !anchorRef?.current ||
-      !popRef.current ||
-      !scrollParentRef?.current
-    )
-      return;
+    if (!open) return;
 
-    const triggerRect = anchorRef.current.getBoundingClientRect();
-    const containerRect = scrollParentRef.current.getBoundingClientRect();
-    const pop = popRef.current;
+    const handler = (e) => {
+      if (
+        popRef.current &&
+        !popRef.current.contains(e.target) &&
+        anchorRef?.current &&
+        !anchorRef.current.contains(e.target)
+      ) {
+        onClose();
+      }
+    };
 
-    const popWidth = pop.offsetWidth;
-    const popHeight = pop.offsetHeight;
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open, anchorRef]);
 
-    // 기본 위치: 오른쪽 배치
-    let left = triggerRect.right - containerRect.left + 40;
-    let top =
-      triggerRect.top -
-      containerRect.top +
-      triggerRect.height / 40 -
-      popHeight / 50;
-
-    // 오른쪽 벗어나면 왼쪽으로
-    if (left + popWidth > containerRect.width - 20) {
-      left = triggerRect.left - containerRect.left - popWidth - 16;
-    }
-
-    // 위치 제한 값 정의
-    const topLimit = 100; // 화면 상단에서 여유 공간
-    const middleLimit = containerRect.height / 4 - popHeight / 100; // 중앙 보정
-    const bottomLimit = containerRect.height - popHeight + 80; // 입력창 위 보정
-
-    if (top < topLimit) {
-      top = Math.min(middleLimit, bottomLimit);
-    } else if (top > bottomLimit) {
-      top = bottomLimit;
-    } else {
-      top = Math.min(top, middleLimit);
-    }
-
-    pop.style.position = "absolute";
-    pop.style.left = `${left}px`;
-    pop.style.top = `${top}px`;
-  }, [open, anchorRef, scrollParentRef]);
-
-  /* 전체 스크롤 잠금 */
+  /* ---------------------------------------
+      open 변경 시 초기 상태 리셋
+  --------------------------------------- */
   useEffect(() => {
     if (open) {
-      document.body.style.overflow = "hidden";
-      document.documentElement.style.overflow = "hidden";
-      if (scrollParentRef?.current)
-        scrollParentRef.current.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-      document.documentElement.style.overflow = "";
-      if (scrollParentRef?.current)
-        scrollParentRef.current.style.overflow = "auto";
+      firstFrameRef.current = true;
+      setTimeout(() => {
+        setReady(false);
+      }, 0);
+    }
+  }, [open]);
+
+  /* ======================================================
+      위치 계산 + Follow Motion + 자동 close
+  ====================================================== */
+  const updatePosition = () => {
+    if (!open) return;
+    if (!anchorRef?.current || !popRef.current) return;
+
+    const trigger = anchorRef.current.getBoundingClientRect();
+    const pop = popRef.current;
+
+    /* 1) 화면 밖이면 닫기 */
+    const outOfScreen =
+      trigger.bottom < 0 ||
+      trigger.top > window.innerHeight ||
+      trigger.right < 0 ||
+      trigger.left > window.innerWidth;
+
+    if (outOfScreen) return onClose();
+
+    /* 2) 메시지 영역 밖이면 닫기 */
+    if (scrollParentRef?.current) {
+      const scrollBox = scrollParentRef.current.getBoundingClientRect();
+      const out =
+        trigger.bottom < scrollBox.top || trigger.top > scrollBox.bottom;
+      if (out) return onClose();
     }
 
-    return () => {
-      document.body.style.overflow = "";
-      document.documentElement.style.overflow = "";
-      if (scrollParentRef?.current)
-        scrollParentRef.current.style.overflow = "auto";
+    /* 3) Popover 크기 측정 */
+    pop.style.visibility = "hidden";
+    pop.style.left = "-9999px";
+    pop.style.top = "-9999px";
+
+    const rect = pop.getBoundingClientRect();
+    const popW = rect.width;
+    const popH = rect.height;
+
+    /* 4) 기본 위치: 오른쪽 */
+    let targetX = trigger.right + 12;
+    let targetY = trigger.top + trigger.height / 2 - popH / 2;
+
+    /* 오른쪽 공간 부족 → 왼쪽으로 */
+    let onLeft = false;
+    if (targetX + popW > window.innerWidth - 10) {
+      targetX = trigger.left - popW - 12;
+      onLeft = true;
+    }
+    if (targetX < 10) targetX = 10;
+
+    /* Y Clamp */
+    if (targetY < 10) targetY = 10;
+    if (targetY + popH > window.innerHeight - 10) {
+      targetY = window.innerHeight - popH - 10;
+    }
+
+    /* 꼬리 상태 저장 → 렌더링 시 ref 접근 불필요 */
+    setSide(onLeft ? "left" : "right");
+
+    /* Follow Motion */
+    const current = posRef.current;
+
+    let newX, newY;
+
+    if (firstFrameRef.current) {
+      newX = targetX;
+      newY = targetY;
+      firstFrameRef.current = false;
+    } else {
+      newX = lerp(current.x, targetX, FOLLOW_SPEED);
+      newY = lerp(current.y, targetY, FOLLOW_SPEED);
+    }
+
+    posRef.current = { x: newX, y: newY };
+
+    pop.style.left = `${newX}px`;
+    pop.style.top = `${newY}px`;
+    pop.style.visibility = "visible";
+
+    if (!ready) setReady(true);
+  };
+
+  /* Follow Motion Loop */
+  useEffect(() => {
+    if (!open) return;
+
+    let frame;
+    const loop = () => {
+      updatePosition();
+      frame = requestAnimationFrame(loop);
     };
+
+    loop();
+    return () => cancelAnimationFrame(frame);
   }, [open]);
 
   if (!open || !user) return null;
 
-  return (
+  /* ======================================================
+      Tail + Kakao-style Popover
+  ====================================================== */
+
+  const tailStyle =
+    side === "left"
+      ? {
+          right: "-24px",
+          borderColor: "transparent transparent transparent white",
+          borderLeftColor: "white",
+        }
+      : {
+          left: "-24px",
+          borderColor: "transparent white transparent transparent",
+          borderRightColor: "white",
+        };
+
+  return createPortal(
     <div
       ref={popRef}
-      className="fixed z-[9999] w-[350px] rounded-3xl px-7 py-7
-                 bg-white/95 backdrop-blur-xl border border-gray-200 shadow-lg
-                 flex flex-col items-center gap-3"
+      className={`fixed z-[9999] w-[350px] rounded-3xl px-7 py-7
+        bg-white shadow-lg backdrop-blur-xl border border-gray-200
+        flex flex-col items-center gap-3 origin-center
+        ${ready ? "animate-kakao-pop" : ""}`}
     >
+      {/* 꼬리 */}
+      <div
+        className="absolute top-1/2 -translate-y-1/2 w-0 h-0 border-[12px]"
+        style={tailStyle}
+      />
+
       <img
         src={user.profileImage || privateChatIcon}
         className="w-20 h-20 rounded-full object-cover shadow"
@@ -165,6 +246,7 @@ export default function UserProfilePopover({
       >
         1:1 채팅
       </button>
-    </div>
+    </div>,
+    portalRoot
   );
 }

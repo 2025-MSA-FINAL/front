@@ -18,7 +18,10 @@ export default function GroupRoomInfoPopover({
   const setActiveRoom = useChatStore((s) => s.setActiveChatRoom);
   const { fetchPopupRooms, selectedPopup } = useChatPopupStore();
 
+  /* 외부 클릭 감지 */
   useEffect(() => {
+    if (!open) return;
+
     const handler = (e) => {
       if (
         popRef.current &&
@@ -32,7 +35,7 @@ export default function GroupRoomInfoPopover({
 
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [onClose, anchorRef]);
+  }, [open, anchorRef, onClose]);
 
   if (!room || !open) return null;
 
@@ -40,45 +43,59 @@ export default function GroupRoomInfoPopover({
     <div
       ref={popRef}
       className="
-        absolute left-20 top-17
-        w-[350px] rounded-3xl px-7 py-7 z-[200]
-        bg-paper-light/90 shadow-[0_4px_20px_rgba(0,0,0,0.15)]
-        border border-gray-200 
-        flex flex-col items-center
+        absolute left-20 top-17 z-[200]
+        w-[340px] rounded-3xl px-7 py-7
+        bg-white shadow-lg backdrop-blur-xl border border-gray-200
+        flex flex-col items-center gap-2.5
+        animate-kakao-pop
       "
     >
       {/* 신고 버튼 */}
-      <button className="absolute left-5 top-4 rounded-full w-8 h-8 flex justify-center items-center text-accent-pink hover:bg-white/50 transition">
+      <button
+        className="
+          absolute left-5 top-4 
+          w-8 h-8 rounded-full 
+          flex justify-center items-center 
+          text-accent-pink hover:bg-gray-100/70 transition
+        "
+      >
         <ReportIcon className="w-5 h-5" />
       </button>
 
+      {/* 팝업 이름 (있을 때만) */}
+      {room.popName && (
+        <p className="text-xs font-bold text-primary text-center mt-3 mb-1">
+          {room.popName}
+        </p>
+      )}
+
       {/* 아이콘 */}
-      <img src={groupChatIcon} className="w-16 h-13 mt-5 mb-2" />
+      <img src={groupChatIcon} className="w-20 h-20 object-contain mt-1" />
 
       {/* 제목 */}
-      <h2 className="text-[20px] font-extrabold text-gray-900 text-center">
+      <h2 className="text-xl font-extrabold text-text-black text-center">
         {room.title}
       </h2>
 
       {/* 인원 */}
-      <p className="text-xs text-text-sub text-center mb-3">
+      <p className="text-sm text-text-sub text-center mt-[-6px]">
         {room.currentUserCnt}/{room.maxUserCnt}
       </p>
 
-      {/* 설명 박스 */}
+      {/* 설명 영역 */}
       <div
         className="
-          w-full rounded-xl border border-purple-200 
-          bg-purple-50/30 px-4 py-4 text-[14px]
-          text-gray-800 leading-relaxed max-h-[150px] overflow-y-auto custom-scroll
-          mt-2
+          w-full max-h-[150px] overflow-y-auto custom-scroll
+          bg-purple-50/40 border border-purple-200/50
+          rounded-2xl px-4 py-4 text-[14px] leading-relaxed
+          text-gray-700
         "
       >
         {room.description}
       </div>
 
       {/* 하단 버튼 */}
-      <div className="w-full flex justify-end mt-4 mr-5">
+      <div className="w-full flex justify-end mt-3">
         {room.ownerId === currentUserId ? (
           <button
             onClick={async () => {
@@ -87,7 +104,7 @@ export default function GroupRoomInfoPopover({
               setActiveRoom(null);
               if (selectedPopup) await fetchPopupRooms(selectedPopup.popId);
             }}
-            className="text-[13px] text-text-sub hover:text-accent-pink font-medium transition"
+            className="text-[13px] text-text-sub hover:text-accent-pink transition"
           >
             채팅방 삭제하기
           </button>
@@ -98,7 +115,7 @@ export default function GroupRoomInfoPopover({
               removeRoom("GROUP", room.gcrId);
               setActiveRoom(null);
             }}
-            className="text-[13px] text-text-sub hover:text-accent-pink font-medium transition"
+            className="text-[13px] text-text-sub hover:text-accent-pink transition"
           >
             채팅방 나가기
           </button>

@@ -453,7 +453,10 @@ export default function MessageChatSection() {
             userId={openUserPopover}
             anchorRef={userAnchorRef}
             open={!!openUserPopover}
-            onClose={() => setOpenUserPopover(null)}
+            onClose={() => {
+              setOpenUserPopover(null);
+              setUserAnchorRef(null);
+            }}
             scrollParentRef={scrollRef}
           />
         </div>
