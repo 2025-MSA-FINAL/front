@@ -6,12 +6,14 @@ import "./index.css";
 import { initTheme } from "./theme";
 
 
-initTheme();
+
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient();
 
+
+initTheme();
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <BrowserRouter>
