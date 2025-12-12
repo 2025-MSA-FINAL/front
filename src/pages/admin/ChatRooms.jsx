@@ -10,7 +10,7 @@ export default function ChatRooms() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [keyword, setKeyword] = useState(""); 
-  const [debouncedKeyword, setDebouncedKeyword] = useState(""); // 🔥 디바운스된 키워드
+  const [debouncedKeyword, setDebouncedKeyword] = useState(""); //  디바운스된 키워드
   const [searchType, setSearchType] = useState("all");
   const [filterDeleted, setFilterDeleted] = useState("active");
   const [sortBy, setSortBy] = useState("createdAt");
@@ -327,24 +327,24 @@ export default function ChatRooms() {
           <table className="min-w-full">
             <thead className="bg-gradient-to-r from-[#C33DFF]/10 to-[#45CFD3]/10 border-b-2 border-[#DDDFE2]">
               <tr>
-                <th className="px-6 py-4 text-left">
+                <th className="px-6 py-4 text-left whitespace-nowrap">
                   <button onClick={handleSelectAll} className="text-[#C33DFF] hover:text-[#7E00CC]">
                     {selectAll ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
                   </button>
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">ID</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">팝업스토어 이름</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">채팅방 이름</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">방장</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">인원수</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] whitespace-nowrap">ID</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] whitespace-nowrap">팝업스토어 이름</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] whitespace-nowrap">채팅방 이름</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] whitespace-nowrap">방장</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] whitespace-nowrap">인원수</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] whitespace-nowrap">
                   <div className="flex items-center gap-1">
                     <AlertTriangle className="w-4 h-4 text-[#FF2A7E]" />
                     신고
                   </div>
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">생성일</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">삭제</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] whitespace-nowrap">생성일</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] whitespace-nowrap">삭제</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F0F1F3]">
@@ -360,7 +360,7 @@ export default function ChatRooms() {
                     key={room.chatId} 
                     className={`hover:bg-[#F8F8F9] transition-colors ${room.chatIsDeleted ? 'opacity-50 bg-[#F0F1F3]' : ''}`}
                   >
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3">
                       <button 
                         onClick={() => handleSelectRoom(room.chatId)}
                         className="text-[#C33DFF] hover:text-[#7E00CC]"
@@ -371,68 +371,68 @@ export default function ChatRooms() {
                         }
                       </button>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-[#C33DFF] to-[#7E00CC] text-white font-bold text-sm">
+                    <td className="px-6 py-3">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-[#C33DFF] to-[#7E00CC] text-white font-bold text-xs">
                         {room.chatId}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-[#242424]">
+                    <td className="px-6 py-3 whitespace-nowrap">
+                      <div className="font-medium text-sm text-[#242424]">
                         {room.popupName}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-[#242424]">
+                    <td className="px-6 py-3">
+                      <div className="font-medium text-sm text-[#242424]">
                         {room.chatName}
                         {room.chatIsDeleted && (
                           <span className="ml-2 text-xs text-[#FF2A7E]">(삭제됨)</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#45CFD3] to-[#C33DFF] flex items-center justify-center text-white text-xs font-bold">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#45CFD3] to-[#C33DFF] flex items-center justify-center text-white text-xs font-bold">
                           {room.hostUserId}
                         </div>
                         <div>
-                          <div className="text-sm font-medium text-[#242424]">{room.hostUserName}</div>
+                          <div className="text-xs font-medium text-[#242424]">{room.hostUserName}</div>
                           <div className="text-xs text-[#70757A]">@{room.hostNickname}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm font-medium text-[#242424]">
+                    <td className="px-6 py-3">
+                      <span className="text-xs font-medium text-[#242424]">
                         {room.participantCount} / {room.maxParticipants}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3 whitespace-nowrap">
                       {room.hasReports ? (
                         <button
                           onClick={() => handleViewReports(room.chatId, room.chatName)}
-                          className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-[#FF2A7E]/10 to-[#FFC92D]/10 
+                          className="flex items-center gap-1 px-2 py-1 text-xs bg-gradient-to-r from-[#FF2A7E]/10 to-[#FFC92D]/10 
                                      hover:from-[#FF2A7E]/20 hover:to-[#FFC92D]/20 text-[#FF2A7E] rounded-lg 
                                      transition-all cursor-pointer group"
                           title="신고 내역 보기"
                         >
-                          <AlertTriangle className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                          <AlertTriangle className="w-3 h-3 group-hover:scale-110 transition-transform" />
                           <span className="font-semibold">{room.reportCount}건</span>
                         </button>
                       ) : (
-                        <span className="text-sm text-[#70757A]">없음</span>
+                        <span className="text-xs text-[#70757A] whitespace-nowra">없음</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-[#70757A]">
+                    <td className="px-6 py-3 text-sm text-[#70757A] whitespace-nowrap">
                       {room.createdAt}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3">
                       {!room.chatIsDeleted && (
                         <button
                           onClick={() => handleDelete(room.chatId)}
-                          className="w-8 h-8 flex items-center justify-center bg-[#FF2A7E] hover:bg-[#C33DFF] 
+                          className="w-7 h-7 flex items-center justify-center bg-[#FF2A7E] hover:bg-[#C33DFF] 
                                      text-white rounded-full transition-colors"
                           title="삭제"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3 h-3" />
                         </button>
                       )}
                     </td>
