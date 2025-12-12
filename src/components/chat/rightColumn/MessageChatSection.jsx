@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import { useEffect, useState, useRef } from "react";
 import { connectStomp, getStompClient } from "../../../api/socket";
 import {
@@ -82,6 +83,14 @@ const toMinuteKey = (dt) => {
   return `${h}:${m}`;
 };
 
+const TypingDots = () => (
+  <span className="inline-flex gap-1 ml-1">
+    <span className="w-1 h-1 bg-white/60 rounded-full animate-bounce [animation-delay:0ms]" />
+    <span className="w-1 h-1 bg-white/60 rounded-full animate-bounce [animation-delay:150ms]" />
+    <span className="w-1 h-1 bg-white/60 rounded-full animate-bounce [animation-delay:300ms]" />
+  </span>
+);
+
 /* =======================================================================
  📌 MAIN COMPONENT
 ======================================================================= */
@@ -95,6 +104,7 @@ export default function MessageChatSection() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [openUserPopover, setOpenUserPopover] = useState(null);
   const [userAnchorRef, setUserAnchorRef] = useState(null);
+  const [typingUsers, setTypingUsers] = useState(new Set());
 
   const subRef = useRef(null);
   const scrollRef = useRef(null);
@@ -102,6 +112,8 @@ export default function MessageChatSection() {
   const isComposingRef = useRef(false);
   const menuRef = useRef(null);
   const roomInfoRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const isTypingRef = useRef(false);
 
   const currentUserId = useAuthStore((s) => s.user?.userId);
   const activeRoom = useChatStore((s) => s.activeChatRoom);
@@ -181,44 +193,71 @@ export default function MessageChatSection() {
   const onMessageReceived = (msg) => {
     const body = JSON.parse(msg.body);
 
-    updateRoomOrder(body.roomType, body.roomId);
+    // 🔹 1) 타이핑 이벤트
+    if (body.type === "TYPING_START") {
+      if (body.senderId !== currentUserId) {
+        setTypingUsers((prev) => {
+          const next = new Set(prev);
+          next.add(body.senderId);
+          return next;
+        });
+      }
+      return;
+    }
 
-    setMessages((prev) => {
-      // 1️⃣ pending 제거
-      const filtered = prev.filter(
-        (m) => m.clientMessageKey !== body.clientMessageKey
-      );
-
-      // 2️⃣ 새 메시지 추가
-      const next = [
-        ...filtered,
-        {
-          ...body,
-          createdAt: formatTime(body.createdAt),
-          minuteKey: toMinuteKey(body.createdAt),
-          dateLabel: formatDateLabel(body.createdAt),
-        },
-      ];
-
-      // 3️⃣ ⭐ cmId 기준 정렬 (핵심)
-      return next.sort((a, b) => {
-        if (typeof a.cmId === "string") return 1; // temp는 뒤로
-        if (typeof b.cmId === "string") return -1;
-        return a.cmId - b.cmId;
+    if (body.type === "TYPING_STOP") {
+      setTypingUsers((prev) => {
+        const next = new Set(prev);
+        next.delete(body.senderId);
+        return next;
       });
-    });
+      return;
+    }
+
+    // 🔹 2) 메시지
+    if (body.type === "MESSAGE") {
+      const payload = body.payload;
+
+      updateRoomOrder(payload.roomType, payload.roomId);
+
+      setMessages((prev) => {
+        const filtered = prev.filter(
+          (m) => m.clientMessageKey !== payload.clientMessageKey
+        );
+
+        const next = [
+          ...filtered,
+          {
+            ...payload,
+            createdAt: formatTime(payload.createdAt),
+            minuteKey: toMinuteKey(payload.createdAt),
+            dateLabel: formatDateLabel(payload.createdAt),
+          },
+        ];
+
+        return next.sort((a, b) => {
+          if (typeof a.cmId === "string") return 1;
+          if (typeof b.cmId === "string") return -1;
+          return a.cmId - b.cmId;
+        });
+      });
+    }
   };
 
   /* 메시지 전송 */
   const sendMessage = () => {
     if (!input.trim()) return;
 
+    sendTyping("TYPING_STOP");
+    isTypingRef.current = false;
+    clearTimeout(typingTimeoutRef.current);
+
     const client = getStompClient();
     if (!client || !client.connected) return;
 
-    // ⭐ 임시 메시지 생성 (Optimistic UI)
-    const tempId = `temp-${Date.now()}`;
-    const clientMessageKey = Date.now();
+    // 임시 메시지 생성 (Optimistic UI)
+    const clientMessageKey = uuidv4();
+    const tempId = `temp-${clientMessageKey}`;
 
     const optimisticMessage = {
       cmId: tempId, // 임시 ID
@@ -312,6 +351,31 @@ export default function MessageChatSection() {
       </span>
     </div>
   );
+
+  const sendTyping = (type) => {
+    const client = getStompClient();
+    if (!client?.connected) return;
+
+    client.publish({
+      destination: "/pub/chat/typing",
+      body: JSON.stringify({
+        type,
+        roomType,
+        roomId,
+        senderId: currentUserId,
+      }),
+    });
+  };
+
+  const typingUserList = Array.from(typingUsers)
+    .filter((id) => id !== currentUserId)
+    .map((id) => {
+      const user = activeRoom?.participants?.find((p) => p.userId === id);
+      return {
+        userId: id,
+        nickname: user?.nickname ?? "알 수 없음",
+      };
+    });
 
   /* =======================================================================
         📌 RENDER
@@ -516,6 +580,27 @@ export default function MessageChatSection() {
             scrollParentRef={scrollRef}
           />
         </div>
+        {typingUsers.has(20251212) && (
+          <div className="text-white/60 text-sm ml-12 mb-2 flex items-center">
+            POPBOT이 입력 중
+            <TypingDots />
+          </div>
+        )}
+        {roomType === "GROUP" && typingUserList.length > 0 && (
+          <div className="text-white/60 text-sm ml-12 mb-2 flex items-center gap-1">
+            {typingUserList.length === 1 ? (
+              <>
+                <span className="font-semibold">
+                  {typingUserList[0].nickname}
+                </span>
+                <span>님이 입력 중입니다</span>
+              </>
+            ) : (
+              <span>{typingUserList.length}명이 입력 중입니다</span>
+            )}
+            <TypingDots />
+          </div>
+        )}
 
         {/* 입력창 */}
         <div className="flex items-end gap-4 border-t border-white/20 pt-4 mt-4">
@@ -535,7 +620,20 @@ export default function MessageChatSection() {
                     chat-textarea-scroll"
             onCompositionStart={() => (isComposingRef.current = true)}
             onCompositionEnd={() => (isComposingRef.current = false)}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+
+              if (!isTypingRef.current) {
+                sendTyping("TYPING_START");
+                isTypingRef.current = true;
+              }
+
+              clearTimeout(typingTimeoutRef.current);
+              typingTimeoutRef.current = setTimeout(() => {
+                sendTyping("TYPING_STOP");
+                isTypingRef.current = false;
+              }, 1200);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 if (e.shiftKey) return;
