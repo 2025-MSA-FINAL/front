@@ -17,6 +17,9 @@ import {
 import { Info } from "lucide-react";
 import { CustomTooltipStyle } from "../../../utils/managerReportUtils";
 
+// 남성 도넛 컬러: 테마 토큰 기반
+const MALE_COLOR = "var(--color-secondary-dark)";
+
 const ReportAudienceSection = ({
   audience,
   theme,
@@ -26,11 +29,12 @@ const ReportAudienceSection = ({
   const data = audience || {};
   const hasAudienceData = data.hasEnoughData;
 
+  // 성별 데이터
   const genderData = [
     {
       name: "남성",
       value: data.genderRatio?.MALE ?? 0,
-      color: "#94A3B8",
+      color: MALE_COLOR,
     },
     {
       name: "여성",
@@ -40,11 +44,13 @@ const ReportAudienceSection = ({
   ];
   const totalGenderCount = genderData.reduce((acc, cur) => acc + cur.value, 0);
 
+  // 연령대 데이터
   const ageData = Object.keys(data.ageGroupDistribution || {}).map((key) => ({
     name: key,
     count: data.ageGroupDistribution[key],
   }));
 
+  // 시간대 데이터 (0~23시)
   const rawTimeSlot = data.timeSlotDistribution || {};
   const timeSlotData = Array.from({ length: 24 }, (_, h) => {
     const key = String(h);
@@ -58,20 +64,23 @@ const ReportAudienceSection = ({
     .map((d) => d.name);
 
   return (
-    <div className="bg-white rounded-[24px] p-5 sm:p-6 lg:p-7 shadow-card border border-gray-100 flex flex-col">
+    <div className="bg-paper rounded-[24px] p-5 sm:p-6 lg:p-7 shadow-card border border-secondary-light flex flex-col">
+      {/* 헤더 영역 */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
         <div>
-          <h3 className="text-lg font-bold text-gray-900">방문객 인구 통계</h3>
-          <p className="text-xs text-gray-500 mt-1">
+          <h3 className="text-lg font-bold text-text-black">방문객 인구 통계</h3>
+          <p className="text-xs text-text-sub mt-1">
             방문자들의 성별·연령·시간대 분포를 분석합니다.
           </p>
         </div>
+
         <div className="flex flex-col items-start sm:items-end gap-1">
-          <span className="bg-gray-50 text-gray-500 text-[10px] px-2 py-1 rounded-md font-medium border border-gray-100">
+          <span className="bg-paper-light text-text-sub text-[10px] px-2 py-1 rounded-md font-medium border border-secondary-light">
             {audienceBasisLabel}
           </span>
+
           {!hasAudienceData && (
-            <span className="bg-gray-100 text-gray-500 text-[10px] px-2 py-1 rounded-md font-medium">
+            <span className="bg-secondary-light text-text-sub text-[10px] px-2 py-1 rounded-md font-medium">
               데이터 부족
             </span>
           )}
@@ -82,9 +91,10 @@ const ReportAudienceSection = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
           {/* 성별 도넛 */}
           <div className="flex flex-col items-center justify-center relative">
-            <h4 className="absolute top-0 left-0 text-xs font-semibold text-gray-400">
+            <h4 className="absolute top-0 left-0 text-xs font-semibold text-text-sub">
               성별 비율
             </h4>
+
             <div className="w-full h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -103,12 +113,13 @@ const ReportAudienceSection = ({
                         stroke="none"
                       />
                     ))}
+
                     <Label
                       value={`${totalGenderCount}명`}
                       position="center"
                       dy={-2}
                       style={{
-                        fill: "#111827",
+                        fill: "var(--color-text-black)",
                         fontSize: 16,
                         fontWeight: 700,
                       }}
@@ -118,21 +129,23 @@ const ReportAudienceSection = ({
                       position="center"
                       dy={16}
                       style={{
-                        fill: "#9CA3AF",
+                        fill: "var(--color-text-sub)",
                         fontSize: 11,
                         fontWeight: 500,
                       }}
                     />
                   </Pie>
+
                   <Tooltip contentStyle={CustomTooltipStyle} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
+
             <div className="flex flex-wrap justify-center gap-4 mt-[-10px]">
               {genderData.map((d) => (
                 <div
                   key={d.name}
-                  className="flex items-center gap-1.5 text-xs font-medium text-gray-600"
+                  className="flex items-center gap-1.5 text-xs font-medium text-text-sub"
                 >
                   <span
                     className="w-2.5 h-2.5 rounded-full"
@@ -144,9 +157,9 @@ const ReportAudienceSection = ({
             </div>
           </div>
 
-          {/* 연령대 */}
+          {/* 연령대 바 차트 */}
           <div className="flex flex-col justify-center relative">
-            <h4 className="text-xs font-semibold text-gray-400 mb-4">
+            <h4 className="text-xs font-semibold text-text-sub mb-4">
               연령대 분포
             </h4>
             <div className="w-full h-[200px]">
@@ -159,7 +172,7 @@ const ReportAudienceSection = ({
                   <CartesianGrid
                     strokeDasharray="3 3"
                     horizontal={false}
-                    stroke="#f0f0f0"
+                    stroke="var(--color-secondary-light)"
                   />
                   <XAxis type="number" hide />
                   <YAxis
@@ -168,7 +181,10 @@ const ReportAudienceSection = ({
                     axisLine={false}
                     tickLine={false}
                     width={48}
-                    tick={{ fontSize: 12, fill: "#6B7280" }}
+                    tick={{
+                      fontSize: 12,
+                      fill: "var(--color-text-sub)",
+                    }}
                   />
                   <Tooltip
                     cursor={{ fill: "transparent" }}
@@ -185,16 +201,17 @@ const ReportAudienceSection = ({
             </div>
           </div>
 
-          {/* 시간대 (꺾은선 차트) */}
-          <div className="md:col-span-2 border-t border-dashed border-gray-100 pt-6 mt-2">
+          {/* 시간대 꺾은선 차트 */}
+          <div className="md:col-span-2 border-t border-dashed border-secondary-light pt-6 mt-2">
             <div className="flex justify-between items-end mb-4">
-              <h4 className="text-xs font-semibold text-gray-400">
+              <h4 className="text-xs font-semibold text-text-sub">
                 {timeSlotTitle} (주요 활동 시간대)
               </h4>
-              <p className="text-[11px] text-gray-400">
+              <p className="text-[11px] text-text-sub">
                 트래픽이 가장 몰리는 시간입니다.
               </p>
             </div>
+
             <div className="w-full h-[140px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
@@ -204,7 +221,7 @@ const ReportAudienceSection = ({
                   <CartesianGrid
                     vertical={false}
                     strokeDasharray="3 3"
-                    stroke="#f0f0f0"
+                    stroke="var(--color-secondary-light)"
                   />
                   <XAxis
                     dataKey="name"
@@ -212,11 +229,17 @@ const ReportAudienceSection = ({
                     interval={0}
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                    tick={{
+                      fontSize: 11,
+                      fill: "var(--color-text-sub)",
+                    }}
                   />
                   <YAxis hide domain={[0, "dataMax + 1"]} />
                   <Tooltip
-                    cursor={{ stroke: "#E5E7EB", strokeWidth: 1 }}
+                    cursor={{
+                      stroke: "var(--color-secondary-light)",
+                      strokeWidth: 1,
+                    }}
                     contentStyle={CustomTooltipStyle}
                   />
                   <Line
@@ -233,12 +256,13 @@ const ReportAudienceSection = ({
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center text-center py-10 opacity-60">
-          <Info size={32} className="text-gray-300 mb-3" />
-          <p className="text-sm text-gray-500 font-medium">
+        // 데이터 부족 상태
+        <div className="flex-1 flex flex-col items-center justify-center text-center py-10 opacity-70">
+          <Info size={32} className="text-text-sub mb-3" />
+          <p className="text-sm text-text-sub font-medium">
             데이터가 부족합니다
           </p>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-text-sub">
             방문자 수가 좀 더 쌓이면 통계가 활성화됩니다.
           </p>
         </div>
