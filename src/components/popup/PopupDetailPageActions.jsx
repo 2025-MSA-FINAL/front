@@ -1,6 +1,6 @@
 import PrimaryButton from "../button/PrimaryButton";
 
-//홈페이지(지구본) 아이콘
+// 홈페이지(지구본) 아이콘
 const GlobeIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -18,7 +18,7 @@ const GlobeIcon = () => (
   </svg>
 );
 
-//공유 아이콘
+// 공유 아이콘
 const ShareIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -36,7 +36,7 @@ const ShareIcon = () => (
   </svg>
 );
 
-//하트 아이콘
+// 하트 아이콘
 const HeartIcon = ({ filled }) => (
   <svg
     viewBox="0 0 24 24"
@@ -55,7 +55,7 @@ export default function PopupDetailPageActions({
   isLiked,
   wishlistLoading,
   onToggleWishlist,
-  homepageUrl, 
+  homepageUrl,
   hasReservation,
   reservationLabel,
   reservationDisabled,
@@ -63,10 +63,7 @@ export default function PopupDetailPageActions({
   onShareClick,
   userRole,
 }) {
-
-
   const showWishlistBtn = !userRole || userRole === "USER";
-
 
   return (
     <div className="flex items-center gap-3 py-4 border-t border-secondary-light md:border-none mt-4 md:mt-0">
@@ -78,8 +75,8 @@ export default function PopupDetailPageActions({
           disabled={wishlistLoading}
           className="
             w-12 h-12 flex items-center justify-center rounded-full 
-            border border-secondary bg-white 
-            hover:bg-gray-50 hover:border-primary transition-colors
+            border border-secondary bg-paper
+            hover:bg-paper-light hover:border-primary transition-colors
             active:scale-95 group pb-[2px]
           "
           aria-label="찜하기"
@@ -94,8 +91,8 @@ export default function PopupDetailPageActions({
         onClick={onShareClick}
         className="
           w-12 h-12 flex items-center justify-center rounded-full 
-          border border-secondary bg-white
-          hover:bg-gray-50 hover:border-primary transition-colors
+          border border-secondary bg-paper
+          hover:bg-paper-light hover:border-primary transition-colors
           active:scale-95 group
         "
         aria-label="공유하기"
@@ -111,8 +108,8 @@ export default function PopupDetailPageActions({
           rel="noreferrer"
           className="
             w-12 h-12 flex items-center justify-center rounded-full 
-            border border-secondary bg-white
-            hover:bg-gray-50 hover:border-primary transition-colors
+            border border-secondary bg-paper
+            hover:bg-paper-light hover:border-primary transition-colors
             active:scale-95 group
           "
           aria-label="홈페이지 방문"
@@ -121,10 +118,10 @@ export default function PopupDetailPageActions({
         </a>
       )}
 
-      {/* 4. 예약하기 버튼 */}
+      {/* 4. 예약/입장 정보 */}
       <div className="flex-1 ml-2">
         {!hasReservation ? (
-          <div className="h-12 flex items-center justify-center bg-secondary-light rounded-full text-text-sub font-medium text-[15px]">
+          <div className="h-12 flex items-center justify-center bg-paper-light border border-secondary-light rounded-full text-text-sub font-medium text-[15px]">
             현장 입장만 가능해요
           </div>
         ) : (
@@ -134,6 +131,7 @@ export default function PopupDetailPageActions({
             disabled={reservationDisabled}
             className={`
                h-12 rounded-full text-[16px] font-bold shadow-brand transition-all
+               !bg-[var(--color-primary-soft)] !text-[var(--color-primary-dark)]
                ${
                  reservationDisabled
                    ? "opacity-50 cursor-not-allowed"

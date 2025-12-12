@@ -2,11 +2,11 @@ import React, { useEffect } from "react";
 import { useAuthStore } from "../../store/authStore";
 import { usePopupList } from "../../hooks/usePopupList"; // 훅 import
 
-//컴포넌트 임포트
+// 컴포넌트 임포트
 import PopupCard from "../../components/popup/PopupCard";
 import PopupFilterPanel from "../../components/popup/PopupFilterPanel";
 
-//뷰 모드 상수
+// 뷰 모드 상수
 const VIEW_MODES = {
   GRID: "grid",
   LIST_2: "list2",
@@ -17,21 +17,40 @@ export default function PopupListPage() {
   const user = useAuthStore((state) => state.user);
 
   const {
-    popups, isLoading, isError, isInitialLoaded, wishlistLoadingId,
-    viewMode, setViewMode, isFilterOpen, setIsFilterOpen, loadMoreRef,
-    searchQuery, setSearchQuery, sort, setSort, filter, setFilter,
-    isFilterDefault, isTodayQuickActive, isOngoingQuickActive, isFilterDirty,
-    handleSearch, handleToggleWishlist, toggleQuickFilter, retryLoad
+    popups,
+    isLoading,
+    isError,
+    isInitialLoaded,
+    wishlistLoadingId,
+    viewMode,
+    setViewMode,
+    isFilterOpen,
+    setIsFilterOpen,
+    loadMoreRef,
+    searchQuery,
+    setSearchQuery,
+    sort,
+    setSort,
+    filter,
+    setFilter,
+    isFilterDefault,
+    isTodayQuickActive,
+    isOngoingQuickActive,
+    isFilterDirty,
+    handleSearch,
+    handleToggleWishlist,
+    toggleQuickFilter,
+    retryLoad,
   } = usePopupList();
 
-  //모달 열림 시 스크롤 잠금
+  // 모달 열림 시 스크롤 잠금
   useEffect(() => {
     document.body.style.overflow = isFilterOpen ? "hidden" : "unset";
     return () => (document.body.style.overflow = "unset");
   }, [isFilterOpen]);
 
   return (
-    <div className="min-h-screen bg-[var(--color-secondary-light)] font-[var(--font-sans)] pb-20">
+    <div className="min-h-screen bg-[var(--color-paper-light)] font-[var(--font-sans)] pb-20">
       {/* 1. 헤더 */}
       <div className="max-w-6xl mx-auto px-4 pt-12 pb-8 animate-[fade-up_0.5s_ease-out_forwards]">
         <h1 className="text-[32px] font-bold tracking-tight text-[var(--color-text-black)] mb-2">
@@ -121,14 +140,15 @@ export default function PopupListPage() {
             onClick={() => toggleQuickFilter("FREE")}
           />
 
-          <div className="w-[1px] h-5 bg-[var(--color-secondary)] mx-2 hidden sm:block"></div>
+          <div className="w-[1px] h-5 bg-[var(--color-secondary)] mx-2 hidden sm:block" />
 
           <button
             onClick={() => setIsFilterOpen(true)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-[13px] font-medium transition-all shadow-sm
-              ${isFilterDirty
-                ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-dark)]"
-                : "border-[var(--color-secondary)] bg-[var(--color-paper)] text-[var(--color-text-sub)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+              ${
+                isFilterDirty
+                  ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-dark)]"
+                  : "border-[var(--color-secondary)] bg-[var(--color-paper)] text-[var(--color-text-sub)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
               }
             `}
           >
@@ -149,7 +169,11 @@ export default function PopupListPage() {
               </p>
               <button
                 onClick={retryLoad}
-                className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
+                className="px-4 py-2 rounded-full text-sm font-medium
+                           bg-[var(--color-primary-soft)]
+                           text-[var(--color-primary-dark)]
+                           hover:bg-[var(--color-primary-soft2)]
+                           transition-colors shadow-sm"
               >
                 다시 시도하기
               </button>
@@ -159,7 +183,7 @@ export default function PopupListPage() {
               {[...Array(4)].map((_, i) => (
                 <div
                   key={i}
-                  className="aspect-[4/5] bg-gray-200 rounded-[20px] animate-pulse"
+                  className="aspect-[4/5] bg-[var(--color-secondary-light)] rounded-[20px] animate-pulse"
                 />
               ))}
             </div>
@@ -174,7 +198,14 @@ export default function PopupListPage() {
               </p>
               <button
                 onClick={() => toggleQuickFilter("RESET")}
-                className="mt-4 px-4 py-2 bg-white border rounded-full text-sm"
+                className="mt-4 px-4 py-2 rounded-full text-sm
+                           bg-[var(--color-paper)]
+                           border border-[var(--color-secondary)]
+                           text-[var(--color-text-sub)]
+                           hover:bg-[var(--color-paper-light)]
+                           hover:border-[var(--color-primary)]
+                           hover:text-[var(--color-primary)]
+                           transition-colors"
               >
                 초기화
               </button>
@@ -185,8 +216,8 @@ export default function PopupListPage() {
                 viewMode === VIEW_MODES.GRID
                   ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10"
                   : viewMode === VIEW_MODES.LIST_2
-                    ? "grid grid-cols-1 md:grid-cols-2 gap-4"
-                    : "space-y-4" // LIST_1
+                  ? "grid grid-cols-1 md:grid-cols-2 gap-4"
+                  : "space-y-4" // LIST_1
               }
             >
               {popups.map((popup) => (
@@ -235,10 +266,11 @@ function ViewModeBtn({ mode, current, onClick, icon }) {
   return (
     <button
       onClick={() => onClick(mode)}
-      className={`p-2 rounded-[6px] transition-all ${isActive
+      className={`p-2 rounded-[6px] transition-all ${
+        isActive
           ? "bg-[var(--color-primary-soft)] text-[var(--color-primary-dark)]"
           : "text-[var(--color-text-sub)] hover:text-[var(--color-text-main)]"
-        }`}
+      }`}
     >
       {icon}
     </button>
@@ -250,10 +282,11 @@ function QuickFilterChip({ label, active, onClick }) {
     <button
       onClick={onClick}
       className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all duration-200 border
-      ${active
-          ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md"
+      ${
+        active
+          ? "bg-[var(--color-primary-soft)] text-[var(--color-primary-dark)] border-[var(--color-primary)] shadow-md"
           : "bg-[var(--color-paper)] text-[var(--color-text-sub)] border-[var(--color-secondary)] hover:border-[var(--color-primary-soft)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-paper-light)]"
-        }`}
+      }`}
     >
       {label}
     </button>
@@ -261,13 +294,35 @@ function QuickFilterChip({ label, active, onClick }) {
 }
 
 const SearchIcon = () => (
-  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  <svg
+    width="20"
+    height="20"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+    />
   </svg>
 );
 const FilterIcon = () => (
-  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+  <svg
+    width="16"
+    height="16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+    />
   </svg>
 );
 const GridIcon = () => (
