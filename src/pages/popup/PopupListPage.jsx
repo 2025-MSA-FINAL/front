@@ -54,7 +54,7 @@ export default function PopupListPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               className="w-full bg-[var(--color-paper)] pl-11 pr-4 py-3 rounded-[8px] border border-transparent shadow-[var(--shadow-card)] outline-none focus:border-[var(--color-primary)] focus:shadow-[var(--shadow-brand)] transition-all text-[14px] placeholder:text-[var(--color-text-sub)]"
-              placeholder="팝업 이름으로 검색"
+              placeholder="이름·해시태그 검색"
             />
           </div>
 
@@ -126,10 +126,9 @@ export default function PopupListPage() {
           <button
             onClick={() => setIsFilterOpen(true)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-[13px] font-medium transition-all shadow-sm
-              ${
-                isFilterDirty
-                  ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-dark)]"
-                  : "border-[var(--color-secondary)] bg-[var(--color-paper)] text-[var(--color-text-sub)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+              ${isFilterDirty
+                ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-dark)]"
+                : "border-[var(--color-secondary)] bg-[var(--color-paper)] text-[var(--color-text-sub)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
               }
             `}
           >
@@ -186,8 +185,8 @@ export default function PopupListPage() {
                 viewMode === VIEW_MODES.GRID
                   ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10"
                   : viewMode === VIEW_MODES.LIST_2
-                  ? "grid grid-cols-1 md:grid-cols-2 gap-4"
-                  : "space-y-4" // LIST_1
+                    ? "grid grid-cols-1 md:grid-cols-2 gap-4"
+                    : "space-y-4" // LIST_1
               }
             >
               {popups.map((popup) => (
@@ -236,11 +235,10 @@ function ViewModeBtn({ mode, current, onClick, icon }) {
   return (
     <button
       onClick={() => onClick(mode)}
-      className={`p-2 rounded-[6px] transition-all ${
-        isActive
+      className={`p-2 rounded-[6px] transition-all ${isActive
           ? "bg-[var(--color-primary-soft)] text-[var(--color-primary-dark)]"
           : "text-[var(--color-text-sub)] hover:text-[var(--color-text-main)]"
-      }`}
+        }`}
     >
       {icon}
     </button>
@@ -252,11 +250,10 @@ function QuickFilterChip({ label, active, onClick }) {
     <button
       onClick={onClick}
       className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all duration-200 border
-      ${
-        active
+      ${active
           ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-md"
           : "bg-[var(--color-paper)] text-[var(--color-text-sub)] border-[var(--color-secondary)] hover:border-[var(--color-primary-soft)] hover:text-[var(--color-text-main)] hover:bg-[var(--color-paper-light)]"
-      }`}
+        }`}
     >
       {label}
     </button>

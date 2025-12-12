@@ -24,6 +24,7 @@ import EmojiIcon from "../../chat/icons/emojiIcon";
 import ImageUploadIcon from "../../chat/icons/imageIcon";
 import ScheduleIcon from "../../chat/icons/scheduleIcon";
 import MoreIcon from "../../chat/icons/MoreIcon";
+import { API_BASE } from "../../../utils/env";
 
 /* ------------------------------------------------------------------
  📌 날짜 / 시간 변환 함수 — 안전한 Date 객체 기반
@@ -209,7 +210,7 @@ export default function MessageChatSection() {
 
     const load = async () => {
       try {
-        const res = await axios.get("http://localhost:8080/api/chat/messages", {
+        const res = await axios.get(`${API_BASE}/api/chat/messages`, {
           params: { roomId: roomKey, roomType, limit: 60 },
           withCredentials: true,
         });

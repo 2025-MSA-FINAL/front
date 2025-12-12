@@ -41,7 +41,7 @@ export async function registerPopupApi(popupData) {
 }
 
 // 팝업 목록 조회
-// filters: { cursor, size, keyword, regions, startDate, endDate, status, minPrice, maxPrice, sort, freeOnly }
+// filters: { cursor, size, keywords, regions, startDate, endDate, status, minPrice, maxPrice, sort, freeOnly }
 export async function fetchPopupListApi(filters = {}) {
   const params = { ...filters };
 

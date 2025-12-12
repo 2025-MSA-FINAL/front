@@ -18,7 +18,6 @@ const WEEKDAYS = [
 ];
 
 export function ReservationLeftForm() {
-  // 필드별 selector
   const reservationInfo = usePopupReservationStore(
     (state) => state.reservationInfo
   );
@@ -26,7 +25,9 @@ export function ReservationLeftForm() {
     (state) => state.selectedWeekdays
   );
   const timeForm = usePopupReservationStore((state) => state.timeForm);
-  const timetables = usePopupReservationStore((state) => state.timetables); // ✅ 현재 타임테이블들
+  const timetables = usePopupReservationStore((state) => state.timetables);
+  const period = usePopupReservationStore((state) => state.period);
+  const popupPeriod = usePopupReservationStore((state) => state.popupPeriod);
 
   const setReservationInfo = usePopupReservationStore(
     (state) => state.setReservationInfo
@@ -38,6 +39,7 @@ export function ReservationLeftForm() {
   const toggleWeekday = usePopupReservationStore(
     (state) => state.toggleWeekday
   );
+  const setPeriod = usePopupReservationStore((state) => state.setPeriod);
 
   const handleMaxUserChange = (e) => {
     const value = Number(e.target.value);
@@ -70,7 +72,6 @@ export function ReservationLeftForm() {
       return;
     }
 
-    // ✅ 한 요일에는 하나의 시간대만 허용
     const hasConflict = selectedWeekdays.some((code) =>
       timetables.some((t) => t.dayOfWeek === code)
     );
@@ -82,7 +83,6 @@ export function ReservationLeftForm() {
       return;
     }
 
-    // ✅ 여기까지 왔으면 중복 없음 → 그대로 추가
     const entries = selectedWeekdays.map((code) => ({
       dayOfWeek: code,
       startTime: timeForm.startTime,
@@ -94,156 +94,271 @@ export function ReservationLeftForm() {
     setTimeForm({ startTime: "", endTime: "", capacity: "" });
   };
 
+  const buildDateTimeValue = (date, time) => {
+    if (!date || !time) return "";
+    const d = date instanceof Date ? date : new Date(date);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}T${time}`;
+  };
+
+  const handleReservationStartDateTimeChange = (e) => {
+    const value = e.target.value;
+    if (!value) {
+      setReservationInfo({ reservationOpenStartTime: "" });
+      setPeriod({
+        startDate: null,
+        endDate: period?.endDate ?? null,
+      });
+      return;
+    }
+    const [datePart, timePart] = value.split("T");
+    const startDate = new Date(`${datePart}T00:00:00`);
+
+    if (popupPeriod?.endDate) {
+      const popupEnd =
+        popupPeriod.endDate instanceof Date
+          ? popupPeriod.endDate
+          : new Date(popupPeriod.endDate);
+      if (startDate > popupEnd) {
+        alert("예약 시작일은 팝업 운영 종료일보다 늦을 수 없습니다.");
+        return;
+      }
+    }
+
+    setReservationInfo({ reservationOpenStartTime: timePart });
+    setPeriod({
+      startDate,
+      endDate: period?.endDate ?? null,
+    });
+  };
+
+  const handleReservationEndDateTimeChange = (e) => {
+    const value = e.target.value;
+    if (!value) {
+      setReservationInfo({ reservationOpenEndTime: "" });
+      setPeriod({
+        startDate: period?.startDate ?? null,
+        endDate: null,
+      });
+      return;
+    }
+    const [datePart, timePart] = value.split("T");
+    const endDate = new Date(`${datePart}T00:00:00`);
+
+    if (popupPeriod?.endDate) {
+      const popupEnd =
+        popupPeriod.endDate instanceof Date
+          ? popupPeriod.endDate
+          : new Date(popupPeriod.endDate);
+      if (endDate > popupEnd) {
+        alert("예약 종료일은 팝업 운영 종료일보다 늦을 수 없습니다.");
+        return;
+      }
+    }
+
+    setReservationInfo({ reservationOpenEndTime: timePart });
+    setPeriod({
+      startDate: period?.startDate ?? null,
+      endDate,
+    });
+  };
+
+  const reservationStartDateTimeValue = buildDateTimeValue(
+    period?.startDate,
+    reservationInfo.reservationOpenStartTime
+  );
+  const reservationEndDateTimeValue = buildDateTimeValue(
+    period?.endDate,
+    reservationInfo.reservationOpenEndTime
+  );
+
+  const popupEndDateTimeMax = popupPeriod?.endDate
+    ? buildDateTimeValue(popupPeriod.endDate, "23:59")
+    : "";
+
   return (
-    <div className="rounded-3xl bg-[#F8F5FF] px-6 py-5 flex flex-col gap-4">
-      {/* 계정당 최대 인원 */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-semibold text-slate-700">
-          계정당 최대 예약가능 인원
-        </label>
-        <select
-          className="w-full rounded-full border border-[#E2D7FF] bg-white px-4 pr-8 py-2.5 text-sm outline-none focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
-          value={reservationInfo.maxUserCnt ?? ""}
-          onChange={handleMaxUserChange}
-        >
-          <option value="" disabled>
-            선택
-          </option>
-          {Array.from({ length: 10 }).map((_, i) => (
-            <option key={i + 1} value={i + 1}>
-              {i + 1}명
-            </option>
-          ))}
-        </select>
-      </div>
+    <div className="flex flex-col gap-4">
+      {/* 영역 1: 계정당 최대 인원 + 예약 시작/종료 일시 */}
+      <div className="rounded-2xl bg-[#F8F5FF] px-5 py-4 flex flex-col gap-4">
+        {/* 계정당 최대 인원 */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-semibold text-slate-700">
+            계정당 최대 인원
+          </label>
+          <div className="rounded-2xl border-2 border-[#D173FF] bg-white px-4 py-3 flex items-center justify-center gap-2 shadow-sm">
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={reservationInfo.maxUserCnt ?? ""}
+              onChange={handleMaxUserChange}
+              placeholder="0"
+              className="w-16 bg-transparent border-none text-xl text-center font-bold text-[#BA3BFF] outline-none
+                         [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
+                         placeholder:text-slate-300"
+            />
+            <span className="text-base font-semibold text-slate-600">명</span>
+          </div>
+        </div>
 
-      {/* 입장 단위 시간 */}
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-semibold text-slate-700">
-          입장 단위 시간
-        </span>
-        <div className="flex items-center gap-4 text-xs">
-          {Object.entries(ENTRY_TIME_UNIT).map(([code, label]) => (
-            <label key={code} className="inline-flex items-center gap-1.5">
+        {/* 예약 시작/종료 일시 */}
+        <div className="flex flex-col gap-2 rounded-xl bg-white/70 px-4 py-3 border border-[#E2D7FF]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-700">
+              예약 기간
+            </span>
+            <span className="rounded-full bg-[#F4F0FF] px-2.5 py-1 text-[10px] text-slate-500">
+              예약 받을 기간
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center gap-2">
+              <span className="w-9 text-xs font-medium text-slate-600">
+                시작
+              </span>
               <input
-                type="radio"
-                name="entryTimeUnit"
-                value={code}
-                checked={reservationInfo.entryTimeUnit === code}
-                onChange={handleEntryTimeUnitChange}
-                className="h-3 w-3 accent-[#C65CFF]"
+                type="datetime-local"
+                value={reservationStartDateTimeValue}
+                onChange={handleReservationStartDateTimeChange}
+                max={popupEndDateTimeMax}
+                className="flex-1 h-9 rounded-lg border border-[#E2D7FF] bg-white 
+                           px-3 py-2 text-[11px] text-center leading-none outline-none 
+                           focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/15"
               />
-              <span>{label}</span>
-            </label>
-          ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="w-9 text-xs font-medium text-slate-600">
+                종료
+              </span>
+              <input
+                type="datetime-local"
+                value={reservationEndDateTimeValue}
+                onChange={handleReservationEndDateTimeChange}
+                max={popupEndDateTimeMax}
+                className="flex-1 h-9 rounded-lg border border-[#E2D7FF] bg-white 
+                           px-3 py-2 text-[11px] text-center leading-none outline-none 
+                           focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/15"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* 예약 오픈 시각 (시작/종료 한 줄) */}
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-semibold text-slate-700">
-          예약 오픈 시각
-        </span>
-
-        <div className="flex gap-2">
-          {/* 시작 */}
-          <input
-            type="time"
-            value={reservationInfo.reservationOpenStartTime || ""}
-            onChange={(e) =>
-              setReservationInfo({
-                reservationOpenStartTime: e.target.value,
-              })
-            }
-            className="w-1/2 rounded-full border border-[#E2D7FF] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
-          />
-
-          {/* 종료 */}
-          <input
-            type="time"
-            value={reservationInfo.reservationOpenEndTime || ""}
-            onChange={(e) =>
-              setReservationInfo({
-                reservationOpenEndTime: e.target.value,
-              })
-            }
-            className="w-1/2 rounded-full border border-[#E2D7FF] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
-          />
-        </div>
-      </div>
-
-      {/* 요일 선택 */}
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-semibold text-slate-700">요일 선택</span>
-        <div className="flex gap-2">
-          {WEEKDAYS.map((d) => {
-            const active = selectedWeekdays.includes(d.code);
-            return (
-              <button
-                key={d.code}
-                type="button"
-                onClick={() => toggleWeekday(d.code)}
-                className={`min-w-[32px] rounded-full border px-2.5 py-1 text-xs ${
-                  active
-                    ? "border-[#D173FF] bg-[#F6E6FF] font-semibold text-[#BA3BFF]"
-                    : "border-[#E2D7FF] bg-white text-slate-700"
-                }`}
-              >
-                {d.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 팝업 시작/종료 시간 — 한 줄 (placeholder 세로 정렬 수정) */}
-      <div className="flex flex-col gap-1.5">
-        <div className="flex justify-between text-xs font-semibold text-slate-700">
-          <span>팝업 시작시간</span>
-          <span>팝업 종료시간</span>
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="time"
-            name="startTime"
-            value={timeForm.startTime}
-            onChange={handleTimeFormChange}
-            className="w-1/2 h-11 rounded-full border border-[#E2D7FF] bg-white px-4 py-0 text-sm outline-none focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
-          />
-          <input
-            type="time"
-            name="endTime"
-            value={timeForm.endTime}
-            onChange={handleTimeFormChange}
-            className="w-1/2 h-11 rounded-full border border-[#E2D7FF] bg-white px-4 py-0 text-sm outline-none focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
-          />
-        </div>
-      </div>
-
-      {/* 인원 + 시간 추가 */}
-      <div className="mt-1 flex items-end justify-between gap-3">
-        <div className="flex-1 flex flex-col gap-1.5">
+      {/* 영역 2: 나머지 설정들 */}
+      <div className="rounded-2xl bg-[#F8F5FF] px-5 py-4 flex flex-col gap-4">
+        {/* 입장 단위 시간 */}
+        <div className="flex flex-col gap-2">
           <span className="text-xs font-semibold text-slate-700">
-            일별 최대 인원
+            입장 단위 시간
           </span>
-          <input
-            type="number"
-            min={1}
-            name="capacity"
-            value={timeForm.capacity}
-            onChange={handleTimeFormChange}
-            placeholder="인원"
-            className="w-full rounded-full border border-[#E2D7FF] bg-white px-4 py-2.5 text-sm outline-none placeholder:text-slate-300 focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
-          />
+          <div className="flex items-center gap-3">
+            {Object.entries(ENTRY_TIME_UNIT).map(([code, label]) => (
+              <label key={code} className="inline-flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  name="entryTimeUnit"
+                  value={code}
+                  checked={reservationInfo.entryTimeUnit === code}
+                  onChange={handleEntryTimeUnitChange}
+                  className="h-3.5 w-3.5 accent-[#C65CFF]"
+                />
+                <span className="text-xs">{label}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleAddTime}
-          className="rounded-full border border-[#D173FF] bg-white px-4 py-2 text-xs font-semibold text-[#BA3BFF] hover:bg-[#F6E6FF]"
-        >
-          + 시간 추가
-        </button>
+        {/* 요일 선택 */}
+        <div className="flex flex-col gap-2">
+          <span className="text-xs font-semibold text-slate-700">
+            요일 선택
+          </span>
+          <div className="flex gap-2">
+            {WEEKDAYS.map((d) => {
+              const active = selectedWeekdays.includes(d.code);
+              return (
+                <button
+                  key={d.code}
+                  type="button"
+                  onClick={() => toggleWeekday(d.code)}
+                  className={`min-w-[32px] rounded-lg border px-2.5 py-1.5 text-xs transition-all ${
+                    active
+                      ? "border-[#D173FF] bg-[#F6E6FF] font-semibold text-[#BA3BFF]"
+                      : "border-[#E2D7FF] bg-white text-slate-700 hover:border-[#D173FF]/50"
+                  }`}
+                >
+                  {d.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 팝업 운영 시간 */}
+        <div className="flex flex-col gap-2">
+          <span className="text-xs font-semibold text-slate-700">
+            팝업 운영 시간
+          </span>
+          <div className="flex items-center gap-2">
+            <input
+              type="time"
+              name="startTime"
+              value={timeForm.startTime}
+              onChange={handleTimeFormChange}
+              className="flex-1 h-9 rounded-lg border border-[#E2D7FF] bg-white 
+                         px-3 py-2 text-xs text-center leading-none outline-none 
+                         focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
+            />
+            <span className="text-xs text-slate-400 font-medium">~</span>
+            <input
+              type="time"
+              name="endTime"
+              value={timeForm.endTime}
+              onChange={handleTimeFormChange}
+              className="flex-1 h-9 rounded-lg border border-[#E2D7FF] bg-white 
+                         px-3 py-2 text-xs text-center leading-none outline-none 
+                         focus:border-[#C65CFF] focus:ring-2 focus:ring-[#C65CFF]/20"
+            />
+          </div>
+        </div>
+
+        {/* 일별 최대 인원 + 시간 추가 */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-700">
+              일별 최대 인원
+            </span>
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg border-2 border-[#D173FF] bg-white px-3 py-1.5 flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  name="capacity"
+                  value={timeForm.capacity}
+                  onChange={handleTimeFormChange}
+                  placeholder="0"
+                  className="w-12 bg-transparent border-none text-base text-center font-bold text-[#BA3BFF] outline-none 
+                             [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
+                             placeholder:text-slate-300"
+                />
+                <span className="text-sm font-semibold text-slate-600">명</span>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleAddTime}
+            className="w-full rounded-lg border-2 border-[#D173FF] bg-white py-2.5 
+                       text-sm font-semibold text-[#BA3BFF] hover:bg-[#F6E6FF] transition-colors"
+          >
+            + 시간 추가
+          </button>
+        </div>
       </div>
     </div>
   );
