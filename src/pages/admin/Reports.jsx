@@ -53,7 +53,6 @@ export default function Reports() {
   useEffect(() => {
     fetchStats();
     fetchReports();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterStatus, filterCategory, filterType, sortBy, sortDir, currentPage, debouncedKeyword]);
 
   const fetchStats = async () => {
@@ -222,14 +221,14 @@ export default function Reports() {
           <table className="min-w-full">
             <thead className="bg-gradient-to-r from-[#C33DFF]/10 to-[#45CFD3]/10 border-b-2 border-[#DDDFE2]">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">ID</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">타입</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">신고 대상</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">카테고리</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">신고자</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">상태</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">신고일</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">관리</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] w-20 whitespace-nowrap">ID</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] w-24 whitespace-nowrap">타입</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] w-48 whitespace-nowrap">신고 대상</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] w-56 whitespace-nowrap">카테고리</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] w-48 whitespace-nowrap">신고자</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] w-24 whitespace-nowrap">상태</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] w-36 whitespace-nowrap">신고일</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424] w-32 whitespace-nowrap">관리</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F0F1F3]">
@@ -240,13 +239,13 @@ export default function Reports() {
                   const displayStatus = getDisplayStatus(report.repStatus);
                   return (
                     <tr key={report.repId} className="hover:bg-[#F8F8F9] transition-colors">
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-3 ">
                         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-[#C33DFF] to-[#7E00CC] text-white font-bold text-sm">
                           {report.repId}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      <td className="px-6 py-3">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
                           report.repType === "popup" ? "bg-gradient-to-r from-[#C33DFF]/20 to-[#7E00CC]/20 text-[#7E00CC]" :
                           report.repType === "user" ? "bg-gradient-to-r from-[#45CFD3]/20 to-[#C33DFF]/20 text-[#45CFD3]" :
                           "bg-gradient-to-r from-[#FF2A7E]/20 to-[#FFC92D]/20 text-[#FF2A7E]"
@@ -254,13 +253,13 @@ export default function Reports() {
                           {report.repType === "popup" ? "팝업" : report.repType === "user" ? "유저" : "채팅"}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-3">
                         {report.repType === "popup" ? (
                           <span className="text-sm text-[#C0C0C0]">-</span>
                         ) : report.repType === "user" ? (
                           <div className="flex items-center gap-2">
                             <User className="w-4 h-4 text-[#45CFD3]" />
-                            <div className="flex flex-col">
+                            <div className="flex flex-col leading-tight">
                               <span className="text-sm text-[#242424] font-medium">{report.targetName}</span>
                               <span className="text-xs text-[#70757A]">@{report.targetNickname}</span>
                             </div>
@@ -272,20 +271,20 @@ export default function Reports() {
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-3">
                         <div className="flex items-center gap-2">
                           <AlertTriangle className="w-4 h-4 text-[#FF2A7E]" />
                           <span className="text-sm text-[#242424] font-medium">{report.categoryName}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
+                      <td className="px-6 py-3 ">
+                        <div className="flex flex-col leading-tight">
                           <span className="text-sm text-[#242424] font-medium">{report.reporterName}</span>
                           <span className="text-xs text-[#70757A]">@{report.userNickname}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      <td className="px-6 py-3">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
                           displayStatus === "pending" ? "bg-gradient-to-r from-[#FFC92D]/20 to-[#FF2A7E]/20 text-[#FFC92D]" :
                           displayStatus === "approved" ? "bg-gradient-to-r from-[#45CFD3]/20 to-[#C33DFF]/20 text-[#45CFD3]" :
                           "bg-gradient-to-r from-[#FF2A7E]/20 to-[#FFC92D]/20 text-[#FF2A7E]"
@@ -293,8 +292,8 @@ export default function Reports() {
                           {displayStatus === "pending" ? "대기" : displayStatus === "approved" ? "승인" : "반려"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-[#70757A]">{report.createdAt}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-3 text-sm text-[#70757A]">{report.createdAt}</td>
+                      <td className="px-6 py-3">
                         <div className="flex gap-2">
                           {displayStatus === "pending" && (
                             <>
