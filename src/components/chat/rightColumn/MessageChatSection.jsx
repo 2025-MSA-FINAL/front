@@ -575,22 +575,16 @@ export default function MessageChatSection() {
             scrollParentRef={scrollRef}
           />
         </div>
-        {typingUsers.has(20251212) && (
-          <div className="text-white/60 text-sm ml-12 mb-2 flex items-center">
-            POPBOT이 입력 중
-            <TypingDots />
-          </div>
-        )}
         {roomType === "PRIVATE" && typingUserList.length === 1 && (
-          <div className="text-white/60 text-sm ml-12 mb-2 flex items-center">
-            <span className="font-semibold">{typingUserList[0].nickname}</span>
+          <div className="text-white/60 text-xs ml-12 mb-2 flex items-center">
+            <span>{typingUserList[0].nickname}</span>
             <span>님이 입력 중</span>
             <TypingDots />
           </div>
         )}
 
         {roomType === "GROUP" && typingUserList.length > 0 && (
-          <div className="text-white/60 text-sm ml-12 mb-2 flex items-center gap-1">
+          <div className="text-white/60 text-xs ml-12 mb-2 flex items-center gap-1">
             {typingUserList.length === 1 && (
               <>
                 <span className="font-semibold">
