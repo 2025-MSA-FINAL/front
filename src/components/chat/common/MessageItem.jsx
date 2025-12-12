@@ -51,7 +51,12 @@ export default function MessageItem({
 
             <div className="flex items-end gap-2 mt-1">
               {/* 말풍선 */}
-              <div className="relative px-4 py-2 rounded-2xl whitespace-pre-wrap break-words bg-white/20 text-white max-w-[500px] overflow-hidden">
+              <div
+                className={`relative px-4 py-2 rounded-2xl whitespace-pre-wrap break-words 
+                  bg-white/20 text-white max-w-[500px] overflow-hidden
+                  ${msg.isPending ? "opacity-50" : ""}
+                `}
+              >
                 {previewText}
 
                 {/* 🔽 페이드아웃 + 전체보기 버튼 (카카오톡 스타일) */}
@@ -97,7 +102,12 @@ export default function MessageItem({
               )}
 
               {/* 말풍선 */}
-              <div className="relative px-4 py-2 rounded-2xl whitespace-pre-wrap break-words bg-white text-purple-700 max-w-[500px] overflow-hidden">
+              <div
+                className={`relative px-4 py-2 rounded-2xl whitespace-pre-wrap break-words 
+                bg-white text-purple-700 max-w-[500px] overflow-hidden
+                ${msg.isPending ? "opacity-50" : ""}
+              `}
+              >
                 {previewText}
 
                 {/* 🔽 페이드아웃 + 전체보기 버튼 */}

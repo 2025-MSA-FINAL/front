@@ -183,15 +183,30 @@ export default function MessageChatSection() {
 
     updateRoomOrder(body.roomType, body.roomId);
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        ...body,
-        createdAt: formatTime(body.createdAt),
-        minuteKey: toMinuteKey(body.createdAt),
-        dateLabel: formatDateLabel(body.createdAt),
-      },
-    ]);
+    setMessages((prev) => {
+      // 1️⃣ pending 제거
+      const filtered = prev.filter(
+        (m) => m.clientMessageKey !== body.clientMessageKey
+      );
+
+      // 2️⃣ 새 메시지 추가
+      const next = [
+        ...filtered,
+        {
+          ...body,
+          createdAt: formatTime(body.createdAt),
+          minuteKey: toMinuteKey(body.createdAt),
+          dateLabel: formatDateLabel(body.createdAt),
+        },
+      ];
+
+      // 3️⃣ ⭐ cmId 기준 정렬 (핵심)
+      return next.sort((a, b) => {
+        if (typeof a.cmId === "string") return 1; // temp는 뒤로
+        if (typeof b.cmId === "string") return -1;
+        return a.cmId - b.cmId;
+      });
+    });
   };
 
   /* 메시지 전송 */
@@ -201,6 +216,33 @@ export default function MessageChatSection() {
     const client = getStompClient();
     if (!client || !client.connected) return;
 
+    // ⭐ 임시 메시지 생성 (Optimistic UI)
+    const tempId = `temp-${Date.now()}`;
+    const clientMessageKey = Date.now();
+
+    const optimisticMessage = {
+      cmId: tempId, // 임시 ID
+      roomId,
+      roomType,
+      senderId: currentUserId,
+      senderNickname: "나",
+      senderProfileUrl: useAuthStore.getState().user?.photo ?? "",
+      senderStatus: "ACTIVE",
+      content: input,
+      messageType: "TEXT",
+      createdAt: formatTime(new Date()),
+      minuteKey: toMinuteKey(new Date()),
+      dateLabel: formatDateLabel(new Date()),
+
+      // ⭐ Pending 표시
+      isPending: true,
+      clientMessageKey,
+    };
+
+    // ⭐ 화면에 즉시 추가
+    setMessages((prev) => [...prev, optimisticMessage]);
+
+    // 서버 전송
     client.publish({
       destination: "/pub/chat/message",
       body: JSON.stringify({
@@ -209,6 +251,7 @@ export default function MessageChatSection() {
         content: input,
         senderId: currentUserId,
         messageType: "TEXT",
+        clientMessageKey,
       }),
     });
 
