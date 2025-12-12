@@ -104,7 +104,7 @@ export default function MessageChatSection() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [openUserPopover, setOpenUserPopover] = useState(null);
   const [userAnchorRef, setUserAnchorRef] = useState(null);
-  const [typingUsers, setTypingUsers] = useState(new Set());
+  const [typingUsers, setTypingUsers] = useState(new Map());
 
   const subRef = useRef(null);
   const scrollRef = useRef(null);
@@ -197,8 +197,8 @@ export default function MessageChatSection() {
     if (body.type === "TYPING_START") {
       if (body.senderId !== currentUserId) {
         setTypingUsers((prev) => {
-          const next = new Set(prev);
-          next.add(body.senderId);
+          const next = new Map(prev);
+          next.set(body.senderId, body.senderNickname);
           return next;
         });
       }
@@ -207,7 +207,7 @@ export default function MessageChatSection() {
 
     if (body.type === "TYPING_STOP") {
       setTypingUsers((prev) => {
-        const next = new Set(prev);
+        const next = new Map(prev);
         next.delete(body.senderId);
         return next;
       });
@@ -363,19 +363,14 @@ export default function MessageChatSection() {
         roomType,
         roomId,
         senderId: currentUserId,
+        senderNickname: useAuthStore.getState().user?.nickname,
       }),
     });
   };
 
-  const typingUserList = Array.from(typingUsers)
-    .filter((id) => id !== currentUserId)
-    .map((id) => {
-      const user = activeRoom?.participants?.find((p) => p.userId === id);
-      return {
-        userId: id,
-        nickname: user?.nickname ?? "알 수 없음",
-      };
-    });
+  const typingUserList = Array.from(typingUsers.entries()).map(
+    ([userId, nickname]) => ({ userId, nickname })
+  );
 
   /* =======================================================================
         📌 RENDER
@@ -586,18 +581,43 @@ export default function MessageChatSection() {
             <TypingDots />
           </div>
         )}
+        {roomType === "PRIVATE" && typingUserList.length === 1 && (
+          <div className="text-white/60 text-sm ml-12 mb-2 flex items-center">
+            <span className="font-semibold">{typingUserList[0].nickname}</span>
+            <span>님이 입력 중</span>
+            <TypingDots />
+          </div>
+        )}
+
         {roomType === "GROUP" && typingUserList.length > 0 && (
           <div className="text-white/60 text-sm ml-12 mb-2 flex items-center gap-1">
-            {typingUserList.length === 1 ? (
+            {typingUserList.length === 1 && (
               <>
                 <span className="font-semibold">
                   {typingUserList[0].nickname}
                 </span>
-                <span>님이 입력 중입니다</span>
+                <span>님이 입력 중</span>
               </>
-            ) : (
-              <span>{typingUserList.length}명이 입력 중입니다</span>
             )}
+
+            {typingUserList.length === 2 && (
+              <>
+                <span className="font-semibold">
+                  {typingUserList[0].nickname}, {typingUserList[1].nickname}
+                </span>
+                <span>님이 입력 중</span>
+              </>
+            )}
+
+            {typingUserList.length >= 3 && (
+              <>
+                <span className="font-semibold">
+                  {typingUserList[0].nickname}
+                </span>
+                <span>외 {typingUserList.length - 1}명 입력 중</span>
+              </>
+            )}
+
             <TypingDots />
           </div>
         )}
