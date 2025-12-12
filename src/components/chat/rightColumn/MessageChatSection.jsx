@@ -17,9 +17,11 @@ import { useChatStore } from "../../../store/chat/chatStore";
 import { useAuthStore } from "../../../store/authStore";
 import axios from "axios";
 
-/* SVG Icons */
+/* IMG */
 import groupChatIcon from "../../../assets/groupChat.png";
 import privateChatIcon from "../../../assets/privateChat.png";
+import POPBOT from "../../../assets/POPBOT.png";
+/* SVG Icons */
 import EmojiIcon from "../../chat/icons/emojiIcon";
 import ImageUploadIcon from "../../chat/icons/imageIcon";
 import ScheduleIcon from "../../chat/icons/scheduleIcon";
@@ -106,12 +108,25 @@ export default function MessageChatSection() {
   const setActiveRoom = useChatStore((s) => s.setActiveChatRoom);
   const roomId = activeRoom?.gcrId ?? activeRoom?.roomId;
   const roomType = activeRoom?.roomType;
+  const otherUserId = activeRoom?.otherUserId;
   const removeRoom = useChatStore((s) => s.removeRoom);
   const updateRoomOrder = useChatStore((s) => s.updateRoomOrder);
 
   const toggleRoomInfo = () => setShowRoomInfo((prev) => !prev);
 
-  const iconSize = roomType === "GROUP" ? "w-11 h-9" : "w-9 h-9";
+  const iconSize =
+    roomType === "GROUP"
+      ? "w-11 h-9"
+      : otherUserId === 20251212
+      ? "w-8.5 h-10"
+      : "w-9 h-9";
+
+  const roomIcon =
+    roomType === "GROUP"
+      ? groupChatIcon
+      : otherUserId === 20251212
+      ? POPBOT
+      : privateChatIcon;
 
   /* Dropdown */
   const toggleMenu = () => {
@@ -269,10 +284,7 @@ export default function MessageChatSection() {
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
             <div className="w-12 flex items-center justify-center">
-              <img
-                src={roomType === "GROUP" ? groupChatIcon : privateChatIcon}
-                className={iconSize}
-              />
+              <img src={roomIcon} className={iconSize} />
             </div>
 
             <div
