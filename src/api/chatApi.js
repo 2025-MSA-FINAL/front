@@ -131,6 +131,16 @@ export async function getMiniUserProfile(userId) {
 }
 
 /* -------------------------------------------
+    6) AI 채팅 시작
+------------------------------------------- */
+export async function startAiChat() {
+  const res = await apiClient.post("/api/chat/private/start-ai", null, {
+    headers: { "Content-Type": "application/json" },
+  });
+  return res.data; // roomId
+}
+
+/* -------------------------------------------
     기본 export
 ------------------------------------------- */
 export default {
@@ -151,4 +161,5 @@ export default {
   hideChatRoom,
   unhideChatRoom,
   getMiniUserProfile,
+  startAiChat,
 };

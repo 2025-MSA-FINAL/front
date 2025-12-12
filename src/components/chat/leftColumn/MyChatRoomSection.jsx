@@ -5,6 +5,7 @@ import groupChat from "../../../assets/groupChat.png";
 import privateChat from "../../../assets/privateChat.png";
 import ExpandDownDouble from "../icons/ExpandDownDouble";
 import ChatRoomItem from "../common/ChatRoomItem";
+import POPBOT from "../../../assets/POPBOT.png";
 
 export default function MyChatRoomSection() {
   const scrollRef = useRef(null);
@@ -43,6 +44,13 @@ export default function MyChatRoomSection() {
     }
   };
 
+  const getRoomIcon = (room) => {
+    if (room.roomType === "GROUP") return groupChat;
+    if (room.otherUserId === 20251212) return POPBOT;
+
+    return privateChat;
+  };
+
   return (
     <section className="w-full flex-1 min-h-0 rounded-[40px] flex flex-col items-center">
       <div
@@ -56,8 +64,9 @@ export default function MyChatRoomSection() {
           >
             <ChatRoomItem
               name={room.roomName}
-              img={room.roomType === "GROUP" ? groupChat : privateChat}
+              img={getRoomIcon(room)}
               type={room.roomType}
+              otherUserId={room.otherUserId}
             />
           </div>
         ))}
