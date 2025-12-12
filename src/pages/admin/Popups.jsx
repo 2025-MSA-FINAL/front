@@ -247,46 +247,46 @@ export default function Popups() {
           <table className="min-w-full">
             <thead className="bg-gradient-to-r from-[#C33DFF]/10 to-[#45CFD3]/10 border-b-2 border-[#DDDFE2]">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">ID</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">팝업명</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">위치</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">상태</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">승인상태</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">조회수</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">기간</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-[#242424]">관리</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424] w-16 whitespace-nowrap">ID</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424] min-w-[150px] whitespace-nowrap ">팝업명</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424 min-w-[150px] whitespace-nowrap">위치</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424] w-24 whitespace-nowrap">상태</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424] w-28 whitespace-nowrap">승인상태</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424] w-20 whitespace-nowrap">조회수</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424] w-[220px] whitespace-nowrap">기간</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424] w-24 whitespace-nowrap">관리</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F0F1F3]">
               {popups.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-12 text-center text-[#70757A]">
+                  <td colSpan="8" className="px-4 py-12 text-center text-[#70757A]">
                     팝업스토어가 없습니다.
                   </td>
                 </tr>
               ) : (
                 popups.map((popup) => (
                   <tr key={popup.popId} className="hover:bg-[#F8F8F9] transition-colors">
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4 w-16">
                       <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-[#C33DFF] to-[#7E00CC] text-white font-bold text-sm">
                         {popup.popId}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4 text-sm">
                       <div className="flex items-center gap-2">
                         <FileText className="w-4 h-4 text-[#C33DFF]" />
                         <span className="text-sm text-[#242424] font-medium">{popup.popName}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4 text-sm">
                       <div className="flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 text-[#45CFD3]" />
-                        <span className="text-sm text-[#242424]">{popup.popLocation}</span>
+                        <span className="text-sm text-[#242424] whitespace-nowrap">{popup.popLocation}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4 w-24">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
                           popup.popStatus === "active" || popup.popStatus === "ONGOING"
                             ? "bg-gradient-to-r from-[#45CFD3]/20 to-[#C33DFF]/20 text-[#45CFD3]"
                             : popup.popStatus === "upcoming" || popup.popStatus === "UPCOMING"
@@ -301,9 +301,9 @@ export default function Popups() {
                           : "종료"}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4 w-28">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
                           popup.popModerationStatus === null
                             ? "bg-gradient-to-r from-[#FFC92D]/20 to-[#FF2A7E]/20 text-[#FFC92D]"
                             : popup.popModerationStatus
@@ -314,31 +314,31 @@ export default function Popups() {
                         {popup.popModerationStatus === null ? "대기" : popup.popModerationStatus ? "승인" : "반려"}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
+                    <td className="px-4 py-4 w-20">
+                      <div className="flex items-center gap-1">
                         <Eye className="w-4 h-4 text-[#C33DFF]" />
-                        <span className="text-sm text-[#242424] font-medium">
+                        <span className="text-sm text-[#242424] font-medium whitespace-nowrap">
                           {popup.popViewCount?.toLocaleString() || 0}
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-[#70757A]">
+                    <td className="px-4 py-4 w-[220px] text-xs text-[#70757A] whitespace-nowrap">
                       {popup.popStartDate} ~ {popup.popEndDate}
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
+                    <td className="px-4 py-4 w-24">
+                      <div className="flex gap-1">
                         {popup.popModerationStatus === null && (
                           <>
                             <button
                               onClick={() => handleApprove(popup.popId)}
-                              className="p-2 bg-gradient-to-r from-[#45CFD3] to-[#C33DFF] text-white rounded-lg hover:shadow-lg transition-all"
+                              className="p-1.5 bg-gradient-to-r from-[#45CFD3] to-[#C33DFF] text-white rounded-lg hover:shad                   ow-lg transition-all"
                               title="승인"
                             >
                               <CheckCircle className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleReject(popup.popId)}
-                              className="p-2 bg-gradient-to-r from-[#FF2A7E] to-[#FFC92D] text-white rounded-lg hover:shadow-lg transition-all"
+                              className="p-1.5 bg-gradient-to-r from-[#FF2A7E] to-[#FFC92D] text-white rounded-lg hover:shadow-lg transition-all"
                               title="반려"
                             >
                               <XCircle className="w-4 h-4" />
@@ -346,13 +346,13 @@ export default function Popups() {
                           </>
                         )}
                         {popup.popModerationStatus !== null && (
-                          <span className="text-sm text-[#70757A] font-medium">
+                          <span className="text-sm text-[#70757A] font-medium whitespace-nowrap">
                             {popup.popModerationStatus ? "승인 완료" : "반려 완료"}
                           </span>
                         )}
                         <button
                           onClick={() => handleDelete(popup.popId)}
-                          className="p-2 bg-gradient-to-r from-[#C33DFF]/10 to-[#7E00CC]/10 text-[#C33DFF] rounded-lg hover:from-[#C33DFF]/20 hover:to-[#7E00CC]/20 transition-all"
+                          className="p-1.5 bg-gradient-to-r from-[#C33DFF]/10 to-[#7E00CC]/10 text-[#C33DFF] rounded-lg hover:from-[#C33DFF]/20 hover:to-[#7E00CC]/20 transition-all"
                           title="삭제"
                         >
                           <Trash2 className="w-4 h-4" />
