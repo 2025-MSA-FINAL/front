@@ -3,6 +3,10 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import "./index.css";
+import { initTheme } from "./theme";
+
+
+initTheme();
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
