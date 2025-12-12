@@ -37,7 +37,7 @@ export default function HeatmapChart({ data }) {
               {hours.map((hour) => (
                 <div
                   key={hour}
-                  className="min-w-[32px] h-8 flex items-center justify-center text-xs text-gray-600 font-medium"
+                  className="min-w-[32px] h-8 flex items-center justify-center text-xs text-gray-600 font-medium mx-[1px]"
                 >
                   {hour}
                 </div>

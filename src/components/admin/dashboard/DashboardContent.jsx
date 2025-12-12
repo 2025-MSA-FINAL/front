@@ -230,8 +230,8 @@ export default function DashboardContent() {
         </div>
      </div>
 
-          {/* WordCloud 영역 (원본과 동일) */}
-          <div className="flex-grow min-h-0">
+          {/* WordCloud 영역 */}
+          <div className="flex-grow min-h-0 mt-4">
             {!hashtagFetching && hashtags.length === 0 ? (
               <div className="flex items-center justify-center h-full text-gray-400 text-sm">
                 선택한 필터 조건에 해당하는 해시태그가 없습니다.
