@@ -3,7 +3,11 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import logo from "../assets/logo.png";
 import { useAuthStore } from "../store/authStore";
-import { setTheme as applyTheme, getCurrentTheme, AVAILABLE_THEMES } from "../theme";
+import {
+  setTheme as applyTheme,
+  getCurrentTheme,
+  AVAILABLE_THEMES,
+} from "../theme";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -22,18 +26,19 @@ export default function Navbar() {
   const isManager = role === "MANAGER";
   const isAdmin = role === "ADMIN";
 
+  // 로그인 사용자 정보 초기화
   useEffect(() => {
     if (!initialized) {
       fetchMe();
     }
   }, [initialized, fetchMe]);
 
-
   const username = user?.nickname || user?.userNickname || "게스트";
   const profileImageUrl =
     user?.profileImage ||
     "https://cdn-icons-png.flaticon.com/512/4211/4211178.png";
 
+  // 프로필 드롭다운 너비 (닉네임 길이에 따라 보정)
   let widthClass = "w-[170px]";
   if (isLoggedIn && username) {
     const rawLen = username.length;
@@ -43,16 +48,16 @@ export default function Navbar() {
       clampedLen === 3
         ? "w-[140px]"
         : clampedLen === 4
-          ? "w-[150px]"
-          : clampedLen === 5
-            ? "w-[160px]"
-            : "w-[170px]";
+        ? "w-[150px]"
+        : clampedLen === 5
+        ? "w-[160px]"
+        : "w-[170px]";
   }
 
   const handleThemeChange = (nextTheme) => {
-    applyTheme(nextTheme);   // html data-theme + localStorage 업데이트
-    setTheme(nextTheme);     // NavBar UI 업데이트
-    setIsThemeOpen(false);   // 팝오버 닫기
+    applyTheme(nextTheme); // html data-theme + localStorage 업데이트
+    setTheme(nextTheme); // NavBar UI 업데이트
+    setIsThemeOpen(false); // 팝오버 닫기
   };
 
   const handleLoginClick = () => navigate("/login");
@@ -71,8 +76,9 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 bg-paper h-[88px]">
       <div className="w-full max-w-7xl mx-auto px-6 md:px-12 h-full flex justify-between items-center">
-        {/* LEFT LOGO */}
+        {/* LEFT: 로고 + 데스크탑 메뉴 */}
         <div className="flex items-center gap-12 lg:gap-20">
+          {/* 로고 */}
           <Link to="/" className="flex-shrink-0">
             <img
               src={logo}
@@ -81,14 +87,31 @@ export default function Navbar() {
             />
           </Link>
 
-          {/* DESKTOP MENU */}
+          {/* 데스크탑 메뉴 */}
           <div className="hidden md:flex items-center gap-8">
-            {["HOME", "POP-UP", "CHAT"].map((item) => {
-              const path = item === "HOME" ? "/" : `/${item.toLowerCase()}`;
+            {["HOME", "POP-UP", "MAP", "CHAT"].map((item) => {
+              let path;
+
+              if (item === "HOME") {
+                path = "/";
+              } else if (item === "MAP") {
+                // MAP은 가까운 팝업 페이지로 연결
+                path = "/popup/nearby";
+              } else {
+                // POP-UP, CHAT
+                path = `/${item.toLowerCase()}`;
+              }
 
               const isActive =
-                currentPath === path ||
-                (item === "POP-UP" && currentPath.startsWith("/popup")) ||
+                // HOME
+                (item === "HOME" && currentPath === "/") ||
+                // MAP: /popup/nearby 로 시작하는 경로
+                (item === "MAP" && currentPath.startsWith("/popup/nearby")) ||
+                // POP-UP: /popup 로 시작하지만 /popup/nearby 는 제외
+                (item === "POP-UP" &&
+                  currentPath.startsWith("/popup") &&
+                  !currentPath.startsWith("/popup/nearby")) ||
+                // CHAT: /chat 로 시작하는 경로
                 (item === "CHAT" && currentPath.startsWith("/chat"));
 
               return (
@@ -100,12 +123,20 @@ export default function Navbar() {
                     text-title-md font-normal text-text-black
                     hover:text-primary hover:font-extrabold
                     transition-colors
-                    group"
-
+                    group
+                  "
                 >
                   <span className="relative inline-block">
                     {/* 메뉴 텍스트 */}
-                    <span className={` ${isActive ? "font-extrabold text-primary" : "font-normal text-text-black"}`}>{item}</span>
+                    <span
+                      className={
+                        isActive
+                          ? "font-extrabold text-primary"
+                          : "font-normal text-text-black"
+                      }
+                    >
+                      {item}
+                    </span>
 
                     {/* 가운데에서 양옆으로 퍼지는/고정되는 보라색 밑줄 */}
                     <span
@@ -128,26 +159,24 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* RIGHT AREA */}
+        {/* RIGHT: 테마 설정 + 프로필 or 로그인 버튼 (데스크탑) */}
         <div className="hidden md:flex items-center gap-4 relative z-50">
-          {/* THEME SETTINGS 버튼 + 팝오버 */}
+          {/* 테마 설정 버튼 + 팝오버 */}
           <div className="relative">
             <button
               type="button"
               onClick={() => {
                 setIsThemeOpen((prev) => !prev);
-                // 설정 열면 프로필 드롭다운은 닫기
-                setIsProfileOpen(false);
+                setIsProfileOpen(false); // 설정 열면 프로필 드롭다운은 닫기
               }}
               className="
-        flex items-center gap-1
-        rounded-full border border-secondary-light bg-paper
-        px-3 py-1 text-xs text-text-sub
-        hover:bg-secondary-light hover:text-text-main
-        transition-colors
-      "
+                flex items-center gap-1
+                rounded-full border border-secondary-light bg-paper
+                px-3 py-1 text-xs text-text-sub
+                hover:bg-secondary-light hover:text-text-main
+                transition-colors
+              "
             >
-              {/* ⚙ 느낌의 아이콘 */}
               <svg
                 className="w-4 h-4"
                 viewBox="0 0 20 20"
@@ -161,12 +190,19 @@ export default function Navbar() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
-                <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.4" />
+                <circle
+                  cx="10"
+                  cy="10"
+                  r="2.5"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                />
               </svg>
               <span className="font-medium">설정</span>
               <svg
-                className={`w-3 h-3 text-text-sub transition-transform ${isThemeOpen ? "rotate-180" : ""
-                  }`}
+                className={`w-3 h-3 text-text-sub transition-transform ${
+                  isThemeOpen ? "rotate-180" : ""
+                }`}
                 viewBox="0 0 20 20"
                 fill="none"
               >
@@ -183,10 +219,10 @@ export default function Navbar() {
             {isThemeOpen && (
               <div
                 className="
-          absolute right-0 mt-2 w-48
-          rounded-2xl border border-secondary bg-paper
-          shadow-dropdown p-2 text-xs
-        "
+                  absolute right-0 mt-2 w-48
+                  rounded-2xl border border-secondary bg-paper
+                  shadow-dropdown p-2 text-xs
+                "
               >
                 <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-text-sub">
                   테마
@@ -198,14 +234,15 @@ export default function Navbar() {
                       type="button"
                       onClick={() => handleThemeChange(mode.id)}
                       className={`
-                flex items-center justify-between w-full
-                px-2 py-1 rounded-xl
-                text-left transition-colors
-                ${theme === mode.id
-                          ? "bg-primary text-text-white"
-                          : "text-text-sub hover:bg-secondary-light hover:text-text-main"
+                        flex items-center justify-between w-full
+                        px-2 py-1 rounded-xl
+                        text-left transition-colors
+                        ${
+                          theme === mode.id
+                            ? "bg-primary text-text-white"
+                            : "text-text-sub hover:bg-secondary-light hover:text-text-main"
                         }
-              `}
+                      `}
                     >
                       <span>{mode.label}</span>
                       {theme === mode.id && (
@@ -218,7 +255,7 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* 프로필 드롭다운 (기존 코드 그대로) */}
+          {/* 프로필 드롭다운 */}
           {isLoggedIn && (
             <div className={`relative ${widthClass}`}>
               <div className="h-[40px]" />
@@ -226,14 +263,15 @@ export default function Navbar() {
               <div className="absolute inset-x-0 top-0 z-20">
                 <div
                   className={`
-            overflow-hidden rounded-btn border bg-paper transition-colors
-            ${isProfileOpen
-                      ? "border-secondary-light shadow-dropdown"
-                      : "border-transparent hover:bg-secondary-light"
+                    overflow-hidden rounded-btn border bg-paper transition-colors
+                    ${
+                      isProfileOpen
+                        ? "border-secondary-light shadow-dropdown"
+                        : "border-transparent hover:bg-secondary-light"
                     }
-          `}
+                  `}
                 >
-                  {/* TRIGGER */}
+                  {/* 드롭다운 트리거 */}
                   <button
                     onClick={() => {
                       setIsProfileOpen(!isProfileOpen);
@@ -253,8 +291,9 @@ export default function Navbar() {
                     </div>
 
                     <svg
-                      className={`w-4 h-4 text-text-sub transition-transform ${isProfileOpen ? "rotate-180" : ""
-                        }`}
+                      className={`w-4 h-4 text-text-sub transition-transform ${
+                        isProfileOpen ? "rotate-180" : ""
+                      }`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -268,12 +307,12 @@ export default function Navbar() {
                     </svg>
                   </button>
 
-                  {/* DROPDOWN CONTENT */}
+                  {/* 드롭다운 내용 */}
                   <div
                     className={`
-              overflow-hidden transition-[max-height,opacity] duration-300
-              ${isProfileOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}
-            `}
+                      overflow-hidden transition-[max-height,opacity] duration-300
+                      ${isProfileOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}
+                    `}
                   >
                     <div className="h-px bg-secondary-light mx-3 my-1" />
 
@@ -319,21 +358,21 @@ export default function Navbar() {
                                 width="8"
                                 height="2"
                                 fill="currentColor"
-                              ></rect>
+                              />
                               <rect
                                 x="10"
                                 y="13"
                                 width="12"
                                 height="2"
                                 fill="currentColor"
-                              ></rect>
+                              />
                               <rect
                                 x="10"
                                 y="23"
                                 width="5"
                                 height="2"
                                 fill="currentColor"
-                              ></rect>
+                              />
                               <path
                                 d="M25,5H22V4a2,2,0,0,0-2-2H12a2,2,0,0,0-2,2V5H7A2,2,0,0,0,5,7V28a2,2,0,0,0,2,2H25a2,2,0,0,0,2-2V7A2,2,0,0,0,25,5ZM12,4h8V8H12ZM25,28H7V7h3v3H22V7h3Z"
                                 fill="currentColor"
@@ -391,6 +430,7 @@ export default function Navbar() {
                         </>
                       )}
 
+                      {/* ADMIN 메뉴 */}
                       {isAdmin && (
                         <Link
                           to="/admin"
@@ -423,7 +463,7 @@ export default function Navbar() {
                         </Link>
                       )}
 
-                      {/* LOGOUT */}
+                      {/* 로그아웃 */}
                       <button
                         className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-accent-pink hover:bg-accent-pink/10 text-left"
                         onClick={handleLogoutClick}
@@ -457,23 +497,22 @@ export default function Navbar() {
             </div>
           )}
 
-          {/* LOG IN BUTTON */}
+          {/* 로그인 버튼 (데스크탑) */}
           {!isLoggedIn && (
             <button
               type="button"
               onClick={handleLoginClick}
               className="
-        h-[40px] px-6 rounded-full border border-[#C33DFF] text-[#C33DFF]
-        hover:bg-[#C33DFF]/10 transition-colors
-      "
+                h-[40px] px-6 rounded-full border border-[#C33DFF] text-[#C33DFF]
+                hover:bg-[#C33DFF]/10 transition-colors
+              "
             >
               Log in
             </button>
           )}
         </div>
 
-
-        {/* MOBILE TOGGLE */}
+        {/* 모바일 메뉴 토글 버튼 */}
         <div className="md:hidden">
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -502,22 +541,35 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* MOBILE MENU */}
+      {/* 모바일 메뉴 전체 영역 */}
       {isMenuOpen && (
         <div className="md:hidden absolute top-[88px] left-0 w-full bg-paper border-b border-secondary shadow-brand py-4 px-6 flex flex-col gap-4">
-          {["HOME", "POP-UP", "CHAT"].map((item) => (
-            <Link
-              key={item}
-              to={item === "HOME" ? "/" : `/${item.toLowerCase()}`}
-              className="text-title-md font-medium text-text-sub hover:text-primary py-2 border-b border-secondary-light"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              {item}
-            </Link>
-          ))}
+          {/* 모바일 상단 메뉴 리스트 */}
+          {["HOME", "POP-UP", "MAP", "CHAT"].map((item) => {
+            let path;
+
+            if (item === "HOME") {
+              path = "/";
+            } else if (item === "MAP") {
+              path = "/popup/nearby";
+            } else {
+              path = `/${item.toLowerCase()}`;
+            }
+
+            return (
+              <Link
+                key={item}
+                to={path}
+                className="text-title-md font-medium text-text-sub hover:text-primary py-2 border-b border-secondary-light"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {item}
+              </Link>
+            );
+          })}
 
           <div className="flex flex-col gap-3 mt-2">
-            {/* THEME (모바일용) */}
+            {/* 테마 설정 (모바일용 간단 버전) */}
             <div className="rounded-2xl border border-secondary-light bg-paper-light px-3 py-2 text-xs">
               <div className="mb-1 text-[11px] font-semibold text-text-sub">
                 테마
@@ -529,13 +581,14 @@ export default function Navbar() {
                     type="button"
                     onClick={() => handleThemeChange(mode.id)}
                     className={`
-                px-2 py-1 rounded-full
-                transition-colors
-                ${theme === mode.id
-                        ? "bg-primary-soft text-text-black"
-                        : "bg-paper text-text-sub hover:bg-secondary-light hover:text-text-main"
+                      px-2 py-1 rounded-full
+                      transition-colors
+                      ${
+                        theme === mode.id
+                          ? "bg-primary-soft text-text-black"
+                          : "bg-paper text-text-sub hover:bg-secondary-light hover:text-text-main"
                       }
-              `}
+                    `}
                   >
                     {mode.label}
                   </button>
@@ -543,7 +596,7 @@ export default function Navbar() {
               </div>
             </div>
 
-            {/* USER */}
+            {/* USER 버튼들 */}
             {!isManager && !isAdmin && isLoggedIn && (
               <Link
                 to="/mypage"
@@ -554,7 +607,7 @@ export default function Navbar() {
               </Link>
             )}
 
-            {/* MANAGER */}
+            {/* MANAGER 버튼들 */}
             {isManager && (
               <>
                 <Link
@@ -575,7 +628,7 @@ export default function Navbar() {
               </>
             )}
 
-            {/* ADMIN */}
+            {/* ADMIN 버튼 */}
             {isAdmin && (
               <Link
                 to="/admin"
@@ -586,7 +639,7 @@ export default function Navbar() {
               </Link>
             )}
 
-            {/* LOGOUT */}
+            {/* 로그아웃 버튼 (모바일) */}
             {isLoggedIn && (
               <button
                 className="w-full py-3 rounded-btn border border-secondary text-text-sub"
@@ -599,7 +652,7 @@ export default function Navbar() {
               </button>
             )}
 
-            {/* GUEST */}
+            {/* 비로그인 상태 (모바일) */}
             {!isLoggedIn && (
               <button
                 className="w-full py-3 rounded-full border border-[#C33DFF] text-[#C33DFF] hover:bg-[#C33DFF]/10"
@@ -614,7 +667,6 @@ export default function Navbar() {
           </div>
         </div>
       )}
-
     </nav>
   );
 }
