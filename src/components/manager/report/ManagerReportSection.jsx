@@ -68,7 +68,7 @@ export default function ManagerReportSection({ popupId }) {
       <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3 mb-2">
-            <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+            <h2 className="text-2xl font-extrabold text-text-black tracking-tight">
               AI 매니저 리포트
             </h2>
             <span
@@ -77,7 +77,7 @@ export default function ManagerReportSection({ popupId }) {
               {theme.badgeLabel}
             </span>
           </div>
-          <p className="text-sm text-gray-500">{theme.description}</p>
+          <p className="text-sm text-text-sub">{theme.description}</p>
         </div>
       </header>
 
