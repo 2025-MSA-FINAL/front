@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { fetchPopupDetailApi, togglePopupWishlistApi } from "../api/popupApi";
@@ -73,6 +73,8 @@ export default function usePopupDetailPage() {
   const [activeTab, setActiveTab] = useState("DESCRIPTION");
 
   const [toastMessage, setToastMessage] = useState(null);
+  const [toastVariant, setToastVariant] = useState("success");
+  const toastTimerRef = useRef(null);
 
   //채팅 관련 상태
   const [chatRooms, setChatRooms] = useState([]);
@@ -81,14 +83,32 @@ export default function usePopupDetailPage() {
 
   const isLoggedIn = !!user;
 
-  const showToast = (message, duration = 3000) => {
+  const showToast = (message, variant = "success", duration = 3000) => {
+    if (!message) return;
+
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+
+    setToastVariant(variant);
     setToastMessage(message);
+
     if (duration > 0) {
-      setTimeout(() => {
+      toastTimerRef.current = setTimeout(() => {
         setToastMessage(null);
+        toastTimerRef.current = null;
       }, duration);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
 
   //상세 데이터 패칭
   useEffect(() => {
@@ -155,7 +175,10 @@ export default function usePopupDetailPage() {
     } catch (err) {
       console.error("채팅방 목록 조회 실패:", err);
       setChatError(err);
-      showToast("채팅방 목록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+      showToast(
+        "채팅방 목록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+        "error"
+      );
     } finally {
       setChatLoading(false);
     }
@@ -237,16 +260,10 @@ export default function usePopupDetailPage() {
   const handleShareClick = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
-
-      setToastMessage("링크가 복사되었어요! 🔗");
-
-      setTimeout(() => {
-        setToastMessage(null);
-      }, 3000);
+      showToast("링크가 복사되었어요! 🔗", "success");
     } catch (err) {
       console.error("URL 복사 실패:", err);
-      setToastMessage("링크 복사에 실패했어요 😢");
-      setTimeout(() => setToastMessage(null), 3000);
+      showToast("링크 복사에 실패했어요 😢", "error");
     }
   };
 
@@ -268,7 +285,9 @@ export default function usePopupDetailPage() {
 
     //이미 참여 중인 방이면 join API 안 쏘고 바로 채팅 페이지로
     if (alreadyJoined) {
-      showToast("이미 참여 중인 채팅방이에요. 채팅 페이지에서 확인해 보세요! 💬");
+      showToast(
+        "이미 참여 중인 채팅방이에요. 채팅 페이지에서 확인해 보세요! 💬"
+      );
       navigate("/chat");
       return;
     }
@@ -291,33 +310,43 @@ export default function usePopupDetailPage() {
 
       //이미 참여중 (CHAT_001)
       if (code === "CHAT_001") {
-        showToast(message || "이미 참여 중인 채팅방이에요. 채팅 페이지에서 확인해 보세요! 💬");
+        showToast(
+          message ||
+          "이미 참여 중인 채팅방이에요. 채팅 페이지에서 확인해 보세요! 💬"
+        );
         navigate("/chat");
         return;
       }
 
       //방 정원 초과 (CHAT_003)
       if (code === "CHAT_003") {
-        showToast(message || "이미 정원이 꽉 찬 방이에요 🥲");
+        showToast(message || "이미 정원이 꽉 찬 방이에요 🥲", "error");
         return;
       }
 
       //성별 제한 (CHAT_014)
       if (code === "CHAT_014") {
-        showToast(message || "이 채팅방은 성별 제한 때문에 입장할 수 없어요.");
+        showToast(
+          message || "이 채팅방은 성별 제한 때문에 입장할 수 없어요.",
+          "error"
+        );
         return;
       }
 
       //나이 제한 (CHAT_015)
       if (code === "CHAT_015") {
-        showToast(message || "연령 조건에 맞지 않아 입장할 수 없어요.");
+        showToast(
+          message || "연령 조건에 맞지 않아 입장할 수 없어요.",
+          "error"
+        );
         return;
       }
 
       //그 외 기타 에러 (방 삭제, 없음 등)
       showToast(
         message ||
-          "채팅방에 참여할 수 없어요. 조건 불일치 또는 정원 초과일 수 있어요."
+        "채팅방에 참여할 수 없어요. 조건 불일치 또는 정원 초과일 수 있어요.",
+        "error"
       );
     }
   };
@@ -367,8 +396,7 @@ export default function usePopupDetailPage() {
       ? formatDateRange(popup.popStartDate, popup.popEndDate)
       : "";
   const isFree = popup?.popPriceType === "FREE";
-  const aiSummaryText =
-    popup?.popAiSummary || "AI가 요약을 생성하는 중이에요...";
+  const aiSummaryText = popup?.popAiSummary || "AI가 요약을 생성하는 중이에요...";
   const descriptionParagraphs = popup?.popDescription
     ? popup.popDescription.split("\n").filter(Boolean)
     : [];
@@ -378,10 +406,7 @@ export default function usePopupDetailPage() {
     popup.reservationStatus !== "NONE" &&
     popup.popIsReservation !== false;
   const reservationLabel = popup
-    ? formatReservationLabel(
-        popup.reservationStatus,
-        popup.reservationStartTime
-      )
+    ? formatReservationLabel(popup.reservationStatus, popup.reservationStartTime)
     : "";
   const reservationDisabled = !popup || popup.reservationStatus !== "OPEN";
 
@@ -402,6 +427,7 @@ export default function usePopupDetailPage() {
     handleToggleWishlist,
     handleReservationClick,
     toastMessage,
+    toastVariant,
     handleShareClick,
     activeTab,
     setActiveTab,

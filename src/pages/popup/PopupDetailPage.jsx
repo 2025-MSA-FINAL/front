@@ -70,6 +70,7 @@ export default function PopupDetailPage() {
       <Toast
         message={vm.toastMessage}
         visible={!!vm.toastMessage}
+        variant={vm.toastVariant}
       />
 
       {/* 공유 모달 배치 */}
