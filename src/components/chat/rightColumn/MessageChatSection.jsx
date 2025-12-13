@@ -98,6 +98,8 @@ export default function MessageChatSection() {
   const [openUserPopover, setOpenUserPopover] = useState(null);
   const [userAnchorRef, setUserAnchorRef] = useState(null);
   const [typingUsers, setTypingUsers] = useState(new Map());
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const subRef = useRef(null);
   const scrollRef = useRef(null);
@@ -107,15 +109,19 @@ export default function MessageChatSection() {
   const roomInfoRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const isTypingRef = useRef(false);
+  const prevMessageCountRef = useRef(0);
 
   const currentUserId = useAuthStore((s) => s.user?.userId);
   const activeRoom = useChatStore((s) => s.activeChatRoom);
   const setActiveRoom = useChatStore((s) => s.setActiveChatRoom);
+  const removeRoom = useChatStore((s) => s.removeRoom);
+  const updateRoomOrder = useChatStore((s) => s.updateRoomOrder);
+
   const roomId = activeRoom?.gcrId ?? activeRoom?.roomId;
   const roomType = activeRoom?.roomType;
   const otherUserId = activeRoom?.otherUserId;
-  const removeRoom = useChatStore((s) => s.removeRoom);
-  const updateRoomOrder = useChatStore((s) => s.updateRoomOrder);
+
+  const showUnreadButton = !isAtBottom && unreadCount > 0;
 
   const toggleRoomInfo = () => setShowRoomInfo((prev) => !prev);
 
@@ -172,7 +178,23 @@ export default function MessageChatSection() {
       ? "POPBOT이 생각 중이에요…"
       : "메시지 입력";
 
-  useEffect(() => scrollToBottom(), [messages]);
+  useEffect(() => {
+    if (isAtBottom) {
+      scrollToBottom();
+    }
+  }, [messages, isAtBottom]);
+
+  useEffect(() => {
+    const prevCount = prevMessageCountRef.current;
+    const currentCount = messages.length;
+
+    if (!isAtBottom && currentCount > prevCount) {
+      const diff = currentCount - prevCount;
+      setUnreadCount((c) => c + diff);
+    }
+
+    prevMessageCountRef.current = currentCount;
+  }, [messages, isAtBottom]);
 
   /* textarea 자동 높이 (최대 120px) */
   useEffect(() => {
@@ -359,6 +381,28 @@ export default function MessageChatSection() {
 
     return () => subRef.current?.unsubscribe();
   }, [activeRoom, roomType]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const handleScroll = () => {
+      const threshold = 20;
+      const atBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+
+      setIsAtBottom(atBottom);
+
+      if (atBottom) {
+        setUnreadCount(0); // 바닥 도착하면 읽음 처리
+      }
+    };
+
+    el.addEventListener("scroll", handleScroll);
+    handleScroll();
+
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, []);
 
   /* 날짜 구분선 */
   const DateDivider = ({ label }) => (
@@ -592,6 +636,29 @@ export default function MessageChatSection() {
 
         {/* typing indicator 영역 (스크롤 X) */}
         <div className="h-3 flex items-center ml-3 mb-2">
+          {showUnreadButton && (
+            <button
+              onClick={() => {
+                scrollToBottom();
+                setUnreadCount(0);
+              }}
+              className="
+      absolute bottom-24 left-1/2 -translate-x-1/2
+      px-4 py-2
+      bg-primary-soft2/40 text-white text-sm font-semibold
+      rounded-full shadow-lg
+      backdrop-blur-md
+      transition-all duration-300 ease-out
+      opacity-100 translate-y-0 scale-100
+      hover:bg-primary-dark hover:scale-105
+      active:scale-95
+      z-20
+    "
+            >
+              ↓ 읽지 않은 메시지 {unreadCount}개
+            </button>
+          )}
+
           {typingUserList.length > 0 && (
             <div className="flex items-center text-sm transition-opacity duration-200 text-white/80">
               {/* AI */}
