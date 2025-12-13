@@ -3,6 +3,7 @@ import BlurModal from "../../common/BlurModal";
 import privateChatIcon from "../../../assets/privateChat.png";
 
 const MAX_PREVIEW_CHARS = 600; // 긴 메시지 기준
+const AI_USER_ID = 20251212;
 
 export default function MessageItem({
   msg,
@@ -26,11 +27,15 @@ export default function MessageItem({
 
   const computedNickname = isDeletedUser ? "알 수 없음" : msg.senderNickname;
 
+  const isAi = msg.senderId === AI_USER_ID;
+
+  const bubbleAnimationClass = isAi && msg.animateIn ? "animate-ai-bubble" : "";
+
   return (
     <>
       {/* LEFT (상대방 메시지) */}
       {!isMine && (
-        <div className="flex w-full justify-start mb-1">
+        <div className="flex w-full justify-start mb-0.5">
           <img
             src={computedProfileImg}
             ref={avatarRef}
@@ -55,6 +60,7 @@ export default function MessageItem({
                 className={`relative px-4 py-2 rounded-2xl whitespace-pre-wrap break-words 
                   bg-white/20 text-white max-w-[500px] overflow-hidden
                   ${msg.isPending ? "opacity-50" : ""}
+                  ${bubbleAnimationClass}
                 `}
               >
                 {previewText}

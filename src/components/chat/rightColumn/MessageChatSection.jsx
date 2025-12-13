@@ -13,6 +13,7 @@ import EditRoomForm from "../../chat/rightColumn/EditRoomForm";
 import ReportForm from "../../chat/rightColumn/ReportForm";
 import GroupRoomInfoPopover from "../../chat/common/GroupRoomInfoPopover";
 import UserProfilePopover from "../../chat/common/UserProfilePopover";
+import { UserTypingDots, AiTypingDots } from "../common/TypingDots";
 import { useChatPopupStore } from "../../../store/chat/chatPopupStore";
 import { useChatStore } from "../../../store/chat/chatStore";
 import { useAuthStore } from "../../../store/authStore";
@@ -82,14 +83,6 @@ const toMinuteKey = (dt) => {
 
   return `${h}:${m}`;
 };
-
-const TypingDots = () => (
-  <span className="inline-flex gap-1 ml-1">
-    <span className="w-1 h-1 bg-white/60 rounded-full animate-bounce [animation-delay:0ms]" />
-    <span className="w-1 h-1 bg-white/60 rounded-full animate-bounce [animation-delay:150ms]" />
-    <span className="w-1 h-1 bg-white/60 rounded-full animate-bounce [animation-delay:300ms]" />
-  </span>
-);
 
 /* =======================================================================
  📌 MAIN COMPONENT
@@ -168,6 +161,17 @@ export default function MessageChatSection() {
     if (el) el.scrollTop = el.scrollHeight;
   };
 
+  const typingUserList = Array.from(typingUsers.entries()).map(
+    ([userId, nickname]) => ({ userId, nickname })
+  );
+
+  const isAiTyping = typingUserList.some((u) => u.userId === 20251212);
+
+  const inputPlaceholder =
+    roomType === "PRIVATE" && isAiTyping
+      ? "POPBOT이 생각 중이에요…"
+      : "메시지 입력";
+
   useEffect(() => scrollToBottom(), [messages]);
 
   /* textarea 자동 높이 (최대 120px) */
@@ -217,6 +221,16 @@ export default function MessageChatSection() {
     // 🔹 2) 메시지
     if (body.type === "MESSAGE") {
       const payload = body.payload;
+      const isAi = payload.senderId === 20251212;
+
+      // ⭐ AI 메시지 오면 typing 종료
+      if (isAi) {
+        setTypingUsers((prev) => {
+          const next = new Map(prev);
+          next.delete(20251212);
+          return next;
+        });
+      }
 
       updateRoomOrder(payload.roomType, payload.roomId);
 
@@ -232,6 +246,9 @@ export default function MessageChatSection() {
             createdAt: formatTime(payload.createdAt),
             minuteKey: toMinuteKey(payload.createdAt),
             dateLabel: formatDateLabel(payload.createdAt),
+
+            // ⭐ AI 최초 등장 애니메이션
+            animateIn: isAi,
           },
         ];
 
@@ -368,10 +385,6 @@ export default function MessageChatSection() {
     });
   };
 
-  const typingUserList = Array.from(typingUsers.entries()).map(
-    ([userId, nickname]) => ({ userId, nickname })
-  );
-
   /* =======================================================================
         📌 RENDER
   ======================================================================= */
@@ -381,9 +394,9 @@ export default function MessageChatSection() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[998]"></div>
       )}
 
-      <div className="w-full h-full flex flex-col justify-start px-8 py-6 relative z-[1]">
+      <div className="w-full h-full flex flex-col justify-start px-8 py-5 relative z-[1]">
         {/* HEADER */}
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2 px-1">
           <div className="flex items-center gap-3">
             <div className="w-12 flex items-center justify-center">
               <img src={roomIcon} className={iconSize} />
@@ -525,7 +538,7 @@ export default function MessageChatSection() {
 
         {/* 메시지 리스트 */}
         <div
-          className="flex flex-col flex-1 overflow-y-auto scrollbar-hide justify-start border-t border-white/20"
+          className="flex flex-col flex-1 overflow-y-auto scrollbar-hide justify-start border-t border-white/20 mb-2 px-1"
           ref={scrollRef}
         >
           {messages.map((msg, i) => {
@@ -564,6 +577,7 @@ export default function MessageChatSection() {
               </div>
             );
           })}
+
           <UserProfilePopover
             userId={openUserPopover}
             anchorRef={userAnchorRef}
@@ -575,45 +589,71 @@ export default function MessageChatSection() {
             scrollParentRef={scrollRef}
           />
         </div>
-        {roomType === "PRIVATE" && typingUserList.length === 1 && (
-          <div className="text-white/60 text-xs ml-12 mb-2 flex items-center">
-            <span>{typingUserList[0].nickname}</span>
-            <span>님이 입력 중</span>
-            <TypingDots />
-          </div>
-        )}
 
-        {roomType === "GROUP" && typingUserList.length > 0 && (
-          <div className="text-white/60 text-xs ml-12 mb-2 flex items-center gap-1">
-            {typingUserList.length === 1 && (
-              <>
-                <span>{typingUserList[0].nickname}</span>
-                <span>님이 입력 중</span>
-              </>
-            )}
+        {/* typing indicator 영역 (스크롤 X) */}
+        <div className="h-3 flex items-center ml-3 mb-2">
+          {typingUserList.length > 0 && (
+            <div className="flex items-center text-sm transition-opacity duration-200 text-white/80">
+              {/* AI */}
+              {isAiTyping && roomType === "PRIVATE" ? (
+                <>
+                  <AiTypingDots />
+                  <span className="ml-1 text-white/60">생각 중 .. </span>
+                </>
+              ) : (
+                <>
+                  <UserTypingDots />
 
-            {typingUserList.length === 2 && (
-              <>
-                <span>
-                  {typingUserList[0].nickname}, {typingUserList[1].nickname}
-                </span>
-                <span>님이 입력 중</span>
-              </>
-            )}
+                  {/* PRIVATE - USER */}
+                  {roomType === "PRIVATE" && typingUserList.length === 1 && (
+                    <>
+                      <span className="font-semibold text-white">
+                        {typingUserList[0].nickname}
+                      </span>
+                      <span>님이 입력 중</span>
+                    </>
+                  )}
 
-            {typingUserList.length >= 3 && (
-              <>
-                <span>{typingUserList[0].nickname}</span>
-                <span>외 {typingUserList.length - 1}명 입력 중</span>
-              </>
-            )}
+                  {/* GROUP */}
+                  {roomType === "GROUP" && (
+                    <>
+                      {typingUserList.length === 1 && (
+                        <>
+                          <span className="font-semibold text-white">
+                            {typingUserList[0].nickname}
+                          </span>
+                          <span>님이 입력 중</span>
+                        </>
+                      )}
 
-            <TypingDots />
-          </div>
-        )}
+                      {typingUserList.length === 2 && (
+                        <>
+                          <span className="font-semibold text-white">
+                            {typingUserList[0].nickname},{" "}
+                            {typingUserList[1].nickname}
+                          </span>
+                          <span>님이 입력 중</span>
+                        </>
+                      )}
+
+                      {typingUserList.length >= 3 && (
+                        <>
+                          <span className="font-semibold text-white">
+                            {typingUserList[0].nickname}
+                          </span>
+                          <span> 외 {typingUserList.length - 1}명 입력 중</span>
+                        </>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* 입력창 */}
-        <div className="flex items-end gap-4 border-t border-white/20 pt-4 mt-4">
+        <div className="flex items-end gap-2 border border-white/20 px-5 py-2 rounded-2xl">
           <button className="p-2 hover:bg-white/10 rounded-full">
             <EmojiIcon className="w-6 h-6" fill="#fff" />
           </button>
@@ -623,8 +663,9 @@ export default function MessageChatSection() {
             value={input}
             rows={1}
             maxLength={3000}
-            placeholder="메시지 입력"
-            className="flex-1 bg-white/10 border border-white/30 rounded-xl px-4 py-2 
+            disabled={isAiTyping && roomType === "PRIVATE"}
+            placeholder={inputPlaceholder}
+            className="flex-1  rounded-xl px-2 py-2 
                     text-white placeholder:text-white/60
                     resize-none overflow-y-auto focus:outline-none max-h-[120px]
                     chat-textarea-scroll"
@@ -664,7 +705,7 @@ export default function MessageChatSection() {
 
           <button
             onClick={sendMessage}
-            className="px-5 py-2 bg-white text-purple-700 font-semibold rounded-xl hover:bg-white/80 transition"
+            className="px-4 py-2 bg-white text-purple-700  font-semibold rounded-xl hover:bg-white/80 transition"
           >
             전송
           </button>
