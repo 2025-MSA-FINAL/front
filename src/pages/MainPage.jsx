@@ -298,7 +298,7 @@ function MainPage() {
             className="mx-auto w-full max-w-[1400px] md:max-w-[1100px] bg-paper rounded-card ring-2 ring-primary/20"
             style={{ boxShadow: "0 10px 40px rgba(195, 61, 255, 0.15)" }}
           >
-            <div className="flex flex-col md:flex-row md:items-center px-5 sm:px-8 md:px-12 py-4 sm:py-6 md:py-7 gap-5 md:gap-0">
+            <div className="flex flex-col md:flex-row md:items-center px-5 sm:px-8 md:px-12 py-4 sm:py-6 md:py-6 gap-5 md:gap-0">
               <div className="flex items-center gap-4 min-w-0 md:min-w-[200px] md:ml-8">
                 <div
                   className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shrink-0 overflow-visible"
