@@ -1,6 +1,10 @@
-export default function ChatRoomItem({ name, img, type }) {
+export default function ChatRoomItem({ name, img, type, otherUserId }) {
   const sizeClass =
-    type === "GROUP" ? "w-[55px] h-[45px]" : "w-[42px] h-[42px]";
+    type === "GROUP"
+      ? "w-[55px] h-[45px]"
+      : otherUserId === 20251212
+      ? "w-[35px] h-[42px]"
+      : "w-[42px] h-[42px]";
 
   return (
     <div

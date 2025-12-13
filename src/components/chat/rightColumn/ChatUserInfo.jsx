@@ -1,12 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import ghost1 from "../../../assets/ghost1.png";
 import { useAuthStore } from "../../../store/authStore";
+import { useChatStore } from "../../../store/chat/chatStore";
+import { startAiChat } from "../../../api/chatApi";
 import { useNavigate } from "react-router-dom";
+
 import MyPageIcon from "../icons/MyPageIcon";
 import PopupListIcon from "../icons/PopupListIcon";
 
 export default function ChatUserInfo() {
   const { user, fetchMe, initialized, logout } = useAuthStore();
+  const { addOrSelectPrivateRoom } = useChatStore();
+
   const [open, setOpen] = useState(false);
   const [visible, setVisible] = useState(false);
   const dropdownRef = useRef(null);
@@ -50,12 +55,44 @@ export default function ChatUserInfo() {
     }
   };
 
+  // ⭐ POPBOT 시작하기
+  const handleStartAiChat = async () => {
+    try {
+      const roomId = await startAiChat();
+
+      const aiRoom = {
+        roomId,
+        roomType: "PRIVATE",
+        roomName: "POPBOT",
+        otherUserId: 20251212,
+      };
+
+      addOrSelectPrivateRoom(aiRoom);
+    } catch (e) {
+      console.error("AI 채팅 시작 실패:", e);
+    }
+  };
+
   return (
     <div
-      className="relative w-full flex justify-end items-center pr-2"
+      className="relative w-full flex justify-end items-center pr-2 gap-3"
       ref={dropdownRef}
     >
-      {/* 버튼 */}
+      {/* ⭐ POPBOT 시작 버튼 */}
+      <button
+        onClick={handleStartAiChat}
+        className="
+          px-4 py-2 rounded-full
+          bg-primary-soft2/40 backdrop-blur-md
+          text-white font-semibold
+          shadow hover:bg-primary-soft2/60
+          transition text-sm
+        "
+      >
+        🤖 POPBOT
+      </button>
+
+      {/* 프로필 버튼 */}
       <div
         onClick={toggleOpen}
         className="
@@ -80,12 +117,9 @@ export default function ChatUserInfo() {
             w-[250px]
             rounded-[22px]
             py-6 px-5 z-20 flex flex-col
-
-            /* Glass 효과 */
             bg-white/40 backdrop-blur-xl
             shadow-[0_8px_25px_rgba(0,0,0,0.12)]
             border border-white/20
-
             transition-all duration-200
             ${open ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"}
           `}
@@ -100,12 +134,11 @@ export default function ChatUserInfo() {
               <p className="text-[15px] font-bold text-text-black leading-tight">
                 {username}
               </p>
-              {/* 로그아웃 */}
+
               <p
                 onClick={handleLogoutClick}
                 className="text-label-sm text-text-main tracking-wide
-              hover:text-text-sub transition self-end cursor-pointer
-            "
+                hover:text-text-sub transition cursor-pointer"
               >
                 로그아웃
               </p>
@@ -122,7 +155,6 @@ export default function ChatUserInfo() {
               "
               onClick={() => navigate("/mypage")}
             >
-              {/* hover 시 나타나는 Glass 박스 */}
               <div
                 className="
                   absolute inset-0 rounded-xl opacity-0 
@@ -145,7 +177,6 @@ export default function ChatUserInfo() {
               "
               onClick={() => navigate("/pop-up")}
             >
-              {/* hover 네모 박스 */}
               <div
                 className="
                   absolute inset-0 rounded-xl opacity-0 

@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import { useEffect, useState, useRef } from "react";
 import { connectStomp, getStompClient } from "../../../api/socket";
 import {
@@ -12,14 +13,17 @@ import EditRoomForm from "../../chat/rightColumn/EditRoomForm";
 import ReportForm from "../../chat/rightColumn/ReportForm";
 import GroupRoomInfoPopover from "../../chat/common/GroupRoomInfoPopover";
 import UserProfilePopover from "../../chat/common/UserProfilePopover";
+import { UserTypingDots, AiTypingDots } from "../common/TypingDots";
 import { useChatPopupStore } from "../../../store/chat/chatPopupStore";
 import { useChatStore } from "../../../store/chat/chatStore";
 import { useAuthStore } from "../../../store/authStore";
 import axios from "axios";
 
-/* SVG Icons */
+/* IMG */
 import groupChatIcon from "../../../assets/groupChat.png";
 import privateChatIcon from "../../../assets/privateChat.png";
+import POPBOT from "../../../assets/POPBOT.png";
+/* SVG Icons */
 import EmojiIcon from "../../chat/icons/emojiIcon";
 import ImageUploadIcon from "../../chat/icons/imageIcon";
 import ScheduleIcon from "../../chat/icons/scheduleIcon";
@@ -93,6 +97,7 @@ export default function MessageChatSection() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [openUserPopover, setOpenUserPopover] = useState(null);
   const [userAnchorRef, setUserAnchorRef] = useState(null);
+  const [typingUsers, setTypingUsers] = useState(new Map());
 
   const subRef = useRef(null);
   const scrollRef = useRef(null);
@@ -100,18 +105,33 @@ export default function MessageChatSection() {
   const isComposingRef = useRef(false);
   const menuRef = useRef(null);
   const roomInfoRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const isTypingRef = useRef(false);
 
   const currentUserId = useAuthStore((s) => s.user?.userId);
   const activeRoom = useChatStore((s) => s.activeChatRoom);
   const setActiveRoom = useChatStore((s) => s.setActiveChatRoom);
   const roomId = activeRoom?.gcrId ?? activeRoom?.roomId;
   const roomType = activeRoom?.roomType;
+  const otherUserId = activeRoom?.otherUserId;
   const removeRoom = useChatStore((s) => s.removeRoom);
   const updateRoomOrder = useChatStore((s) => s.updateRoomOrder);
 
   const toggleRoomInfo = () => setShowRoomInfo((prev) => !prev);
 
-  const iconSize = roomType === "GROUP" ? "w-11 h-9" : "w-9 h-9";
+  const iconSize =
+    roomType === "GROUP"
+      ? "w-11 h-9"
+      : otherUserId === 20251212
+      ? "w-8.5 h-10"
+      : "w-9 h-9";
+
+  const roomIcon =
+    roomType === "GROUP"
+      ? groupChatIcon
+      : otherUserId === 20251212
+      ? POPBOT
+      : privateChatIcon;
 
   /* Dropdown */
   const toggleMenu = () => {
@@ -141,6 +161,17 @@ export default function MessageChatSection() {
     if (el) el.scrollTop = el.scrollHeight;
   };
 
+  const typingUserList = Array.from(typingUsers.entries()).map(
+    ([userId, nickname]) => ({ userId, nickname })
+  );
+
+  const isAiTyping = typingUserList.some((u) => u.userId === 20251212);
+
+  const inputPlaceholder =
+    roomType === "PRIVATE" && isAiTyping
+      ? "POPBOT이 생각 중이에요…"
+      : "메시지 입력";
+
   useEffect(() => scrollToBottom(), [messages]);
 
   /* textarea 자동 높이 (최대 120px) */
@@ -166,26 +197,108 @@ export default function MessageChatSection() {
   const onMessageReceived = (msg) => {
     const body = JSON.parse(msg.body);
 
-    updateRoomOrder(body.roomType, body.roomId);
+    // 🔹 1) 타이핑 이벤트
+    if (body.type === "TYPING_START") {
+      if (body.senderId !== currentUserId) {
+        setTypingUsers((prev) => {
+          const next = new Map(prev);
+          next.set(body.senderId, body.senderNickname);
+          return next;
+        });
+      }
+      return;
+    }
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        ...body,
-        createdAt: formatTime(body.createdAt),
-        minuteKey: toMinuteKey(body.createdAt),
-        dateLabel: formatDateLabel(body.createdAt),
-      },
-    ]);
+    if (body.type === "TYPING_STOP") {
+      setTypingUsers((prev) => {
+        const next = new Map(prev);
+        next.delete(body.senderId);
+        return next;
+      });
+      return;
+    }
+
+    // 🔹 2) 메시지
+    if (body.type === "MESSAGE") {
+      const payload = body.payload;
+      const isAi = payload.senderId === 20251212;
+
+      // ⭐ AI 메시지 오면 typing 종료
+      if (isAi) {
+        setTypingUsers((prev) => {
+          const next = new Map(prev);
+          next.delete(20251212);
+          return next;
+        });
+      }
+
+      updateRoomOrder(payload.roomType, payload.roomId);
+
+      setMessages((prev) => {
+        const filtered = prev.filter(
+          (m) => m.clientMessageKey !== payload.clientMessageKey
+        );
+
+        const next = [
+          ...filtered,
+          {
+            ...payload,
+            createdAt: formatTime(payload.createdAt),
+            minuteKey: toMinuteKey(payload.createdAt),
+            dateLabel: formatDateLabel(payload.createdAt),
+
+            // ⭐ AI 최초 등장 애니메이션
+            animateIn: isAi,
+          },
+        ];
+
+        return next.sort((a, b) => {
+          if (typeof a.cmId === "string") return 1;
+          if (typeof b.cmId === "string") return -1;
+          return a.cmId - b.cmId;
+        });
+      });
+    }
   };
 
   /* 메시지 전송 */
   const sendMessage = () => {
     if (!input.trim()) return;
 
+    sendTyping("TYPING_STOP");
+    isTypingRef.current = false;
+    clearTimeout(typingTimeoutRef.current);
+
     const client = getStompClient();
     if (!client || !client.connected) return;
 
+    // 임시 메시지 생성 (Optimistic UI)
+    const clientMessageKey = uuidv4();
+    const tempId = `temp-${clientMessageKey}`;
+
+    const optimisticMessage = {
+      cmId: tempId, // 임시 ID
+      roomId,
+      roomType,
+      senderId: currentUserId,
+      senderNickname: "나",
+      senderProfileUrl: useAuthStore.getState().user?.photo ?? "",
+      senderStatus: "ACTIVE",
+      content: input,
+      messageType: "TEXT",
+      createdAt: formatTime(new Date()),
+      minuteKey: toMinuteKey(new Date()),
+      dateLabel: formatDateLabel(new Date()),
+
+      // ⭐ Pending 표시
+      isPending: true,
+      clientMessageKey,
+    };
+
+    // ⭐ 화면에 즉시 추가
+    setMessages((prev) => [...prev, optimisticMessage]);
+
+    // 서버 전송
     client.publish({
       destination: "/pub/chat/message",
       body: JSON.stringify({
@@ -194,6 +307,7 @@ export default function MessageChatSection() {
         content: input,
         senderId: currentUserId,
         messageType: "TEXT",
+        clientMessageKey,
       }),
     });
 
@@ -255,6 +369,22 @@ export default function MessageChatSection() {
     </div>
   );
 
+  const sendTyping = (type) => {
+    const client = getStompClient();
+    if (!client?.connected) return;
+
+    client.publish({
+      destination: "/pub/chat/typing",
+      body: JSON.stringify({
+        type,
+        roomType,
+        roomId,
+        senderId: currentUserId,
+        senderNickname: useAuthStore.getState().user?.nickname,
+      }),
+    });
+  };
+
   /* =======================================================================
         📌 RENDER
   ======================================================================= */
@@ -264,15 +394,12 @@ export default function MessageChatSection() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[998]"></div>
       )}
 
-      <div className="w-full h-full flex flex-col justify-start px-8 py-6 relative z-[1]">
+      <div className="w-full h-full flex flex-col justify-start px-8 py-5 relative z-[1]">
         {/* HEADER */}
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2 px-1">
           <div className="flex items-center gap-3">
             <div className="w-12 flex items-center justify-center">
-              <img
-                src={roomType === "GROUP" ? groupChatIcon : privateChatIcon}
-                className={iconSize}
-              />
+              <img src={roomIcon} className={iconSize} />
             </div>
 
             <div
@@ -411,7 +538,7 @@ export default function MessageChatSection() {
 
         {/* 메시지 리스트 */}
         <div
-          className="flex flex-col flex-1 overflow-y-auto scrollbar-hide justify-start border-t border-white/20"
+          className="flex flex-col flex-1 overflow-y-auto scrollbar-hide justify-start border-t border-white/20 mb-2 px-1"
           ref={scrollRef}
         >
           {messages.map((msg, i) => {
@@ -450,6 +577,7 @@ export default function MessageChatSection() {
               </div>
             );
           })}
+
           <UserProfilePopover
             userId={openUserPopover}
             anchorRef={userAnchorRef}
@@ -462,8 +590,70 @@ export default function MessageChatSection() {
           />
         </div>
 
+        {/* typing indicator 영역 (스크롤 X) */}
+        <div className="h-3 flex items-center ml-3 mb-2">
+          {typingUserList.length > 0 && (
+            <div className="flex items-center text-sm transition-opacity duration-200 text-white/80">
+              {/* AI */}
+              {isAiTyping && roomType === "PRIVATE" ? (
+                <>
+                  <AiTypingDots />
+                  <span className="ml-1 text-white/60">생각 중 .. </span>
+                </>
+              ) : (
+                <>
+                  <UserTypingDots />
+
+                  {/* PRIVATE - USER */}
+                  {roomType === "PRIVATE" && typingUserList.length === 1 && (
+                    <>
+                      <span className="font-semibold text-white">
+                        {typingUserList[0].nickname}
+                      </span>
+                      <span>님이 입력 중</span>
+                    </>
+                  )}
+
+                  {/* GROUP */}
+                  {roomType === "GROUP" && (
+                    <>
+                      {typingUserList.length === 1 && (
+                        <>
+                          <span className="font-semibold text-white">
+                            {typingUserList[0].nickname}
+                          </span>
+                          <span>님이 입력 중</span>
+                        </>
+                      )}
+
+                      {typingUserList.length === 2 && (
+                        <>
+                          <span className="font-semibold text-white">
+                            {typingUserList[0].nickname},{" "}
+                            {typingUserList[1].nickname}
+                          </span>
+                          <span>님이 입력 중</span>
+                        </>
+                      )}
+
+                      {typingUserList.length >= 3 && (
+                        <>
+                          <span className="font-semibold text-white">
+                            {typingUserList[0].nickname}
+                          </span>
+                          <span> 외 {typingUserList.length - 1}명 입력 중</span>
+                        </>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* 입력창 */}
-        <div className="flex items-end gap-4 border-t border-white/20 pt-4 mt-4">
+        <div className="flex items-end gap-2 border border-white/20 px-5 py-2 rounded-2xl">
           <button className="p-2 hover:bg-white/10 rounded-full">
             <EmojiIcon className="w-6 h-6" fill="#fff" />
           </button>
@@ -473,14 +663,28 @@ export default function MessageChatSection() {
             value={input}
             rows={1}
             maxLength={3000}
-            placeholder="메시지 입력"
-            className="flex-1 bg-white/10 border border-white/30 rounded-xl px-4 py-2 
+            disabled={isAiTyping && roomType === "PRIVATE"}
+            placeholder={inputPlaceholder}
+            className="flex-1  rounded-xl px-2 py-2 
                     text-white placeholder:text-white/60
                     resize-none overflow-y-auto focus:outline-none max-h-[120px]
                     chat-textarea-scroll"
             onCompositionStart={() => (isComposingRef.current = true)}
             onCompositionEnd={() => (isComposingRef.current = false)}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+
+              if (!isTypingRef.current) {
+                sendTyping("TYPING_START");
+                isTypingRef.current = true;
+              }
+
+              clearTimeout(typingTimeoutRef.current);
+              typingTimeoutRef.current = setTimeout(() => {
+                sendTyping("TYPING_STOP");
+                isTypingRef.current = false;
+              }, 1200);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 if (e.shiftKey) return;
@@ -501,7 +705,7 @@ export default function MessageChatSection() {
 
           <button
             onClick={sendMessage}
-            className="px-5 py-2 bg-white text-purple-700 font-semibold rounded-xl hover:bg-white/80 transition"
+            className="px-4 py-2 bg-white text-purple-700  font-semibold rounded-xl hover:bg-white/80 transition"
           >
             전송
           </button>

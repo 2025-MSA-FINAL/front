@@ -3,6 +3,7 @@ import BlurModal from "../../common/BlurModal";
 import privateChatIcon from "../../../assets/privateChat.png";
 
 const MAX_PREVIEW_CHARS = 600; // 긴 메시지 기준
+const AI_USER_ID = 20251212;
 
 export default function MessageItem({
   msg,
@@ -26,11 +27,15 @@ export default function MessageItem({
 
   const computedNickname = isDeletedUser ? "알 수 없음" : msg.senderNickname;
 
+  const isAi = msg.senderId === AI_USER_ID;
+
+  const bubbleAnimationClass = isAi && msg.animateIn ? "animate-ai-bubble" : "";
+
   return (
     <>
       {/* LEFT (상대방 메시지) */}
       {!isMine && (
-        <div className="flex w-full justify-start mb-1">
+        <div className="flex w-full justify-start mb-0.5">
           <img
             src={computedProfileImg}
             ref={avatarRef}
@@ -51,7 +56,13 @@ export default function MessageItem({
 
             <div className="flex items-end gap-2 mt-1">
               {/* 말풍선 */}
-              <div className="relative px-4 py-2 rounded-2xl whitespace-pre-wrap break-words bg-white/20 text-white max-w-[500px] overflow-hidden">
+              <div
+                className={`relative px-4 py-2 rounded-2xl whitespace-pre-wrap break-words 
+                  bg-white/20 text-white max-w-[500px] overflow-hidden
+                  ${msg.isPending ? "opacity-50" : ""}
+                  ${bubbleAnimationClass}
+                `}
+              >
                 {previewText}
 
                 {/* 🔽 페이드아웃 + 전체보기 버튼 (카카오톡 스타일) */}
@@ -97,7 +108,12 @@ export default function MessageItem({
               )}
 
               {/* 말풍선 */}
-              <div className="relative px-4 py-2 rounded-2xl whitespace-pre-wrap break-words bg-white text-purple-700 max-w-[500px] overflow-hidden">
+              <div
+                className={`relative px-4 py-2 rounded-2xl whitespace-pre-wrap break-words 
+                bg-white text-purple-700 max-w-[500px] overflow-hidden
+                ${msg.isPending ? "opacity-50" : ""}
+              `}
+              >
                 {previewText}
 
                 {/* 🔽 페이드아웃 + 전체보기 버튼 */}
