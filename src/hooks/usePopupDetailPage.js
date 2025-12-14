@@ -3,8 +3,14 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { fetchPopupDetailApi, togglePopupWishlistApi } from "../api/popupApi";
 import { useAuthStore } from "../store/authStore";
-import { getGroupChatRoomList, joinGroupChatRoom, getGroupChatRoomDetail } from "../api/chatApi";
+import {
+  getGroupChatRoomList,
+  joinGroupChatRoom,
+  getGroupChatRoomDetail,
+} from "../api/chatApi";
 import { useChatStore } from "../store/chat/chatStore";
+
+import { publishPopupShare, connectStomp, isStompConnected } from "../api/socket";
 
 //상태 라벨 매핑
 const STATUS_LABEL = {
@@ -75,6 +81,8 @@ export default function usePopupDetailPage() {
 
   const [toastMessage, setToastMessage] = useState(null);
   const [toastVariant, setToastVariant] = useState("success");
+  const [toastActionLabel, setToastActionLabel] = useState("");
+  const [toastOnAction, setToastOnAction] = useState(null);
   const toastTimerRef = useRef(null);
 
   //채팅 관련 상태
@@ -84,8 +92,26 @@ export default function usePopupDetailPage() {
 
   const isLoggedIn = !!user;
 
-  const showToast = (message, variant = "success", duration = 3000) => {
+  const clearToast = () => {
+    setToastMessage(null);
+    setToastVariant("success");
+    setToastActionLabel("");
+    setToastOnAction(null);
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+  };
+
+  const showToast = (message, variant = "success", optionsOrDuration = 3000) => {
     if (!message) return;
+
+    const options =
+      typeof optionsOrDuration === "number"
+        ? { duration: optionsOrDuration }
+        : optionsOrDuration || {};
+
+    const { actionLabel = "", onAction = null, duration } = options;
 
     if (toastTimerRef.current) {
       clearTimeout(toastTimerRef.current);
@@ -94,20 +120,29 @@ export default function usePopupDetailPage() {
 
     setToastVariant(variant);
     setToastMessage(message);
+    setToastActionLabel(actionLabel);
+    setToastOnAction(() => (typeof onAction === "function" ? onAction : null));
 
-    if (duration > 0) {
+    const ttl =
+      typeof duration === "number"
+        ? duration
+        : actionLabel
+        ? 5000 //액션 있으면 기본 더 길게
+        : 3000;
+
+    if (ttl > 0) {
       toastTimerRef.current = setTimeout(() => {
         setToastMessage(null);
+        setToastActionLabel("");
+        setToastOnAction(null);
         toastTimerRef.current = null;
-      }, duration);
+      }, ttl);
     }
   };
 
   useEffect(() => {
     return () => {
-      if (toastTimerRef.current) {
-        clearTimeout(toastTimerRef.current);
-      }
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, []);
 
@@ -132,11 +167,10 @@ export default function usePopupDetailPage() {
       setError("잘못된 접근입니다.");
       setLoading(false);
     }
-  }, [popupId, user]); //user 변경 시(로그인 직후 등) 데이터 갱신
+  }, [popupId, user]);
 
   //카카오 SDK 동적 로드 및 초기화
   useEffect(() => {
-    //이미 로드되어 있으면 패스
     if (window.Kakao && window.Kakao.isInitialized()) return;
 
     const script = document.createElement("script");
@@ -146,7 +180,6 @@ export default function usePopupDetailPage() {
     script.onload = () => {
       if (window.Kakao && !window.Kakao.isInitialized()) {
         const apiKey = import.meta.env.VITE_KAKAO_MAP_KEY;
-
         try {
           window.Kakao.init(apiKey);
           console.log("카카오 SDK 초기화 성공! 🎉");
@@ -163,7 +196,7 @@ export default function usePopupDetailPage() {
     document.head.appendChild(script);
   }, []);
 
-  //채팅방 목록 로드
+  //채팅방 목록 로드(팝업 그룹 채팅 목록)
   const loadChatRooms = async (popId) => {
     if (!isLoggedIn || !popId) return;
 
@@ -185,7 +218,7 @@ export default function usePopupDetailPage() {
     }
   };
 
-  //채팅 탭 진입 시 채팅방 목록 조회 (로그인 전용)
+  //채팅 탭 진입 시 채팅방 목록 조회(로그인 전용)
   useEffect(() => {
     if (activeTab !== "CHAT") return;
     if (!popup) return;
@@ -196,7 +229,6 @@ export default function usePopupDetailPage() {
 
   //찜 토글 핸들러
   const handleToggleWishlist = async () => {
-    //비로그인 처리
     if (!user) {
       if (
         window.confirm(
@@ -210,33 +242,22 @@ export default function usePopupDetailPage() {
 
     if (!popup || wishlistLoading) return;
 
-    //현재 상태 캡처 (에러 시 복구용)
     const prevIsLiked = popup.isLiked;
     const nextIsLiked = !prevIsLiked;
 
-    //낙관적 업데이트
     setPopup((prev) => ({ ...prev, isLiked: nextIsLiked }));
 
     try {
       setWishlistLoading(true);
-
-      //API 호출
       const res = await togglePopupWishlistApi(popup.popId);
 
-      //서버 응답 확인 (데이터 동기화)
       let finalState = nextIsLiked;
+      if (res && typeof res.liked === "boolean") finalState = res.liked;
+      else if (res && typeof res.isLiked === "boolean") finalState = res.isLiked;
 
-      if (res && typeof res.liked === "boolean") {
-        finalState = res.liked;
-      } else if (res && typeof res.isLiked === "boolean") {
-        finalState = res.isLiked;
-      }
-
-      //상태 확정
       setPopup((prev) => (prev ? { ...prev, isLiked: finalState } : prev));
     } catch (err) {
       console.error("찜 토글 에러:", err);
-      //실패 시 원래대로 롤백
       setPopup((prev) => (prev ? { ...prev, isLiked: prevIsLiked } : prev));
       alert("요청을 처리하지 못했습니다. 다시 시도해주세요.");
     } finally {
@@ -246,18 +267,16 @@ export default function usePopupDetailPage() {
 
   //예약 버튼
   const handleReservationClick = () => {
-    //popupId는 URL 파라미터 기준
     if (popupId) {
       navigate(`/popup/${popupId}/reserve`);
       return;
     }
-
     if (popup?.popId) {
       navigate(`/popup/${popup.popId}/reserve`);
     }
   };
 
-  //공유하기 버튼 (클립보드 복사)
+  //공유하기 버튼(클립보드 복사)
   const handleShareClick = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -268,8 +287,7 @@ export default function usePopupDetailPage() {
     }
   };
 
-
-  //해당 채팅방으로 이동
+  //해당 그룹 채팅방으로 이동
   const openRoomAndGoChat = async (gcrId) => {
     const detail = await getGroupChatRoomDetail(gcrId);
     const { selectRoom, fetchRooms } = useChatStore.getState();
@@ -280,12 +298,35 @@ export default function usePopupDetailPage() {
     navigate("/chat");
   };
 
+  //방 열기 + 이동
+  const openAnyRoomAndGoChat = async (room) => {
+    try {
+      const { selectRoom, fetchRooms } = useChatStore.getState();
+
+      if (room?.roomType === "GROUP") {
+        try {
+          const detail = await getGroupChatRoomDetail(room.roomId);
+          selectRoom(detail);
+        } catch (e) {
+          console.warn("⚠️ 그룹 채팅방 상세 로드 실패, fallback으로 room 사용:", e);
+          selectRoom(room);
+        }
+      } else {
+        selectRoom(room);
+      }
+
+      fetchRooms();
+      navigate("/chat");
+    } catch (e) {
+      console.error("❌ 채팅방 열기 실패:", e);
+      navigate("/chat");
+    }
+  };
 
   //채팅방 참여하기
   const handleJoinChatRoom = async (gcrId, options = {}) => {
     const { alreadyJoined } = options || {};
 
-    //비로그인 처리
     if (!user) {
       if (
         window.confirm(
@@ -297,7 +338,6 @@ export default function usePopupDetailPage() {
       return;
     }
 
-    //이미 참여 중인 방이면 join API 안 쏘고 바로 채팅 페이지로
     if (alreadyJoined) {
       showToast("이미 참여 중인 채팅방이에요. 채팅 페이지에서 확인해 보세요! 💬");
       await openRoomAndGoChat(gcrId);
@@ -320,22 +360,20 @@ export default function usePopupDetailPage() {
       const code = error?.response?.data?.code;
       const message = error?.response?.data?.message;
 
-      //이미 참여중 (CHAT_001)
       if (code === "CHAT_001") {
         showToast(
-          message || "이미 참여 중인 채팅방이에요. 채팅 페이지에서 확인해 보세요! 💬"
+          message ||
+            "이미 참여 중인 채팅방이에요. 채팅 페이지에서 확인해 보세요! 💬"
         );
         await openRoomAndGoChat(gcrId);
         return;
       }
 
-      //방 정원 초과 (CHAT_003)
       if (code === "CHAT_003") {
         showToast(message || "이미 정원이 꽉 찬 방이에요 🥲", "error");
         return;
       }
 
-      //성별 제한 (CHAT_014)
       if (code === "CHAT_014") {
         showToast(
           message || "이 채팅방은 성별 제한 때문에 입장할 수 없어요.",
@@ -344,33 +382,100 @@ export default function usePopupDetailPage() {
         return;
       }
 
-      //나이 제한 (CHAT_015)
       if (code === "CHAT_015") {
-        showToast(
-          message || "연령 조건에 맞지 않아 입장할 수 없어요.",
-          "error"
-        );
+        showToast(message || "연령 조건에 맞지 않아 입장할 수 없어요.", "error");
         return;
       }
 
-      //그 외 기타 에러
       showToast(
         message ||
-        "채팅방에 참여할 수 없어요. 조건 불일치 또는 정원 초과일 수 있어요.",
+          "채팅방에 참여할 수 없어요. 조건 불일치 또는 정원 초과일 수 있어요.",
         "error"
       );
     }
   };
 
+  //팝업 공유용
+  const getRoomType = (room) => {
+    const rt = room?.roomType ?? room?.type;
+    if (rt === "GROUP_CHAT" || rt === "GROUPCHAT") return "GROUP";
+    if (rt === "PRIVATE_CHAT" || rt === "PRIVATECHAT") return "PRIVATE";
+    return rt; // "GROUP" | "PRIVATE" 기대
+  };
+
+  const getRoomId = (room) => {
+    return room?.roomId ?? room?.gcrId ?? room?.pcrId ?? room?.id;
+  };
+
+  //팝업 공유
+  const sharePopupToChatRoom = async (room) => {
+    const userId = user?.userId ?? user?.id;
+
+    if (!userId) {
+      showToast("로그인이 필요한 서비스입니다.", "error");
+      return false;
+    }
+
+    if (!popup) {
+      showToast("팝업 정보를 불러오지 못해 공유할 수 없습니다.", "error");
+      return false;
+    }
+
+    const roomType = getRoomType(room);
+    const roomId = getRoomId(room);
+
+    if (!roomType || !roomId) {
+      console.warn("⚠️ 채팅방 정보가 불완전합니다:", room);
+      showToast("채팅방 정보를 불러오지 못해 공유할 수 없습니다.", "error");
+      return false;
+    }
+
+    //전송 전에 STOMP 연결 보장
+    try {
+      if (!isStompConnected()) {
+        await connectStomp();
+      }
+    } catch (e) {
+      console.error("❌ STOMP 연결 실패:", e);
+      showToast("채팅 연결에 실패해서 공유할 수 없습니다.", "error");
+      return false;
+    }
+
+    const popupData = {
+      popId: popup.popId ?? popup.id,
+      popName: popup.popName ?? popup.name,
+      popThumbnail: popup.popThumbnail ?? popup.thumbnailUrl ?? popup.thumbnail,
+      popLocation: popup.popLocation ?? popup.location,
+    };
+
+    if (!popupData.popId) {
+      console.warn("⚠️ popId가 없어 팝업 공유를 중단합니다:", popup);
+      showToast("팝업 정보가 올바르지 않아 공유할 수 없습니다.", "error");
+      return false;
+    }
+
+    publishPopupShare(roomType, roomId, userId, popupData);
+
+    const normalizedRoom = { ...room, roomType, roomId };
+
+    showToast("팝업을 공유했어요 📤", "success", {
+      actionLabel: "채팅으로 이동",
+      onAction: () => {
+        clearToast();
+        void openAnyRoomAndGoChat(normalizedRoom);
+      },
+      duration: 5000,
+    });
+
+    return true;
+  };
+
   //카카오톡 공유하기 함수
   const handleKakaoShare = () => {
     if (!window.Kakao || !window.Kakao.isInitialized()) {
-      alert(
-        "카카오 SDK가 아직 로딩되지 않았습니다. 잠시 후 다시 시도해주세요."
-      );
+      alert("카카오 SDK가 아직 로딩되지 않았습니다. 잠시 후 다시 시도해주세요.");
       return;
     }
-
     if (!popup) return;
 
     window.Kakao.Share.sendDefault({
@@ -399,9 +504,7 @@ export default function usePopupDetailPage() {
   };
 
   //파생 데이터들
-  const statusLabel = popup
-    ? STATUS_LABEL[popup.popStatus] || "진행 중"
-    : "";
+  const statusLabel = popup ? STATUS_LABEL[popup.popStatus] || "진행 중" : "";
   const dateRange =
     popup && (popup.popStartDate || popup.popEndDate)
       ? formatDateRange(popup.popStartDate, popup.popEndDate)
@@ -437,19 +540,28 @@ export default function usePopupDetailPage() {
     wishlistLoading,
     handleToggleWishlist,
     handleReservationClick,
+
+    //toast
     toastMessage,
     toastVariant,
+    toastActionLabel,
+    toastOnAction,
+    showToast,
+
     handleShareClick,
     activeTab,
     setActiveTab,
     userRole: user?.role,
     handleKakaoShare,
 
-    // 채팅 관련
+    //채팅 관련
     isLoggedIn,
     chatRooms,
     chatLoading,
     chatError,
     handleJoinChatRoom,
+
+    //팝업 공유
+    sharePopupToChatRoom,
   };
 }
