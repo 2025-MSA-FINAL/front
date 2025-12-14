@@ -14,7 +14,7 @@ import PopupDetailPage from "./pages/popup/PopupDetailPage.jsx";
 import ManagerMyPage from "./pages/manager/ManagerMyPage.jsx";
 import ChatMainPage from "./pages/chat/ChatMainPage.jsx";
 import ManagerPopupDetailPage from "./pages/manager/ManagerPopupDetailPage.jsx";
-
+import PopupNearbyPage from "./pages/popup/PopupNearbyPage";
 import PopupEdit from "./pages/manager/PopupEdit.jsx";
 import PopupReservationSettingPage from "./pages/reservation/PopupReservationSettingPage.jsx"; 
 
@@ -27,7 +27,7 @@ import Popups from "./pages/admin/Popups.jsx";
 import Reports from "./pages/admin/Reports.jsx";
 import ChatRooms from "./pages/admin/ChatRooms.jsx";
 import UserReportPage from "./pages/user/UserReportPage.jsx";
-import PopupUserReservationPage from "./components/reservation/PopupUserReservationPage.jsx";
+import PopupUserReservationPage from "./pages/reservation/PopupUserReservationPage.jsx";
 
 function App() {
   return (
@@ -55,6 +55,9 @@ function App() {
 
           {/* 팝업스토어 상세 페이지 */}
           <Route path="/popup/:popupId" element={<PopupDetailPage />} />
+
+          {/* 내 주변 팝업 페이지 */}
+          <Route path="/popup/nearby" element={<PopupNearbyPage />} />
 
           {/* 매니저 페이지 */}
           <Route path="/manager" element={<ManagerMyPage />} />
@@ -86,6 +89,9 @@ function App() {
             path="/popup/:popupId/reserve"
             element={<PopupUserReservationPage/>}
           />
+
+          {/* 매니저 계정 문의 페이지 */}
+        <Route path="/manager-inquiry" element={<ManagerInquiryPage />} />
         </Route>
 
         {/* NavBar 없는 페이지 (채팅 + 관리자 등) */}
@@ -93,8 +99,7 @@ function App() {
           <Route path="/chat" element={<ChatMainPage />} />
         </Route>
 
-        {/* 매니저 계정 문의 페이지 */}
-        <Route path="/manager-inquiry" element={<ManagerInquiryPage />} />
+        
 
         {/* 관리자 라우트 */}
         <Route path="/admin" element={<AdminLayout />}>

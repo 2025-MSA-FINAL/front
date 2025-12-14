@@ -20,7 +20,7 @@ export default function ManagerPopupGrid({
     return (
       <section className="max-w-[900px] mx-auto px-4 py-16">
         <p className="text-text-sub text-center">
-          나의 팝업을 불러오는 중입니다...
+          나의 팝업을 불러오는 중입니다.
         </p>
       </section>
     );
@@ -60,25 +60,25 @@ export default function ManagerPopupGrid({
   }
 
   return (
-    <section className="max-w-[900px] mx-auto px-4 pt-10 pb-16">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
-        {content.map((popup) => (
+  <section className="w-full max-w-[1120px] mx-auto px-4 pt-3 pb-16">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-6">
+      {content.map((popup) => (
+        <div key={popup.popId} className="w-full">
           <PopupCard
-            key={popup.popId}
             popup={popup}
-            userRole="MANAGER" 
+            userRole="MANAGER"
+            viewMode="list2"
             onClick={() => onClickItem?.(popup.popId)}
-            onToggleWishlist={undefined}
-            isWishlistLoading={false}
           />
-        ))}
-      </div>
+        </div>
+      ))}
+    </div>
 
-      <Pagination
-        page={pageNumber}
-        totalPages={totalPages}
-        onChange={onChangePage}
-      />
-    </section>
-  );
+    <Pagination
+      page={pageNumber}
+      totalPages={totalPages}
+      onChange={onChangePage}
+    />
+  </section>
+);
 }

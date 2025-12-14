@@ -41,20 +41,48 @@ export async function registerPopupApi(popupData) {
 }
 
 // 팝업 목록 조회
-// filters: { cursor, size, keyword, regions, startDate, endDate, status, minPrice, maxPrice, sort }
+// filters: { cursor, size, keywords, regions, startDate, endDate, status, minPrice, maxPrice, sort, freeOnly }
 export async function fetchPopupListApi(filters = {}) {
   const params = { ...filters };
 
-  //undefined / null 은 쿼리에서 제거
+  //디버깅용
+  console.log("[fetchPopupListApi] 요청 params:", params);
+
   Object.keys(params).forEach((key) => {
     if (params[key] === undefined || params[key] === null || params[key] === "") {
       delete params[key];
     }
   });
 
-  const res = await apiClient.get("/api/popups", { params });
+  // 디버그 로그
+  console.log("[fetchPopupListApi] 요청 filters:", filters);
+  console.log("[fetchPopupListApi] 정제된 params:", params);
+
+  const res = await apiClient.get("/api/popups", {
+    params,
+    paramsSerializer: (params) => {
+      const searchParams = new URLSearchParams();
+      Object.keys(params).forEach((key) => {
+        const value = params[key];
+        if (Array.isArray(value)) {
+          value.forEach((v) => searchParams.append(key, v));
+        } else {
+          searchParams.append(key, value);
+        }
+      });
+      console.log(
+        "[fetchPopupListApi] 실제 쿼리스트링:",
+        searchParams.toString()
+      );
+      return searchParams.toString();
+    },
+  });
+
+  console.log("[fetchPopupListApi] 응답:", res.data);
   return res.data;
 }
+
+
 
 //찜 토글
 export async function togglePopupWishlistApi(popupId) {
@@ -68,5 +96,35 @@ export async function fetchPopupDetailApi(popupId) {
   if (!popupId) throw new Error("popupId가 없습니다.");
 
   const res = await apiClient.get(`/api/popups/${popupId}`);
+  return res.data;
+}
+
+
+
+//내 주변 팝업 조회
+export async function fetchNearbyPopupsApi({
+  latitude,
+  longitude,
+  radiusKm,
+  size,
+} = {}) {
+  if (typeof latitude !== "number" || typeof longitude !== "number") {
+    throw new Error("fetchNearbyPopupsApi: latitude/longitude가 없습니다.");
+  }
+
+  const params = {
+    latitude,
+    longitude,
+  };
+
+  if (radiusKm != null && radiusKm !== "") {
+    params.radiusKm = radiusKm;
+  }
+
+  if (size != null && size !== "") {
+    params.size = size;
+  }
+
+  const res = await apiClient.get("/api/popups/nearby", { params });
   return res.data;
 }

@@ -11,26 +11,36 @@ export default function ManagerMyPage() {
     const initialized = useAuthStore((s) => s.initialized);
     const fetchMe = useAuthStore((s) => s.fetchMe);
 
-    //로그인 & 권한 체크 가드
+    // 로그인 & 권한 체크 가드
     useEffect(() => {
         if (!initialized) {
             fetchMe();
             return;
         }
+
         if (initialized && !authUser) {
             alert("로그인이 필요합니다.");
             navigate("/login", { replace: true });
             return;
         }
+
         if (initialized && authUser && authUser.role !== "MANAGER") {
             alert("매니저 전용 페이지입니다.");
             navigate("/", { replace: true });
         }
     }, [initialized, authUser, fetchMe, navigate]);
 
-    //렌더링
+    // 렌더링
     return (
-        <main className="min-h-[calc(100vh-88px)] bg-secondary-light px-4 py-10 flex flex-col items-center gap-16">
+        <main
+            className="
+                min-h-[calc(100vh-88px)]
+                bg-[var(--color-paper-light)]
+                px-4 py-10
+                flex flex-col items-center gap-16
+                font-[var(--font-sans)]
+            "
+        >
             {/* 상단 프로필 영역 */}
             <ManagerProfileSection />
 

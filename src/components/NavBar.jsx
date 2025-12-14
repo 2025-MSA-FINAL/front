@@ -1,14 +1,24 @@
 // src/components/NavBar.jsx
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import logo from "../assets/logo.png";
 import { useAuthStore } from "../store/authStore";
+import {
+  setTheme as applyTheme,
+  getCurrentTheme,
+  AVAILABLE_THEMES,
+} from "../theme";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isThemeOpen, setIsThemeOpen] = useState(false);
+  const [theme, setTheme] = useState(() => getCurrentTheme());
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = location.pathname;
+
   const { user, logout, fetchMe, initialized } = useAuthStore();
 
   const isLoggedIn = !!user;
@@ -16,6 +26,7 @@ export default function Navbar() {
   const isManager = role === "MANAGER";
   const isAdmin = role === "ADMIN";
 
+  // 로그인 사용자 정보 초기화
   useEffect(() => {
     if (!initialized) {
       fetchMe();
@@ -27,6 +38,7 @@ export default function Navbar() {
     user?.profileImage ||
     "https://cdn-icons-png.flaticon.com/512/4211/4211178.png";
 
+  // 프로필 드롭다운 너비 (닉네임 길이에 따라 보정)
   let widthClass = "w-[170px]";
   if (isLoggedIn && username) {
     const rawLen = username.length;
@@ -41,6 +53,12 @@ export default function Navbar() {
         ? "w-[160px]"
         : "w-[170px]";
   }
+
+  const handleThemeChange = (nextTheme) => {
+    applyTheme(nextTheme); // html data-theme + localStorage 업데이트
+    setTheme(nextTheme); // NavBar UI 업데이트
+    setIsThemeOpen(false); // 팝오버 닫기
+  };
 
   const handleLoginClick = () => navigate("/login");
 
@@ -58,8 +76,9 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 bg-paper h-[88px]">
       <div className="w-full max-w-7xl mx-auto px-6 md:px-12 h-full flex justify-between items-center">
-        {/* LEFT LOGO */}
+        {/* LEFT: 로고 + 데스크탑 메뉴 */}
         <div className="flex items-center gap-12 lg:gap-20">
+          {/* 로고 */}
           <Link to="/" className="flex-shrink-0">
             <img
               src={logo}
@@ -68,47 +87,175 @@ export default function Navbar() {
             />
           </Link>
 
-          {/* DESKTOP MENU */}
+          {/* 데스크탑 메뉴 */}
           <div className="hidden md:flex items-center gap-8">
-            {["HOME", "POP-UP", "CHAT"].map((item) => (
-              <Link
-                key={item}
-                to={item === "HOME" ? "/" : `/${item.toLowerCase()}`}
-                className="
-                  relative
-                  text-title-md font-normal text-text-black
-                  hover:text-primary
-                  transition-colors
-                  group
-                "
-              >
-                <span className="relative inline-block">
-                  {/* 메뉴 텍스트 */}
-                  <span>{item}</span>
+            {["HOME", "POP-UP", "MAP", "CHAT"].map((item) => {
+              let path;
 
-                  {/* 가운데에서 양옆으로 퍼지는 보라색 밑줄 */}
-                  <span
-                    className="
-                      pointer-events-none
-                      absolute
-                      left-1/2 -translate-x-1/2
-                      -bottom-1
-                      h-[2px]
-                      w-0
-                      bg-primary
-                      transition-all
-                      duration-300
-                      group-hover:w-full
-                    "
-                  />
-                </span>
-              </Link>
-            ))}
+              if (item === "HOME") {
+                path = "/";
+              } else if (item === "MAP") {
+                // MAP은 가까운 팝업 페이지로 연결
+                path = "/popup/nearby";
+              } else {
+                // POP-UP, CHAT
+                path = `/${item.toLowerCase()}`;
+              }
+
+              const isActive =
+                // HOME
+                (item === "HOME" && currentPath === "/") ||
+                // MAP: /popup/nearby 로 시작하는 경로
+                (item === "MAP" && currentPath.startsWith("/popup/nearby")) ||
+                // POP-UP: /popup 로 시작하지만 /popup/nearby 는 제외
+                (item === "POP-UP" &&
+                  currentPath.startsWith("/popup") &&
+                  !currentPath.startsWith("/popup/nearby")) ||
+                // CHAT: /chat 로 시작하는 경로
+                (item === "CHAT" && currentPath.startsWith("/chat"));
+
+              return (
+                <Link
+                  key={item}
+                  to={path}
+                  className="
+                    relative
+                    text-title-md font-normal text-text-black
+                    hover:text-primary hover:font-extrabold
+                    transition-colors
+                    group
+                  "
+                >
+                  <span className="relative inline-block">
+                    {/* 메뉴 텍스트 */}
+                    <span
+                      className={
+                        isActive
+                          ? "font-extrabold text-primary"
+                          : "font-normal text-text-black"
+                      }
+                    >
+                      {item}
+                    </span>
+
+                    {/* 가운데에서 양옆으로 퍼지는/고정되는 보라색 밑줄 */}
+                    <span
+                      className={`
+                        pointer-events-none
+                        absolute
+                        left-1/2 -translate-x-1/2
+                        -bottom-1
+                        h-[2px]
+                        bg-primary
+                        transition-all
+                        duration-300
+                        ${isActive ? "w-full" : "w-0 group-hover:w-full"}
+                      `}
+                    />
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </div>
 
-        {/* RIGHT AREA */}
+        {/* RIGHT: 테마 설정 + 프로필 or 로그인 버튼 (데스크탑) */}
         <div className="hidden md:flex items-center gap-4 relative z-50">
+          {/* 테마 설정 버튼 + 팝오버 */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setIsThemeOpen((prev) => !prev);
+                setIsProfileOpen(false); // 설정 열면 프로필 드롭다운은 닫기
+              }}
+              className="
+                flex items-center gap-1
+                rounded-full border border-secondary-light bg-paper
+                px-3 py-1 text-xs text-text-sub
+                hover:bg-secondary-light hover:text-text-main
+                transition-colors
+              "
+            >
+              <svg
+                className="w-4 h-4"
+                viewBox="0 0 20 20"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M11.458 2.5L8.542 2.5L7.917 4.167L6.542 4.792L4.958 3.75L3.75 4.958L4.792 6.542L4.167 7.917L2.5 8.542L2.5 11.458L4.167 12.083L4.792 13.458L3.75 15.042L4.958 16.25L6.542 15.208L7.917 15.833L8.542 17.5L11.458 17.5L12.083 15.833L13.458 15.208L15.042 16.25L16.25 15.042L15.208 13.458L15.833 12.083L17.5 11.458L17.5 8.542L15.833 7.917L15.208 6.542L16.25 4.958L15.042 3.75L13.458 4.792L12.083 4.167L11.458 2.5Z"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle
+                  cx="10"
+                  cy="10"
+                  r="2.5"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                />
+              </svg>
+              <span className="font-medium">설정</span>
+              <svg
+                className={`w-3 h-3 text-text-sub transition-transform ${
+                  isThemeOpen ? "rotate-180" : ""
+                }`}
+                viewBox="0 0 20 20"
+                fill="none"
+              >
+                <path
+                  d="M5 7.5L10 12.5L15 7.5"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+
+            {isThemeOpen && (
+              <div
+                className="
+                  absolute right-0 mt-2 w-48
+                  rounded-2xl border border-secondary bg-paper
+                  shadow-dropdown p-2 text-xs
+                "
+              >
+                <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-text-sub">
+                  테마
+                </div>
+                <div className="flex flex-col gap-1">
+                  {AVAILABLE_THEMES.map((mode) => (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => handleThemeChange(mode.id)}
+                      className={`
+                        flex items-center justify-between w-full
+                        px-2 py-1 rounded-xl
+                        text-left transition-colors
+                        ${
+                          theme === mode.id
+                            ? "bg-primary text-text-white"
+                            : "text-text-sub hover:bg-secondary-light hover:text-text-main"
+                        }
+                      `}
+                    >
+                      <span>{mode.label}</span>
+                      {theme === mode.id && (
+                        <span className="text-[10px]">선택됨</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 프로필 드롭다운 */}
           {isLoggedIn && (
             <div className={`relative ${widthClass}`}>
               <div className="h-[40px]" />
@@ -124,9 +271,12 @@ export default function Navbar() {
                     }
                   `}
                 >
-                  {/* TRIGGER */}
+                  {/* 드롭다운 트리거 */}
                   <button
-                    onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    onClick={() => {
+                      setIsProfileOpen(!isProfileOpen);
+                      setIsThemeOpen(false); // 프로필 열면 설정 팝오버는 닫기
+                    }}
                     className="flex w-full items-center justify-between gap-2 px-2 py-1.5"
                   >
                     <div className="flex items-center gap-2 overflow-hidden">
@@ -157,15 +307,11 @@ export default function Navbar() {
                     </svg>
                   </button>
 
-                  {/* DROPDOWN CONTENT */}
+                  {/* 드롭다운 내용 */}
                   <div
                     className={`
                       overflow-hidden transition-[max-height,opacity] duration-300
-                      ${
-                        isProfileOpen
-                          ? "max-h-40 opacity-100"
-                          : "max-h-0 opacity-0"
-                      }
+                      ${isProfileOpen ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}
                     `}
                   >
                     <div className="h-px bg-secondary-light mx-3 my-1" />
@@ -173,48 +319,68 @@ export default function Navbar() {
                     <div className="flex flex-col pb-1">
                       {/* USER 메뉴 */}
                       {!isManager && !isAdmin && (
-                        <><Link
-                          to="/mypage"
-                          className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
-                          onClick={() => setIsProfileOpen(false)}
-                        >
-                          <svg
-                            className="w-5 h-5 text-text-sub"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                        <>
+                          <Link
+                            to="/mypage"
+                            className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
+                            onClick={() => setIsProfileOpen(false)}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                          마이 페이지
-                        </Link>
+                            <svg
+                              className="w-5 h-5 text-text-sub"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                              />
+                            </svg>
+                            마이 페이지
+                          </Link>
 
-                        <Link
-                          to="/me/report"
-                          className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
-                          onClick={() => setIsProfileOpen(false)}
-                        >
-                          <svg
-                            className="w-5 h-5 text-text-sub"
-                            fill="none"
-                            viewBox="0 0 32 32"
-                            xmlns="http://www.w3.org/2000/svg"
+                          <Link
+                            to="/me/report"
+                            className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
+                            onClick={() => setIsProfileOpen(false)}
                           >
-                            <rect x="10" y="18" width="8" height="2" fill="currentColor"></rect>
-                            <rect x="10" y="13" width="12" height="2" fill="currentColor"></rect>
-                            <rect x="10" y="23" width="5" height="2" fill="currentColor"></rect>
-                            <path
-                              d="M25,5H22V4a2,2,0,0,0-2-2H12a2,2,0,0,0-2,2V5H7A2,2,0,0,0,5,7V28a2,2,0,0,0,2,2H25a2,2,0,0,0,2-2V7A2,2,0,0,0,25,5ZM12,4h8V8H12ZM25,28H7V7h3v3H22V7h3Z"
-                              fill="currentColor"
-                            />
-                          </svg>
-
-                          유저 리포트
-                        </Link></>
+                            <svg
+                              className="w-5 h-5 text-text-sub"
+                              fill="none"
+                              viewBox="0 0 32 32"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <rect
+                                x="10"
+                                y="18"
+                                width="8"
+                                height="2"
+                                fill="currentColor"
+                              />
+                              <rect
+                                x="10"
+                                y="13"
+                                width="12"
+                                height="2"
+                                fill="currentColor"
+                              />
+                              <rect
+                                x="10"
+                                y="23"
+                                width="5"
+                                height="2"
+                                fill="currentColor"
+                              />
+                              <path
+                                d="M25,5H22V4a2,2,0,0,0-2-2H12a2,2,0,0,0-2,2V5H7A2,2,0,0,0,5,7V28a2,2,0,0,0,2,2H25a2,2,0,0,0,2-2V7A2,2,0,0,0,25,5ZM12,4h8V8H12ZM25,28H7V7h3v3H22V7h3Z"
+                                fill="currentColor"
+                              />
+                            </svg>
+                            유저 리포트
+                          </Link>
+                        </>
                       )}
 
                       {/* MANAGER 메뉴 */}
@@ -225,7 +391,6 @@ export default function Navbar() {
                             className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
                             onClick={() => setIsProfileOpen(false)}
                           >
-                            {/* 📁 매니저 페이지 아이콘 */}
                             <svg
                               className="w-5 h-5 text-text-sub"
                               fill="none"
@@ -247,7 +412,6 @@ export default function Navbar() {
                             className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
                             onClick={() => setIsProfileOpen(false)}
                           >
-                            {/* ➕ 팝업 등록 아이콘 */}
                             <svg
                               className="w-5 h-5 text-text-sub"
                               fill="none"
@@ -266,13 +430,13 @@ export default function Navbar() {
                         </>
                       )}
 
+                      {/* ADMIN 메뉴 */}
                       {isAdmin && (
                         <Link
                           to="/admin"
                           className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
                           onClick={() => setIsProfileOpen(false)}
                         >
-                          {/* 🛠 관리자 페이지 아이콘 - 업로드한 톱니바퀴 SVG 인라인 */}
                           <svg
                             className="w-5 h-5 text-text-sub flex-shrink-0"
                             viewBox="0 0 28 28"
@@ -299,7 +463,7 @@ export default function Navbar() {
                         </Link>
                       )}
 
-                      {/* LOGOUT */}
+                      {/* 로그아웃 */}
                       <button
                         className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-accent-pink hover:bg-accent-pink/10 text-left"
                         onClick={handleLogoutClick}
@@ -333,7 +497,7 @@ export default function Navbar() {
             </div>
           )}
 
-          {/* LOG IN BUTTON */}
+          {/* 로그인 버튼 (데스크탑) */}
           {!isLoggedIn && (
             <button
               type="button"
@@ -348,7 +512,7 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* MOBILE TOGGLE */}
+        {/* 모바일 메뉴 토글 버튼 */}
         <div className="md:hidden">
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -377,22 +541,62 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* MOBILE MENU */}
+      {/* 모바일 메뉴 전체 영역 */}
       {isMenuOpen && (
         <div className="md:hidden absolute top-[88px] left-0 w-full bg-paper border-b border-secondary shadow-brand py-4 px-6 flex flex-col gap-4">
-          {["HOME", "POP-UP", "CHAT"].map((item) => (
-            <Link
-              key={item}
-              to={item === "HOME" ? "/" : `/${item.toLowerCase()}`}
-              className="text-title-md font-medium text-text-sub hover:text-primary py-2 border-b border-secondary-light"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              {item}
-            </Link>
-          ))}
+          {/* 모바일 상단 메뉴 리스트 */}
+          {["HOME", "POP-UP", "MAP", "CHAT"].map((item) => {
+            let path;
+
+            if (item === "HOME") {
+              path = "/";
+            } else if (item === "MAP") {
+              path = "/popup/nearby";
+            } else {
+              path = `/${item.toLowerCase()}`;
+            }
+
+            return (
+              <Link
+                key={item}
+                to={path}
+                className="text-title-md font-medium text-text-sub hover:text-primary py-2 border-b border-secondary-light"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {item}
+              </Link>
+            );
+          })}
 
           <div className="flex flex-col gap-3 mt-2">
-            {/* USER */}
+            {/* 테마 설정 (모바일용 간단 버전) */}
+            <div className="rounded-2xl border border-secondary-light bg-paper-light px-3 py-2 text-xs">
+              <div className="mb-1 text-[11px] font-semibold text-text-sub">
+                테마
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {AVAILABLE_THEMES.map((mode) => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => handleThemeChange(mode.id)}
+                    className={`
+                      px-2 py-1 rounded-full
+                      transition-colors
+                      ${
+                        theme === mode.id
+                          ? "bg-primary-soft text-text-black"
+                          : "bg-paper text-text-sub hover:bg-secondary-light hover:text-text-main"
+                      }
+                    `}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* USER 버튼들 */}
             {!isManager && !isAdmin && isLoggedIn && (
               <Link
                 to="/mypage"
@@ -403,7 +607,7 @@ export default function Navbar() {
               </Link>
             )}
 
-            {/* MANAGER */}
+            {/* MANAGER 버튼들 */}
             {isManager && (
               <>
                 <Link
@@ -424,7 +628,7 @@ export default function Navbar() {
               </>
             )}
 
-            {/* ADMIN */}
+            {/* ADMIN 버튼 */}
             {isAdmin && (
               <Link
                 to="/admin"
@@ -435,7 +639,7 @@ export default function Navbar() {
               </Link>
             )}
 
-            {/* LOGOUT */}
+            {/* 로그아웃 버튼 (모바일) */}
             {isLoggedIn && (
               <button
                 className="w-full py-3 rounded-btn border border-secondary text-text-sub"
@@ -448,7 +652,7 @@ export default function Navbar() {
               </button>
             )}
 
-            {/* GUEST */}
+            {/* 비로그인 상태 (모바일) */}
             {!isLoggedIn && (
               <button
                 className="w-full py-3 rounded-full border border-[#C33DFF] text-[#C33DFF] hover:bg-[#C33DFF]/10"

@@ -1,6 +1,7 @@
 // src/store/authStore.js
 import { create } from "zustand";
 import { loginApi, logoutApi, fetchMeApi } from "../api/authApi";
+import { useChatStore } from "../store/chat/chatStore";
 
 export const useAuthStore = create((set, get) => ({
   user: null,          // 현재 로그인한 유저 정보
@@ -36,6 +37,9 @@ export const useAuthStore = create((set, get) => ({
     set({ loading: true, error: null });
     try {
       await logoutApi(); // 쿠키 삭제
+      //로그아웃 시 채팅Store도 초기화
+      const { resetChatStore } = useChatStore.getState();
+      resetChatStore();
       set({ user: null, loading: false, initialized: false });
     } catch (err) {
       console.error("logout error:", err);

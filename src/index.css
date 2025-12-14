@@ -143,6 +143,18 @@
       opacity: 1;
     }
   }
+  /*팝오버*/
+  @keyframes kakao-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 }
 
 
@@ -196,6 +208,153 @@
 
 }
 
+
+/* =========================================
+   THEME MODES
+   - 라이트 / 다크 / 고대비 / 색약 모드
+   ========================================= */
+
+/* 기본은 라이트 모드로 가정 */
+:root {
+  color-scheme: light;
+}
+
+/* 다크 모드 */
+html[data-theme="dark"] {
+  /* 브라우저가 스크롤바/폼 컨트롤도 다크로 맞춰주도록 힌트 */
+  color-scheme: dark;
+
+  /* 배경 */
+  --color-paper-light: #020617; /* page 배경 (slate-950 느낌) */
+  --color-paper:       #020617; /* 카드/섹션 기본 배경 */
+  --color-paper-dark:  #000000; /* 헤더/푸터 등 더 어두운 영역에 사용 가능 */
+
+  /* 텍스트 */
+  --color-text-main:  #E5E7EB; /* slate-200 */
+  --color-text-sub:   #9CA3AF; /* slate-400 */
+  --color-text-black: #E5E7EB; /* 진한 텍스트 역할 */
+  --color-text-white: #F9FAFB; 
+
+  /* 보더/라인 */
+  --color-secondary-light: #1F2937; /* slate-800 */
+  --color-secondary:       #4B5563; /* slate-600 */
+  --color-secondary-dark:  #9CA3AF; /* slate-400 */
+
+  /* 브랜드 컬러 */
+  --color-primary:       #C33DFF; /* 그대로 사용 */
+  --color-primary-light: #3B0764; /* soft 배경용 진한 보라 */
+  --color-primary-soft:  #4C1D95;
+  --color-primary-soft2: #5B21B6;
+
+  /* 액센트 컬러들 - 다크 배경에서도 보이도록 조금 더 진하게 */
+  --color-accent-lemon:      #FACC15;      /* 노랑 */
+  --color-accent-lemon-soft: #FACC1533;   /* 살짝 투명한 노랑 배경 */
+
+  --color-accent-lime:       #22C55E;      /* 라임 초록 */
+  --color-accent-lime-soft:  #22C55E33;
+
+  --color-accent-aqua:       #0EA5E9;      /* 청록 */
+  --color-accent-aqua-soft:  #0EA5E933;
+
+  --color-accent-pink:       #EC4899;      /* 핑크 */
+  --color-accent-pink-soft:  #EC489933;
+}
+
+/* 고대비 모드 */
+html[data-theme="high-contrast"] {
+  color-scheme: dark;
+
+  /* 배경: 전부 검정 */
+  --color-paper-light: #000000;
+  --color-paper:       #000000;
+  --color-paper-dark:  #000000;
+
+  /* 텍스트: 토큰은 모두 흰색으로 통일 (검은 배경에서 항상 보이게) */
+  --color-text-main:  #FFFFFF;
+  --color-text-sub:   #FFFFFF;
+  --color-text-black: #FFFFFF;
+  --color-text-white: #FFFFFF;
+
+  /* 보더/라인: 흰색 + 노랑 포인트 */
+  --color-secondary-light: #FFFFFF;
+  --color-secondary:       #FFFF00;
+  --color-secondary-dark:  #FFFF00;
+
+  /* 브랜드/CTA: 강한 노랑, soft 는 어두운 노랑 톤 */
+  --color-primary:       #FFFF00;  /* 버튼/강조 텍스트 */
+  --color-primary-light: #000000;  /* 노랑 배경 위 텍스트 등에 사용 가능 */
+  --color-primary-dark:  #FFFFFF;
+  --color-primary-soft:  #333300;  /* 어두운 노랑톤 배경 */
+  --color-primary-soft2: #333300;
+
+  /* 액센트 컬러들 (추가 포인트용) */
+  --color-accent-lemon:      #FFFF00;
+  --color-accent-lemon-soft: #FFFF0033;
+
+  --color-accent-lime:       #00FFFF;   /* 시안 */
+  --color-accent-lime-soft:  #00FFFF33;
+
+  --color-accent-aqua:       #FFFFFF;
+  --color-accent-aqua-soft:  #FFFFFF33;
+
+  --color-accent-pink:       #FF00FF;   /* 마젠타 */
+  --color-accent-pink-soft:  #FF00FF33;
+}
+
+/* Tailwind .text-black 쓰는 곳도 고대비에선 흰색으로 보이게 강제 */
+html[data-theme="high-contrast"] .text-black {
+  color: #FFFFFF !important;
+}
+
+/* ===== Popup 해시태그: 고대비일 때 색만 조정 ===== */
+html[data-theme="high-contrast"] .popup-hashtag {
+  background-color: var(--color-paper);   /* 고대비에서 = #000 */
+  color: var(--color-primary);            /* 고대비에서 = 노랑 */
+}
+
+/* 색약 친화 모드 (cb-safe) */
+html[data-theme="cb-safe"] {
+  color-scheme: light;
+
+  /* 배경은 기본 라이트 모드와 거의 비슷하게, 약간 대비만 올림 */
+  --color-paper-light: #F3F4F6; /* 약간 더 밝은 회색 */
+  --color-paper:       #FFFFFF;
+  --color-paper-dark:  #E5E7EB;
+
+  /* 텍스트는 살짝 더 진하게 */
+  --color-text-main:  #111827; /* slate-900 */
+  --color-text-sub:   #4B5563; /* slate-600 */
+  --color-text-black: #111827;
+  --color-text-white: #FFFFFF;
+
+  /* 보더/라인은 조금 더 눈에 띄게 */
+  --color-secondary-light: #D1D5DB; /* slate-300 */
+  --color-secondary:       #9CA3AF; /* slate-400 */
+  --color-secondary-dark:  #4B5563; /* slate-600 */
+
+  /* 브랜드/CTA: 파랑 계열로 통일 (초록/빨강 피하기) */
+  --color-primary:       #2563EB; /* blue-600 */
+  --color-primary-light: #DBEAFE; /* blue-100 */
+  --color-primary-dark:  #1D4ED8; /* blue-700 */
+  --color-primary-soft:  #EFF6FF; /* blue-50 */
+  --color-primary-soft2: #BFDBFE; /* blue-200 */
+
+  /* 액센트 컬러들: 파랑/오렌지/보라/시안 계열로 재정의 */
+  --color-accent-lemon:      #F97316;   /* orange-500 */
+  --color-accent-lemon-soft: #F9731633;
+
+  --color-accent-lime:       #0EA5E9;   /* cyan-500 */
+  --color-accent-lime-soft:  #0EA5E933;
+
+  --color-accent-aqua:       #6366F1;   /* indigo-500 */
+  --color-accent-aqua-soft:  #6366F133;
+
+  --color-accent-pink:       #A855F7;   /* purple-500 느낌 */
+  --color-accent-pink-soft:  #A855F733;
+}
+
+
+
 @layer base {
 
   /* 루트 요소 높이 100% */
@@ -224,6 +383,7 @@
 }
 
 @layer utilities {
+  /*스크롤*/
   .scrollbar-hide {
     -ms-overflow-style: none; /* IE & Edge */
     scrollbar-width: none; /* Firefox */
@@ -252,6 +412,47 @@
   .animate-float-down {
     animation: float-down 1.6s ease-in-out infinite;
   }
+
+  /*입력중*/
+  @layer utilities {
+    @keyframes ai-thinking {
+  0%   { opacity: 0.4; transform: scale(0.95); }
+  40%  { opacity: 1;   transform: scale(1.05); }
+  80%  { opacity: 0.6; transform: scale(1); }
+  100% { opacity: 0.4; }
+}
+
+.animate-ai-thinking {
+  animation: ai-thinking 2.2s ease-in-out infinite;
+}
+    @keyframes user-typing {
+      0%   { opacity: 0.3; transform: translateY(0); }
+      30%  { opacity: 0.9; transform: translateY(-4px); }
+      60%  { opacity: 0.4; transform: translateY(0); }
+      100% { opacity: 0.3; }
+    }
+
+    .animate-user-typing {
+      animation: user-typing 1.4s ease-in-out infinite;
+    }
+  }
+  @keyframes ai-bubble {
+    0% {
+      opacity: 0;
+      transform: translateY(6px) scale(0.98);
+    }
+    60% {
+      opacity: 1;
+      transform: translateY(-2px) scale(1.02);
+    }
+    100% {
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .animate-ai-bubble {
+    animation: ai-bubble 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
 }
 
 /* 인원수 input 숫자 스핀 버튼 제거 */
@@ -268,19 +469,55 @@
 .chat-textarea-scroll::-webkit-scrollbar {
   width: 6px;
 }
+
 .chat-textarea-scroll::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 999px;
+  margin: 10px; 
 }
+
 .chat-textarea-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.28); 
   border-radius: 999px;
+  backdrop-filter: blur(6px);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
+
 .chat-textarea-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+  cursor: pointer;
 }
+
+/* ===== Custom Scrollbar (모달용) ===== */
+.custom-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  margin: 10px; 
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: rgba(167, 139, 250, 0.9); /* 보라 단색 */
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.6); /* 은은한 안쪽광 */
+}
+
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(167, 139, 250, 1); /* hover 시 조금 더 진하게 */
+  cursor: pointer;
+}
+
 
 /* select 기본 화살표 감추기 */
 .custom-select {
   background-image: none;
+}
+
+/* 팝오버 애니메이션 */
+.animate-kakao-pop {
+  animation: kakao-pop 0.18s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }

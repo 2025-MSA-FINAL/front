@@ -6,7 +6,7 @@ import { formatDateKey } from "../../utils/reservationDateUtils";
 import { apiClient } from "../../api/authApi";
 import PrimaryButton from "../../components/button/PrimaryButton.jsx";
 import { ReservationLeftForm } from "../../components/reservation/ReservationLeftForm.jsx";
-import { ReservationCalendar } from "../../components/reservation/ReservationCalendar.jsx";
+import { ReservationCalendar }  from "../../components/reservation/ReservationCalendar.jsx";
 import { ReservationSummary } from "../../components/reservation/ReservationSummary.jsx";
 
 function PopupReservationSettingPage() {
@@ -126,6 +126,9 @@ function PopupReservationSettingPage() {
     }
   };
 
+  // src/pages/reservation/PopupReservationSettingPage.jsx
+// ...위 코드는 그대로...
+
   return (
     <div className="min-h-screen bg-[#F7F5FF] flex justify-center py-10">
       <div className="w-[1120px] rounded-[32px] bg-white shadow-xl px-10 pt-8 pb-6 flex flex-col">
@@ -134,7 +137,7 @@ function PopupReservationSettingPage() {
         </h1>
 
         {/* 상단: 왼쪽 폼 + 오른쪽 캘린더 */}
-        <div className="flex flex-row gap-8 items-start">
+        <div className="flex flex-row gap-6 items-center">
           {/* 왼쪽을 조금 더 넓게 (6 : 5 비율) */}
           <div className="flex-[6] flex flex-col">
             <ReservationLeftForm />
@@ -159,3 +162,4 @@ function PopupReservationSettingPage() {
 }
 
 export default PopupReservationSettingPage;
+

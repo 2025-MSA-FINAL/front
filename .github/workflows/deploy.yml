@@ -1,12 +1,12 @@
 name: Deploy to S3
 
 on:
-  push:
-    branches:
-      - main  # main 브랜치에 푸시할 때 실행
   pull_request:
     branches:
-      - main  # PR 시 린트 체크만 실행
+      - dev          # dev 브랜치 대상으로 PR 생성/업데이트 시 실행 (lint만)
+  push:
+    branches:
+      - dev          # dev 브랜치에 push(= PR merge 포함)될 때 실행 (lint + deploy)
 
 jobs:
   # 린트 검사 (실패해도 계속 진행)
@@ -15,49 +15,54 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-
+      
       - name: Install dependencies
         run: npm ci
-
+      
       - name: Run lint
         run: npm run lint
         continue-on-error: true  # 린트 실패해도 계속 진행
 
   # 빌드 및 배포
   deploy:
-    needs: lint  # lint 작업 완료 후 실행 (실패해도 진행됨)
+    needs: lint                      # lint 작업 완료 후 실행
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'  # main 브랜치 푸시만 배포
-    
+    if: github.event_name == 'push'  # dev 브랜치에 push 되었을 때만 실행 (PR 이벤트에서는 skip)
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-
+      
       - name: Install dependencies
         run: npm ci
-
+      
       - name: Build with Vite
         run: npm run build
-
+        env:
+          # GitHub Secrets에서 환경 변수 주입
+          VITE_KAKAO_MAP_KEY: ${{ secrets.VITE_KAKAO_MAP_KEY }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_WS_BASE_URL: ${{ secrets.VITE_WS_BASE_URL }}
+      
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-
+      
       - name: Deploy to S3
         run: |
           # assets 폴더 (JS, CSS 등) - 1년 캐싱
@@ -74,13 +79,13 @@ jobs:
             --exclude "assets/*" \
             --exclude "index.html" \
             --cache-control "public, max-age=86400"
-
+      
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \
             --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
             --paths "/*"
-
+      
       - name: Deployment complete
         run: |
           echo "🚀 Deployment completed successfully!"

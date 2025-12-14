@@ -1,13 +1,6 @@
 // src/api/chatApi.js
-import axios from "axios";
+import { apiClient } from "./authApi";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
-
-// 공통 axios 클라이언트
-export const apiClient = axios.create({
-  baseURL: API_BASE,
-  withCredentials: true, // httpOnly 쿠키 사용
-});
 
 /* -------------------------------------------
     1) 내가 참여한 채팅방 목록 조회
@@ -130,6 +123,24 @@ export async function unhideChatRoom(crhType, crhRoomId) {
 }
 
 /* -------------------------------------------
+    5) 유저 프로필 조회
+------------------------------------------- */
+export async function getMiniUserProfile(userId) {
+  const res = await apiClient.get(`/api/chat/users/${userId}`);
+  return res.data; 
+}
+
+/* -------------------------------------------
+    6) AI 채팅 시작
+------------------------------------------- */
+export async function startAiChat() {
+  const res = await apiClient.post("/api/chat/private/start-ai", null, {
+    headers: { "Content-Type": "application/json" },
+  });
+  return res.data; // roomId
+}
+
+/* -------------------------------------------
     기본 export
 ------------------------------------------- */
 export default {
@@ -149,4 +160,6 @@ export default {
 
   hideChatRoom,
   unhideChatRoom,
+  getMiniUserProfile,
+  startAiChat,
 };
