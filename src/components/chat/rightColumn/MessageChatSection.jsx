@@ -100,6 +100,9 @@ export default function MessageChatSection() {
   const [typingUsers, setTypingUsers] = useState(new Map());
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [lastReadMessageId, setLastReadMessageId] = useState(null);
+  const [otherLastReadMessageId, setOtherLastReadMessageId] = useState(null);
+  const [participants, setParticipants] = useState([]);
 
   const subRef = useRef(null);
   const scrollRef = useRef(null);
@@ -189,12 +192,21 @@ export default function MessageChatSection() {
     const currentCount = messages.length;
 
     if (!isAtBottom && currentCount > prevCount) {
-      const diff = currentCount - prevCount;
-      setUnreadCount((c) => c + diff);
+      const newMessages = messages.slice(prevCount);
+
+      const unreadIncrement = newMessages.filter((m) => {
+        const isMine = m.senderId === currentUserId;
+        const isAi = m.senderId === 20251212;
+        return !isMine && !isAi;
+      }).length;
+
+      if (unreadIncrement > 0) {
+        setUnreadCount((c) => c + unreadIncrement);
+      }
     }
 
     prevMessageCountRef.current = currentCount;
-  }, [messages, isAtBottom]);
+  }, [messages, isAtBottom, currentUserId]);
 
   /* textarea 자동 높이 (최대 120px) */
   useEffect(() => {
@@ -218,6 +230,7 @@ export default function MessageChatSection() {
   /* WebSocket 메시지 수신 */
   const onMessageReceived = (msg) => {
     const body = JSON.parse(msg.body);
+    console.log("📩 WS recv:", body.type, body);
 
     // 🔹 1) 타이핑 이벤트
     if (body.type === "TYPING_START") {
@@ -238,6 +251,40 @@ export default function MessageChatSection() {
         return next;
       });
       return;
+    }
+
+    // 🔹 3) 읽음 이벤트
+    if (body.type === "READ") {
+      const { readerUserId, lastReadMessageId } = body;
+
+      // 🔥 PRIVATE: 누가 읽었든 무조건 갱신
+      if (roomType === "PRIVATE") {
+        const readerId = Number(body.readerUserId);
+        const lr = Number(body.lastReadMessageId);
+
+        if (readerId === currentUserId) {
+          // 내가 읽은 경우
+          setLastReadMessageId(lr);
+        } else {
+          // 🔥 상대가 읽은 경우 → 이게 핵심
+          setOtherLastReadMessageId(lr);
+        }
+        return;
+      }
+
+      // GROUP
+      const rid = Number(readerUserId);
+      const lr = Number(lastReadMessageId);
+
+      setParticipants((prev = []) =>
+        prev.map((p) =>
+          Number(p.userId) === rid ? { ...p, lastReadMessageId: lr } : p
+        )
+      );
+
+      if (rid === Number(currentUserId)) {
+        setLastReadMessageId(lr);
+      }
     }
 
     // 🔹 2) 메시지
@@ -337,6 +384,21 @@ export default function MessageChatSection() {
     setTimeout(scrollToBottom, 20);
   };
 
+  const sendRead = (messageId) => {
+    const client = getStompClient();
+    if (!client?.connected) return;
+
+    client.publish({
+      destination: "/pub/chat/read",
+      body: JSON.stringify({
+        roomType,
+        roomId,
+        lastReadMessageId: messageId,
+        senderId: currentUserId,
+      }),
+    });
+  };
+
   /* 초기 메시지 로드 + WebSocket 연결 */
   useEffect(() => {
     if (!activeRoom || !roomType) return;
@@ -345,23 +407,28 @@ export default function MessageChatSection() {
     if (!roomKey) return;
 
     const load = async () => {
-      try {
-        const res = await axios.get(`${API_BASE}/api/chat/messages`, {
-          params: { roomId: roomKey, roomType, limit: 60 },
-          withCredentials: true,
-        });
+      const res = await axios.get(`${API_BASE}/api/chat/messages`, {
+        params: { roomId: roomKey, roomType, limit: 60 },
+        withCredentials: true,
+      });
 
-        setMessages(
-          res.data.reverse().map((m) => ({
-            ...m,
-            createdAt: formatTime(m.createdAt),
-            minuteKey: toMinuteKey(m.createdAt),
-            dateLabel: formatDateLabel(m.createdAt),
-          }))
-        );
-      } catch (e) {
-        console.error("❌ fetchMessages:", e);
-      }
+      const {
+        messages,
+        lastReadMessageId,
+        participants, // 👈 추가
+      } = res.data;
+
+      setLastReadMessageId(lastReadMessageId);
+      setParticipants(participants ?? []);
+
+      setMessages(
+        messages.reverse().map((m) => ({
+          ...m,
+          createdAt: formatTime(m.createdAt),
+          minuteKey: toMinuteKey(m.createdAt),
+          dateLabel: formatDateLabel(m.createdAt),
+        }))
+      );
     };
 
     load();
@@ -393,8 +460,20 @@ export default function MessageChatSection() {
 
       setIsAtBottom(atBottom);
 
-      if (atBottom) {
-        setUnreadCount(0); // 바닥 도착하면 읽음 처리
+      if (atBottom && messages.length > 0) {
+        const lastUnreadFromOther = [...messages]
+          .reverse()
+          .find(
+            (m) => typeof m.cmId === "number" && m.senderId !== currentUserId
+          );
+
+        if (
+          lastUnreadFromOther &&
+          lastUnreadFromOther.cmId !== lastReadMessageId
+        ) {
+          setUnreadCount(0);
+          sendRead(lastUnreadFromOther.cmId);
+        }
       }
     };
 
@@ -402,7 +481,21 @@ export default function MessageChatSection() {
     handleScroll();
 
     return () => el.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [messages, lastReadMessageId]);
+
+  useEffect(() => {
+    if (!messages.length) return;
+    if (!isAtBottom) return;
+
+    const lastMsg = [...messages]
+      .reverse()
+      .find((m) => typeof m.cmId === "number");
+
+    if (!lastMsg) return;
+    if (lastMsg.cmId <= lastReadMessageId) return;
+
+    sendRead(lastMsg.cmId);
+  }, [messages, isAtBottom, lastReadMessageId]);
 
   /* 날짜 구분선 */
   const DateDivider = ({ label }) => (
@@ -428,6 +521,13 @@ export default function MessageChatSection() {
       }),
     });
   };
+
+  const unreadStartIndex =
+    lastReadMessageId > 0
+      ? messages.findIndex(
+          (m) => typeof m.cmId === "number" && m.cmId > lastReadMessageId
+        )
+      : -1;
 
   /* =======================================================================
         📌 RENDER
@@ -604,15 +704,38 @@ export default function MessageChatSection() {
               next.senderId !== msg.senderId ||
               next.minuteKey !== msg.minuteKey;
 
+            const showUnreadDivider =
+              unreadStartIndex >= 0 && i === unreadStartIndex;
+
             return (
               <div key={i} className="mb-1">
                 {showDateDivider && <DateDivider label={msg.dateLabel} />}
+
+                {showUnreadDivider && (
+                  <div className="flex justify-center my-3">
+                    <span
+                      className="
+                        text-xs font-semibold
+                        text-primary-light
+                        bg-primary-soft2/30
+                        px-4 py-1 rounded-full
+                      "
+                    >
+                      여기까지 읽음
+                    </span>
+                  </div>
+                )}
 
                 <MessageItem
                   msg={msg}
                   isMine={isMine}
                   isGroupWithPrev={isGroupWithPrev}
                   showTime={showTime}
+                  lastReadMessageId={lastReadMessageId}
+                  otherLastReadMessageId={otherLastReadMessageId}
+                  roomType={roomType}
+                  participants={participants}
+                  currentUserId={currentUserId}
                   onOpenUserPopover={(id, ref) => {
                     setOpenUserPopover(id);
                     setUserAnchorRef(ref);
