@@ -10,6 +10,11 @@ export default function MessageItem({
   isMine,
   isGroupWithPrev,
   showTime,
+  lastReadMessageId,
+  otherLastReadMessageId,
+  roomType,
+  participants,
+  currentUserId,
   onOpenUserPopover,
 }) {
   const [openFullModal, setOpenFullModal] = useState(false);
@@ -27,9 +32,52 @@ export default function MessageItem({
 
   const computedNickname = isDeletedUser ? "알 수 없음" : msg.senderNickname;
 
-  const isAi = msg.senderId === AI_USER_ID;
+  const isAiMessage = msg.senderId === AI_USER_ID;
 
-  const bubbleAnimationClass = isAi && msg.animateIn ? "animate-ai-bubble" : "";
+  const bubbleAnimationClass =
+    isAiMessage && msg.animateIn ? "animate-ai-bubble" : "";
+
+  console.log("🟡 MessageItem debug");
+  console.log("msg.cmId =", msg.cmId);
+  console.log("participants =", participants);
+
+  const unread = (() => {
+    if (typeof msg.cmId !== "number") return 0;
+    if (isAiMessage) return 0;
+
+    // PRIVATE
+    if (roomType === "PRIVATE") {
+      // 내가 보낸 메시지만 unread 대상
+      if (msg.senderId !== currentUserId) return 0;
+
+      const otherLastRead = otherLastReadMessageId ?? 0;
+      return msg.cmId > otherLastRead ? 1 : 0;
+    }
+
+    // GROUP but 2 users → PRIVATE처럼
+    if (roomType === "GROUP" && participants.length === 2) {
+      const lastRead = lastReadMessageId ?? 0;
+      return msg.cmId > lastRead ? 1 : 0;
+    }
+
+    // GROUP (3명 이상)
+    if (roomType === "GROUP") {
+      if (!participants || participants.length <= 1) return 0;
+
+      const others = participants.filter(
+        (p) => p.userId !== msg.senderId && p.userId !== currentUserId
+      );
+
+      const readers = others.filter(
+        (p) => (p.lastReadMessageId ?? 0) >= msg.cmId
+      ).length;
+
+      const unreadCount = others.length - readers;
+      return unreadCount > 0 ? unreadCount : 0;
+    }
+
+    return 0;
+  })();
 
   return (
     <>
@@ -83,13 +131,21 @@ export default function MessageItem({
                   </div>
                 )}
               </div>
+              <div className="flex flex-col">
+                {/* ✅ 읽음 숫자 표시 (카톡 방식) */}
+                {!isAiMessage && unread > 0 && (
+                  <span className="text-[11px] text-accent-lemon">
+                    {unread}
+                  </span>
+                )}
 
-              {/* 시간 (기존 위치 유지) */}
-              {showTime && (
-                <span className="text-white/50 text-xs mb-1 shrink-0">
-                  {msg.createdAt}
-                </span>
-              )}
+                {/* 시간 (기존 위치 유지) */}
+                {showTime && (
+                  <span className="text-white/50 text-xs mb-1 shrink-0">
+                    {msg.createdAt}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -100,12 +156,20 @@ export default function MessageItem({
         <div className="flex w-full justify-end mb-1">
           <div className="flex flex-col items-end">
             <div className="flex justify-end items-end gap-2">
-              {/* 시간 (기존 위치 유지) */}
-              {showTime && (
-                <span className="text-white/50 text-xs mb-1 shrink-0">
-                  {msg.createdAt}
-                </span>
-              )}
+              <div className="flex flex-col items-end">
+                {/* ✅ 읽음 숫자 표시 (카톡 방식) */}
+                {!isAiMessage && unread > 0 && (
+                  <span className="text-[11px] text-accent-lemon">
+                    {unread}
+                  </span>
+                )}
+                {/* 시간 (기존 위치 유지) */}
+                {showTime && (
+                  <span className="text-white/50 text-xs mb-1 shrink-0">
+                    {msg.createdAt}
+                  </span>
+                )}
+              </div>
 
               {/* 말풍선 */}
               <div
