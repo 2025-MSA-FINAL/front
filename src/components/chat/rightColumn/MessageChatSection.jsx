@@ -256,34 +256,30 @@ export default function MessageChatSection() {
     // 🔹 3) 읽음 이벤트
     if (body.type === "READ") {
       const { readerUserId, lastReadMessageId } = body;
+      const rid = Number(readerUserId);
+      const lr = Number(lastReadMessageId);
 
-      // 🔥 PRIVATE: 누가 읽었든 무조건 갱신
+      // PRIVATE
       if (roomType === "PRIVATE") {
-        const readerId = Number(body.readerUserId);
-        const lr = Number(body.lastReadMessageId);
-
-        if (readerId === currentUserId) {
-          // 내가 읽은 경우
+        if (rid === currentUserId) {
           setLastReadMessageId(lr);
         } else {
-          // 🔥 상대가 읽은 경우 → 이게 핵심
           setOtherLastReadMessageId(lr);
         }
         return;
       }
 
       // GROUP
-      const rid = Number(readerUserId);
-      const lr = Number(lastReadMessageId);
-
       setParticipants((prev = []) =>
         prev.map((p) =>
           Number(p.userId) === rid ? { ...p, lastReadMessageId: lr } : p
         )
       );
 
-      if (rid === Number(currentUserId)) {
+      if (rid === currentUserId) {
         setLastReadMessageId(lr);
+      } else if (participants.length === 2) {
+        setOtherLastReadMessageId(lr);
       }
     }
 

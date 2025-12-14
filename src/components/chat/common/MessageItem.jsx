@@ -56,8 +56,10 @@ export default function MessageItem({
 
     // GROUP but 2 users → PRIVATE처럼
     if (roomType === "GROUP" && participants.length === 2) {
-      const lastRead = lastReadMessageId ?? 0;
-      return msg.cmId > lastRead ? 1 : 0;
+      if (msg.senderId !== currentUserId) return 0;
+
+      const otherLastRead = otherLastReadMessageId ?? 0;
+      return msg.cmId > otherLastRead ? 1 : 0;
     }
 
     // GROUP (3명 이상)
