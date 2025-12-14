@@ -3,7 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { fetchPopupDetailApi, togglePopupWishlistApi } from "../api/popupApi";
 import { useAuthStore } from "../store/authStore";
-import { getGroupChatRoomList, joinGroupChatRoom } from "../api/chatApi";
+import { getGroupChatRoomList, joinGroupChatRoom, getGroupChatRoomDetail } from "../api/chatApi";
+import { useChatStore } from "../store/chat/chatStore";
 
 //상태 라벨 매핑
 const STATUS_LABEL = {
@@ -267,6 +268,19 @@ export default function usePopupDetailPage() {
     }
   };
 
+
+  //해당 채팅방으로 이동
+  const openRoomAndGoChat = async (gcrId) => {
+    const detail = await getGroupChatRoomDetail(gcrId);
+    const { selectRoom, fetchRooms } = useChatStore.getState();
+
+    selectRoom(detail);
+    fetchRooms();
+
+    navigate("/chat");
+  };
+
+
   //채팅방 참여하기
   const handleJoinChatRoom = async (gcrId, options = {}) => {
     const { alreadyJoined } = options || {};
@@ -285,10 +299,8 @@ export default function usePopupDetailPage() {
 
     //이미 참여 중인 방이면 join API 안 쏘고 바로 채팅 페이지로
     if (alreadyJoined) {
-      showToast(
-        "이미 참여 중인 채팅방이에요. 채팅 페이지에서 확인해 보세요! 💬"
-      );
-      navigate("/chat");
+      showToast("이미 참여 중인 채팅방이에요. 채팅 페이지에서 확인해 보세요! 💬");
+      await openRoomAndGoChat(gcrId);
       return;
     }
 
@@ -301,7 +313,7 @@ export default function usePopupDetailPage() {
         await loadChatRooms(popup.popId);
       }
 
-      navigate("/chat");
+      await openRoomAndGoChat(gcrId);
     } catch (error) {
       console.error("채팅방 참여 실패:", error);
 
@@ -311,10 +323,9 @@ export default function usePopupDetailPage() {
       //이미 참여중 (CHAT_001)
       if (code === "CHAT_001") {
         showToast(
-          message ||
-          "이미 참여 중인 채팅방이에요. 채팅 페이지에서 확인해 보세요! 💬"
+          message || "이미 참여 중인 채팅방이에요. 채팅 페이지에서 확인해 보세요! 💬"
         );
-        navigate("/chat");
+        await openRoomAndGoChat(gcrId);
         return;
       }
 
@@ -342,7 +353,7 @@ export default function usePopupDetailPage() {
         return;
       }
 
-      //그 외 기타 에러 (방 삭제, 없음 등)
+      //그 외 기타 에러
       showToast(
         message ||
         "채팅방에 참여할 수 없어요. 조건 불일치 또는 정원 초과일 수 있어요.",
