@@ -109,7 +109,7 @@ export default function Navbar() {
                 (item === "MAP" && currentPath.startsWith("/popup/nearby")) ||
                 // POP-UP: /popup 로 시작하지만 /popup/nearby 는 제외
                 (item === "POP-UP" &&
-                  currentPath.startsWith("/popup") &&
+                  currentPath.startsWith("/pop-up") &&
                   !currentPath.startsWith("/popup/nearby")) ||
                 // CHAT: /chat 로 시작하는 경로
                 (item === "CHAT" && currentPath.startsWith("/chat"));
