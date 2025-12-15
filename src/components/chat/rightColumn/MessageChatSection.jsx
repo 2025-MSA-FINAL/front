@@ -102,6 +102,7 @@ export default function MessageChatSection() {
   const [typingUsers, setTypingUsers] = useState(new Map());
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isSendingImage, setIsSendingImage] = useState(false);
 
   const subRef = useRef(null);
   const scrollRef = useRef(null);
@@ -114,6 +115,8 @@ export default function MessageChatSection() {
   const prevMessageCountRef = useRef(0);
   const fileInputRef = useRef(null);
   const isSendingImageRef = useRef(false);
+  const bottomRef = useRef(null);
+  const pendingUploadMapRef = useRef(new Map());
 
   const currentUserId = useAuthStore((s) => s.user?.userId);
   const activeRoom = useChatStore((s) => s.activeChatRoom);
@@ -186,9 +189,8 @@ export default function MessageChatSection() {
   }, []);
 
   /* 자동 스크롤 */
-  const scrollToBottom = () => {
-    const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+  const scrollToBottom = (behavior = "auto") => {
+    bottomRef.current?.scrollIntoView({ block: "end", behavior });
   };
 
   const typingUserList = Array.from(typingUsers.entries()).map(
@@ -203,9 +205,7 @@ export default function MessageChatSection() {
       : "메시지 입력";
 
   useEffect(() => {
-    if (isAtBottom) {
-      scrollToBottom();
-    }
+    if (isAtBottom) scrollToBottom("auto");
   }, [messages, isAtBottom]);
 
   useEffect(() => {
@@ -307,6 +307,14 @@ export default function MessageChatSection() {
           (m) => m.clientMessageKey !== payload.clientMessageKey
         );
 
+        const key = payload.clientMessageKey;
+
+        if (key && pendingUploadMapRef.current.has(key)) {
+          const entry = pendingUploadMapRef.current.get(key);
+          if (entry?.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+          pendingUploadMapRef.current.delete(key);
+        }
+
         const next = [
           ...filtered,
           {
@@ -366,6 +374,8 @@ export default function MessageChatSection() {
     // ⭐ 화면에 즉시 추가
     setMessages((prev) => [...prev, optimisticMessage]);
 
+    setTimeout(() => scrollToBottom("auto"), 0);
+
     // 서버 전송
     client.publish({
       destination: "/pub/chat/message",
@@ -380,7 +390,7 @@ export default function MessageChatSection() {
     });
 
     setInput("");
-    setTimeout(scrollToBottom, 20);
+    setTimeout(() => scrollToBottom("auto"), 0);
   };
 
   const sendRead = (messageId) => {
@@ -543,6 +553,55 @@ export default function MessageChatSection() {
         senderNickname: useAuthStore.getState().user?.nickname,
       }),
     });
+  };
+
+  const retryImageUpload = async (clientMessageKey) => {
+    const entry = pendingUploadMapRef.current.get(clientMessageKey);
+    if (!entry) return;
+
+    const { file, roomType: rt, roomId: rid } = entry;
+
+    // UI: 다시 업로딩 상태
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.clientMessageKey === clientMessageKey
+          ? { ...m, uploadStatus: "UPLOADING", isPending: true }
+          : m
+      )
+    );
+
+    try {
+      await uploadChatImage({
+        roomType: rt,
+        roomId: rid,
+        file,
+        clientMessageKey,
+      });
+
+      // 성공 시 정리
+      const cur = pendingUploadMapRef.current.get(clientMessageKey);
+      if (cur?.previewUrl) URL.revokeObjectURL(cur.previewUrl);
+      pendingUploadMapRef.current.delete(clientMessageKey);
+    } catch {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.clientMessageKey === clientMessageKey
+            ? { ...m, uploadStatus: "FAILED", isPending: false }
+            : m
+        )
+      );
+    }
+  };
+
+  const cancelImageUpload = (clientMessageKey) => {
+    const entry = pendingUploadMapRef.current.get(clientMessageKey);
+    if (entry?.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+    pendingUploadMapRef.current.delete(clientMessageKey);
+
+    // ✅ temp 메시지 제거
+    setMessages((prev) =>
+      prev.filter((m) => m.clientMessageKey !== clientMessageKey)
+    );
   };
 
   /* =======================================================================
@@ -756,6 +815,12 @@ export default function MessageChatSection() {
                     setOpenUserPopover(id);
                     setUserAnchorRef(ref);
                   }}
+                  onImageLoad={() => {
+                    if (msg.senderId === currentUserId) scrollToBottom("auto");
+                    else if (isAtBottom) scrollToBottom("auto");
+                  }}
+                  onRetryImage={() => retryImageUpload(msg.clientMessageKey)}
+                  onCancelImage={() => cancelImageUpload(msg.clientMessageKey)}
                 />
               </div>
             );
@@ -771,6 +836,7 @@ export default function MessageChatSection() {
             }}
             scrollParentRef={scrollRef}
           />
+          <div ref={bottomRef} />
         </div>
 
         {/* typing indicator 영역 (스크롤 X) */}
@@ -782,16 +848,16 @@ export default function MessageChatSection() {
                 setUnreadCount(0);
               }}
               className="
-      absolute bottom-24 left-1/2 -translate-x-1/2
-      px-4 py-2
-      bg-primary-soft2/40 text-white text-sm font-semibold
-      rounded-full shadow-lg
-      backdrop-blur-md
-      transition-all duration-300 ease-out
-      opacity-100 translate-y-0 scale-100
-      hover:bg-primary-dark hover:scale-105
-      active:scale-95
-      z-20
+              absolute bottom-24 left-1/2 -translate-x-1/2
+              px-4 py-2
+              bg-primary-soft2/40 text-white text-sm font-semibold
+              rounded-full shadow-lg
+              backdrop-blur-md
+              transition-all duration-300 ease-out
+              opacity-100 translate-y-0 scale-100
+              hover:bg-primary-dark hover:scale-105
+              active:scale-95
+              z-20
     "
             >
               ↓ 읽지 않은 메시지 {unreadCount}개
@@ -908,16 +974,25 @@ export default function MessageChatSection() {
             onChange={async (e) => {
               if (isSendingImageRef.current) return; // 중복 방지
               isSendingImageRef.current = true;
+              setIsSendingImage(true);
 
               const file = e.target.files?.[0];
               if (!file) {
                 isSendingImageRef.current = false;
+                setIsSendingImage(false);
                 return;
               }
 
               const clientMessageKey = uuidv4();
               const tempId = `temp-${clientMessageKey}`;
               const previewUrl = URL.createObjectURL(file);
+
+              pendingUploadMapRef.current.set(clientMessageKey, {
+                file,
+                previewUrl,
+                roomType,
+                roomId,
+              });
 
               // optimistic image message
               setMessages((prev) => [
@@ -935,8 +1010,10 @@ export default function MessageChatSection() {
                   createdAt: formatTime(new Date()),
                   minuteKey: toMinuteKey(new Date()),
                   dateLabel: formatDateLabel(new Date()),
-                  isPending: true,
                   clientMessageKey,
+                  //  업로드 상태
+                  uploadStatus: "UPLOADING", // "UPLOADING" | "FAILED"
+                  isPending: true,
                 },
               ]);
 
@@ -948,21 +1025,26 @@ export default function MessageChatSection() {
                   clientMessageKey,
                 });
               } catch {
-                alert("이미지 전송 실패");
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.clientMessageKey === clientMessageKey
+                      ? { ...m, uploadStatus: "FAILED", isPending: false }
+                      : m
+                  )
+                );
               } finally {
                 isSendingImageRef.current = false;
+                setIsSendingImage(false);
                 e.target.value = "";
               }
             }}
           />
 
           <button
-            disabled={isSendingImageRef.current}
+            disabled={isSendingImage}
             className="p-2 hover:bg-white/10 rounded-full disabled:opacity-40"
             onClick={() => {
-              if (!isSendingImageRef.current) {
-                fileInputRef.current?.click();
-              }
+              if (!isSendingImageRef.current) fileInputRef.current?.click();
             }}
           >
             <ImageUploadIcon className="w-6 h-6" fill="#fff" />
