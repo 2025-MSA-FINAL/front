@@ -15,6 +15,7 @@ import GroupRoomInfoPopover from "../../chat/common/GroupRoomInfoPopover";
 import UserProfilePopover from "../../chat/common/UserProfilePopover";
 import { UserTypingDots, AiTypingDots } from "../common/TypingDots";
 import { useChatPopupStore } from "../../../store/chat/chatPopupStore";
+import { useChatMessageStore } from "../../../store/chat/chatMessageStore";
 import { useChatStore } from "../../../store/chat/chatStore";
 import { useAuthStore } from "../../../store/authStore";
 import axios from "axios";
@@ -100,9 +101,6 @@ export default function MessageChatSection() {
   const [typingUsers, setTypingUsers] = useState(new Map());
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [lastReadMessageId, setLastReadMessageId] = useState(null);
-  const [otherLastReadMessageId, setOtherLastReadMessageId] = useState(null);
-  const [participants, setParticipants] = useState([]);
 
   const subRef = useRef(null);
   const scrollRef = useRef(null);
@@ -127,6 +125,24 @@ export default function MessageChatSection() {
   const showUnreadButton = !isAtBottom && unreadCount > 0;
 
   const toggleRoomInfo = () => setShowRoomInfo((prev) => !prev);
+
+  const roomKey = activeRoom
+    ? `${roomType}-${
+        roomType === "GROUP" ? activeRoom.gcrId : activeRoom.roomId
+      }`
+    : null;
+
+  const roomState = useChatMessageStore((s) =>
+    roomKey ? s.roomState[roomKey] : null
+  );
+
+  const initRoomReadState = useChatMessageStore((s) => s.initRoomReadState);
+  const applyReadEvent = useChatMessageStore((s) => s.applyReadEvent);
+
+  const myLastReadMessageId = roomState?.myLastReadMessageId ?? 0;
+  const otherLastReadMessageId = roomState?.otherLastReadMessageId ?? 0;
+  const participants = roomState?.participants ?? [];
+  const initialUnreadIndex = roomState?.initialUnreadIndex ?? null;
 
   const iconSize =
     roomType === "GROUP"
@@ -255,32 +271,14 @@ export default function MessageChatSection() {
 
     // 🔹 3) 읽음 이벤트
     if (body.type === "READ") {
-      const { readerUserId, lastReadMessageId } = body;
-      const rid = Number(readerUserId);
-      const lr = Number(lastReadMessageId);
-
-      // PRIVATE
-      if (roomType === "PRIVATE") {
-        if (rid === currentUserId) {
-          setLastReadMessageId(lr);
-        } else {
-          setOtherLastReadMessageId(lr);
-        }
-        return;
-      }
-
-      // GROUP
-      setParticipants((prev = []) =>
-        prev.map((p) =>
-          Number(p.userId) === rid ? { ...p, lastReadMessageId: lr } : p
-        )
-      );
-
-      if (rid === currentUserId) {
-        setLastReadMessageId(lr);
-      } else if (participants.length === 2) {
-        setOtherLastReadMessageId(lr);
-      }
+      applyReadEvent({
+        roomType,
+        roomId,
+        readerUserId: body.readerUserId,
+        lastReadMessageId: body.lastReadMessageId,
+        currentUserId,
+      });
+      return;
     }
 
     // 🔹 2) 메시지
@@ -381,6 +379,8 @@ export default function MessageChatSection() {
   };
 
   const sendRead = (messageId) => {
+    if (messageId <= myLastReadMessageId) return;
+
     const client = getStompClient();
     if (!client?.connected) return;
 
@@ -411,20 +411,41 @@ export default function MessageChatSection() {
       const {
         messages,
         lastReadMessageId,
-        participants, // 👈 추가
+        otherLastReadMessageId,
+        participants,
       } = res.data;
 
-      setLastReadMessageId(lastReadMessageId);
-      setParticipants(participants ?? []);
+      const formattedMessages = messages.reverse().map((m) => ({
+        ...m,
+        createdAt: formatTime(m.createdAt),
+        minuteKey: toMinuteKey(m.createdAt),
+        dateLabel: formatDateLabel(m.createdAt),
+      }));
 
-      setMessages(
-        messages.reverse().map((m) => ({
-          ...m,
-          createdAt: formatTime(m.createdAt),
-          minuteKey: toMinuteKey(m.createdAt),
-          dateLabel: formatDateLabel(m.createdAt),
-        }))
-      );
+      setMessages(formattedMessages);
+
+      // 여기까지읽음 위치 계산 (입장 시 1회)
+      // ✅ 입장 기준 읽음 고정 + divider index 계산은 store가 함
+      const idx = initRoomReadState({
+        roomType,
+        roomId,
+        entryReadMessageId: lastReadMessageId ?? 0, // 🔒 여기까지읽음 기준
+        myLastReadMessageId: lastReadMessageId ?? 0, // 내 실시간 읽음 초기값
+        otherLastReadMessageId: otherLastReadMessageId ?? 0, // 상대 실시간 읽음 초기값
+        participants: participants ?? [],
+        formattedMessages,
+      });
+
+      // ✅ 스크롤도 딱 1번만
+      setTimeout(() => {
+        const el = scrollRef.current;
+        if (!el || idx == null) return;
+        const target = el.querySelector(
+          `[data-cmid="${formattedMessages[idx].cmId}"]`
+        );
+
+        if (target) target.scrollIntoView({ block: "center" });
+      }, 50);
     };
 
     load();
@@ -463,10 +484,7 @@ export default function MessageChatSection() {
             (m) => typeof m.cmId === "number" && m.senderId !== currentUserId
           );
 
-        if (
-          lastUnreadFromOther &&
-          lastUnreadFromOther.cmId !== lastReadMessageId
-        ) {
+        if (lastUnreadFromOther.cmId > myLastReadMessageId) {
           setUnreadCount(0);
           sendRead(lastUnreadFromOther.cmId);
         }
@@ -477,7 +495,7 @@ export default function MessageChatSection() {
     handleScroll();
 
     return () => el.removeEventListener("scroll", handleScroll);
-  }, [messages, lastReadMessageId]);
+  }, [messages, myLastReadMessageId]);
 
   useEffect(() => {
     if (!messages.length) return;
@@ -488,10 +506,10 @@ export default function MessageChatSection() {
       .find((m) => typeof m.cmId === "number");
 
     if (!lastMsg) return;
-    if (lastMsg.cmId <= lastReadMessageId) return;
+    if (lastMsg.cmId <= myLastReadMessageId) return;
 
     sendRead(lastMsg.cmId);
-  }, [messages, isAtBottom, lastReadMessageId]);
+  }, [messages, isAtBottom, myLastReadMessageId]);
 
   /* 날짜 구분선 */
   const DateDivider = ({ label }) => (
@@ -517,13 +535,6 @@ export default function MessageChatSection() {
       }),
     });
   };
-
-  const unreadStartIndex =
-    lastReadMessageId > 0
-      ? messages.findIndex(
-          (m) => typeof m.cmId === "number" && m.cmId > lastReadMessageId
-        )
-      : -1;
 
   /* =======================================================================
         📌 RENDER
@@ -701,21 +712,21 @@ export default function MessageChatSection() {
               next.minuteKey !== msg.minuteKey;
 
             const showUnreadDivider =
-              unreadStartIndex >= 0 && i === unreadStartIndex;
+              initialUnreadIndex !== null && i === initialUnreadIndex;
 
             return (
-              <div key={i} className="mb-1">
+              <div key={i} className="mb-1" data-cmid={msg.cmId}>
                 {showDateDivider && <DateDivider label={msg.dateLabel} />}
 
                 {showUnreadDivider && (
                   <div className="flex justify-center my-3">
                     <span
                       className="
-                        text-xs font-semibold
-                        text-primary-light
-                        bg-primary-soft2/30
-                        px-4 py-1 rounded-full
-                      "
+                      text-xs font-semibold
+                      text-primary-light
+                      bg-primary-soft2/30
+                      px-4 py-1 rounded-full
+                    "
                     >
                       여기까지 읽음
                     </span>
@@ -727,10 +738,9 @@ export default function MessageChatSection() {
                   isMine={isMine}
                   isGroupWithPrev={isGroupWithPrev}
                   showTime={showTime}
-                  lastReadMessageId={lastReadMessageId}
                   otherLastReadMessageId={otherLastReadMessageId}
-                  roomType={roomType}
                   participants={participants}
+                  roomType={roomType}
                   currentUserId={currentUserId}
                   onOpenUserPopover={(id, ref) => {
                     setOpenUserPopover(id);

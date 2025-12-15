@@ -10,7 +10,6 @@ export default function MessageItem({
   isMine,
   isGroupWithPrev,
   showTime,
-  lastReadMessageId,
   otherLastReadMessageId,
   roomType,
   participants,
@@ -56,9 +55,16 @@ export default function MessageItem({
 
     // GROUP but 2 users → PRIVATE처럼
     if (roomType === "GROUP" && participants.length === 2) {
+      // 내가 보낸 메시지만 unread 표시
       if (msg.senderId !== currentUserId) return 0;
 
-      const otherLastRead = otherLastReadMessageId ?? 0;
+      // 상대방 participant 찾기
+      const other = participants.find(
+        (p) => Number(p.userId) !== Number(currentUserId)
+      );
+
+      const otherLastRead = other?.lastReadMessageId ?? 0;
+
       return msg.cmId > otherLastRead ? 1 : 0;
     }
 
