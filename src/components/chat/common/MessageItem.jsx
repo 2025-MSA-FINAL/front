@@ -42,6 +42,9 @@ const PopupCardBubble = ({ popupData, onClick }) => (
         보러가기
       </button>
     </div>
+  </div>
+);
+
 const ImageBubble = ({
   src,
   pending,
@@ -136,6 +139,9 @@ export default function MessageItem({
   const [openFullModal, setOpenFullModal] = useState(false);
   const avatarRef = useRef(null);
 
+  const isImage = msg.messageType === "IMAGE";
+  const isAiMessage = msg.senderId === AI_USER_ID;
+
   // =========================================================================
   // 팝업 공유 메시지 처리 로직
   // 설명: 메시지 타입이 'POPUP'일 경우, 텍스트 대신 카드 UI를 보여주기 위한 준비 단계
@@ -148,8 +154,8 @@ export default function MessageItem({
     typeof msg.content === "string"
       ? msg.content
       : msg.content
-        ? JSON.stringify(msg.content)
-        : "";
+      ? JSON.stringify(msg.content)
+      : "";
 
   //팝업 데이터 키 정규화 함수(서버/소켓에서 키가 달라도 카드가 뜨게)
   const normalizePopupData = (raw) => {
@@ -168,7 +174,8 @@ export default function MessageItem({
 
   // 1. 현재 메시지가 '팝업 공유' 타입인지 확인
   //백엔드나 소켓에서 messageType: "POPUP"으로 보낸 경우
-  const isPopupMessage = msg.messageType === "POPUP" || msg.contentType === "POPUP";
+  const isPopupMessage =
+    msg.messageType === "POPUP" || msg.contentType === "POPUP";
 
   let popupData = null;
 
@@ -190,24 +197,21 @@ export default function MessageItem({
   }
 
   //msg.content가 객체여도 길이/프리뷰 계산이 깨지지 않게 safeContentString 사용
-  const isLong = (safeContentString?.length || 0) > MAX_PREVIEW_CHARS;
+  const isLong =
+    !isImage && (safeContentString?.length || 0) > MAX_PREVIEW_CHARS;
 
   //POPUP인데 파싱 실패하면 JSON 그대로 보여주기보다 안내 텍스트로 fallback
   const previewText =
     isPopupMessage && !popupData
       ? "[팝업 공유 메시지]"
       : isLong
-        ? safeContentString.slice(0, MAX_PREVIEW_CHARS) + "..."
-        : safeContentString;
-  const isImage = msg.messageType === "IMAGE";
-  const isAiMessage = msg.senderId === AI_USER_ID;
-  const isLong = !isImage && (msg.content?.length || 0) > MAX_PREVIEW_CHARS;
-  const previewText = isLong
-    ? msg.content.slice(0, MAX_PREVIEW_CHARS) + "..."
-    : msg.content;
+      ? safeContentString.slice(0, MAX_PREVIEW_CHARS) + "..."
+      : safeContentString;
 
   const isDeletedUser = msg.senderStatus === "DELETED";
-  const computedProfileImg = isDeletedUser ? privateChatIcon : msg.senderProfileUrl;
+  const computedProfileImg = isDeletedUser
+    ? privateChatIcon
+    : msg.senderProfileUrl;
 
   const computedNickname = isDeletedUser ? "알 수 없음" : msg.senderNickname;
 
@@ -281,8 +285,9 @@ export default function MessageItem({
             onClick={() =>
               !isDeletedUser && onOpenUserPopover(msg.senderId, avatarRef)
             }
-            className={`w-10 h-10 rounded-full object-cover ${isDeletedUser ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-              } ${isGroupWithPrev ? "invisible" : ""}`}
+            className={`w-10 h-10 rounded-full object-cover ${
+              isDeletedUser ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+            } ${isGroupWithPrev ? "invisible" : ""}`}
           />
 
           <div className="flex flex-col ml-2 items-start">
@@ -304,48 +309,47 @@ export default function MessageItem({
                   //popId가 없을 때 대비
                   onClick={() => navigate(`/popup/${popupData?.popId ?? ""}`)}
                 />
-              ) :  ( 
-              <div
-                className={`relative rounded-2xl whitespace-pre-wrap break-words 
+              ) : (
+                <div
+                  className={`relative rounded-2xl whitespace-pre-wrap break-words 
                   bg-white/20 text-white max-w-[500px] overflow-hidden
                   ${isImage ? "" : "px-4 py-2"}
                   ${msg.isPending ? "opacity-50" : ""}
                   ${bubbleAnimationClass}
                 `}
-              >
-                {isImage ? (
-                  <ImageBubble
-                    src={msg.content}
-                    pending={isUploading}
-                    failed={isFailed}
-                    onClick={() => setOpenFullModal(true)}
-                    onLoad={onImageLoad}
-                    onRetry={onRetryImage}
-                    onCancel={onCancelImage}
-                  />
-                ) : (
-                  previewText
-                )}
-
-                {/* 🔽 페이드아웃 + 전체보기 버튼 (카카오톡 스타일) */}
-                {isLong && (
-                  <div
-                    className="absolute bottom-0 left-0 w-full h-20 flex items-end justify-end pr-4
-                    bg-gradient-to-t from-primary-soft2/40 to-transparent rounded-b-2xl"
-                  >
-                    <button
-                      className="mb-2 px-3 py-1 text-[12px] font-medium 
-             rounded-full
-             text-white
-             hover:bg-white/50 hover:text-primary-dark transition"
+                >
+                  {isImage ? (
+                    <ImageBubble
+                      src={msg.content}
+                      pending={isUploading}
+                      failed={isFailed}
                       onClick={() => setOpenFullModal(true)}
+                      onLoad={onImageLoad}
+                      onRetry={onRetryImage}
+                      onCancel={onCancelImage}
+                    />
+                  ) : (
+                    previewText
+                  )}
+
+                  {/* 🔽 페이드아웃 + 전체보기 버튼 (카카오톡 스타일) */}
+                  {isLong && (
+                    <div
+                      className="absolute bottom-0 left-0 w-full h-20 flex items-end justify-end pr-4
+                    bg-gradient-to-t from-primary-soft2/40 to-transparent rounded-b-2xl"
                     >
-                      전체보기
-                    </button>
-                  </div>
-                )}
-              </div>
+                      <button
+                        className="mb-2 px-3 py-1 text-[12px] font-medium 
+                          rounded-full text-whitehover:bg-white/50 hover:text-primary-dark transition"
+                        onClick={() => setOpenFullModal(true)}
+                      >
+                        전체보기
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
+
               <div className="flex flex-col">
                 {/* ✅ 읽음 숫자 표시 (카톡 방식) */}
                 {!isAiMessage && unread > 0 && (
@@ -396,45 +400,45 @@ export default function MessageItem({
                   //popId가 없을 때 대비
                   onClick={() => navigate(`/popup/${popupData?.popId ?? ""}`)}
                 />
-              ) : ( <div
-                className={`relative rounded-2xl whitespace-pre-wrap break-words 
+              ) : (
+                <div
+                  className={`relative rounded-2xl whitespace-pre-wrap break-words 
                 bg-white text-purple-700 max-w-[500px] overflow-hidden
                 ${isImage ? "" : "px-4 py-2"}
                 ${msg.isPending ? "opacity-50" : ""}
               `}
-              >
-                {isImage ? (
-                  <ImageBubble
-                    src={msg.content}
-                    pending={isUploading}
-                    failed={isFailed}
-                    onClick={() => setOpenFullModal(true)}
-                    onLoad={onImageLoad}
-                    onRetry={onRetryImage}
-                    onCancel={onCancelImage}
-                  />
-                ) : (
-                  previewText
-                )}
-
-                {/* 🔽 페이드아웃 + 전체보기 버튼 */}
-                {isLong && !isImage && (
-                  <div
-                    className="absolute bottom-0 left-0 w-full h-20 flex items-end justify-end pr-4
-                  bg-gradient-to-t from-gray-200/90 to-transparent rounded-b-2xl"
-                  >
-                    <button
-                      className="mb-2 px-3 py-1 text-[12px] font-medium
-                  rounded-full text-purple-700 hover:bg-purple-300 transition"
+                >
+                  {isImage ? (
+                    <ImageBubble
+                      src={msg.content}
+                      pending={isUploading}
+                      failed={isFailed}
                       onClick={() => setOpenFullModal(true)}
+                      onLoad={onImageLoad}
+                      onRetry={onRetryImage}
+                      onCancel={onCancelImage}
+                    />
+                  ) : (
+                    previewText
+                  )}
+
+                  {/* 🔽 페이드아웃 + 전체보기 버튼 */}
+                  {isLong && !isImage && (
+                    <div
+                      className="absolute bottom-0 left-0 w-full h-20 flex items-end justify-end pr-4
+                  bg-gradient-to-t from-gray-200/90 to-transparent rounded-b-2xl"
                     >
-                      전체보기
-                    </button>
-                  </div>
-                )}
-              </div>
+                      <button
+                        className="mb-2 px-3 py-1 text-[12px] font-medium
+                  rounded-full text-purple-700 hover:bg-purple-300 transition"
+                        onClick={() => setOpenFullModal(true)}
+                      >
+                        전체보기
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
-              {/* 분기 처리 종료 */}
             </div>
           </div>
         </div>
@@ -447,10 +451,6 @@ export default function MessageItem({
             {computedNickname || (isMine ? "나" : "")}
           </p>
           <div className="mt-2 p-3 rounded-xl bg-gray-50 border border-gray-200 max-h-[55vh] overflow-y-auto custom-scroll">
-            <p className="whitespace-pre-wrap break-words text-gray-900 text-sm align-o">
-              {/* 객체 content여도 깨지지 않게 safeContentString 사용 */}
-              {safeContentString}
-            </p>
             {isImage ? (
               <img
                 src={msg.content}
@@ -458,8 +458,9 @@ export default function MessageItem({
                 className="max-w-full max-h-[60vh] rounded-xl mx-auto"
               />
             ) : (
-              <p className="whitespace-pre-wrap break-words text-gray-900 text-sm">
-                {msg.content}
+              <p className="whitespace-pre-wrap break-words text-gray-900 text-sm align-o">
+                {/* 객체 content여도 깨지지 않게 safeContentString 사용 */}
+                {safeContentString}
               </p>
             )}
           </div>
