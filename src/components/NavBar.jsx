@@ -74,7 +74,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-paper h-[88px]">
+    <nav className="sticky top-0 z-100 bg-paper h-[88px]">
       <div className="w-full max-w-7xl mx-auto px-6 md:px-12 h-full flex justify-between items-center">
         {/* LEFT: 로고 + 데스크탑 메뉴 */}
         <div className="flex items-center gap-12 lg:gap-20">
@@ -109,7 +109,7 @@ export default function Navbar() {
                 (item === "MAP" && currentPath.startsWith("/popup/nearby")) ||
                 // POP-UP: /popup 로 시작하지만 /popup/nearby 는 제외
                 (item === "POP-UP" &&
-                  currentPath.startsWith("/popup") &&
+                  currentPath.startsWith("/pop-up") &&
                   !currentPath.startsWith("/popup/nearby")) ||
                 // CHAT: /chat 로 시작하는 경로
                 (item === "CHAT" && currentPath.startsWith("/chat"));
