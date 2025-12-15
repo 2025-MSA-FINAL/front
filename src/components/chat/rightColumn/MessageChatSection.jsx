@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import heic2any from "heic2any";
 import { useEffect, useState, useRef } from "react";
 import { connectStomp, getStompClient } from "../../../api/socket";
 import {
@@ -604,6 +605,41 @@ export default function MessageChatSection() {
     );
   };
 
+  const convertHeicToJpgIfNeeded = async (file) => {
+    if (!file) return file;
+
+    const name = (file.name || "").toLowerCase();
+    const type = (file.type || "").toLowerCase();
+
+    // ✅ iOS에서 type이 "" 인 경우가 있어서 name/type 둘 다로 판단 + 느슨하게
+    const looksHeic =
+      type.includes("heic") ||
+      type.includes("heif") ||
+      name.endsWith(".heic") ||
+      name.endsWith(".heif");
+
+    if (!looksHeic) return file;
+
+    // ✅ 변환
+    const result = await heic2any({
+      blob: file,
+      toType: "image/jpeg",
+      quality: 0.9,
+    });
+
+    // ✅ result가 Blob[] 일 수도 있어서 Blob로 정규화
+    const convertedBlob = Array.isArray(result) ? result[0] : result;
+    if (!(convertedBlob instanceof Blob)) {
+      throw new Error("heic2any did not return a Blob");
+    }
+
+    const nextName = name
+      ? file.name.replace(/\.(heic|heif)$/i, ".jpg")
+      : `image-${Date.now()}.jpg`;
+
+    return new File([convertedBlob], nextName, { type: "image/jpeg" });
+  };
+
   /* =======================================================================
         📌 RENDER
   ======================================================================= */
@@ -969,17 +1005,42 @@ export default function MessageChatSection() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,.heic,.heif"
             hidden
             onChange={async (e) => {
               if (isSendingImageRef.current) return; // 중복 방지
               isSendingImageRef.current = true;
               setIsSendingImage(true);
 
-              const file = e.target.files?.[0];
-              if (!file) {
+              const rawFile = e.target.files?.[0];
+              if (!rawFile) {
                 isSendingImageRef.current = false;
                 setIsSendingImage(false);
+                return;
+              }
+
+              console.log("rawFile:", {
+                name: rawFile.name,
+                type: rawFile.type,
+                size: rawFile.size,
+              });
+
+              let file = rawFile;
+
+              try {
+                file = await convertHeicToJpgIfNeeded(rawFile);
+
+                console.log("converted file:", {
+                  name: file.name,
+                  type: file.type,
+                  size: file.size,
+                });
+              } catch (err) {
+                console.error("HEIC 변환 실패:", err);
+                alert("이미지 변환에 실패했어요. 다른 이미지로 시도해 주세요.");
+                isSendingImageRef.current = false;
+                setIsSendingImage(false);
+                e.target.value = "";
                 return;
               }
 
@@ -1011,8 +1072,7 @@ export default function MessageChatSection() {
                   minuteKey: toMinuteKey(new Date()),
                   dateLabel: formatDateLabel(new Date()),
                   clientMessageKey,
-                  //  업로드 상태
-                  uploadStatus: "UPLOADING", // "UPLOADING" | "FAILED"
+                  uploadStatus: "UPLOADING", // 업로드 상태 "UPLOADING" | "FAILED"
                   isPending: true,
                 },
               ]);
