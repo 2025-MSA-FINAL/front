@@ -7,15 +7,12 @@ import image4 from "../assets/dummy/image4.png";
 import image5 from "../assets/dummy/image5.png";
 import image6 from "../assets/dummy/image6.jpg";
 import image7 from "../assets/dummy/image7.jpg";
+import { apiClient } from "../api/authApi";
 
-/**
- * ✅ 반응형 레이아웃 값 계산
- * - 카드 폭/간격/hero 높이를 화면 크기에 맞춰 자동 조절
- * - 인디케이터 겹침/천장붙음 방지:
- *   1) 카드 absolute 기준을 top/left 50%로 중앙 고정
- *   2) hero 하단에 indicatorSafeSpace만큼 공간 확보
- *   3) 카드 중심을 safeSpace 기준으로 살짝만 위/아래 보정(centerNudge)
- */
+// =========================
+// ✅ 반응형 레이아웃 값 계산
+// (사용되는 cfg만 리턴)
+// =========================
 function useHeroLayout() {
   const [w, setW] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth : 1200
@@ -36,15 +33,12 @@ function useHeroLayout() {
           step1: 244,
           step2: 400,
           step3: 515,
-
           heroVH: 63,
           heroMin: 565,
           heroMax: 720,
-
           indicatorSafeSpace: 82,
           indicatorBottom: 28,
           centerNudge: 10,
-
           padY: "py-6",
         }
       : bp === "t"
@@ -53,15 +47,12 @@ function useHeroLayout() {
           step1: 315,
           step2: 520,
           step3: 675,
-
           heroVH: 65,
           heroMin: 615,
           heroMax: 805,
-
           indicatorSafeSpace: 90,
           indicatorBottom: 30,
           centerNudge: 12,
-
           padY: "py-7",
         }
       : {
@@ -69,19 +60,37 @@ function useHeroLayout() {
           step1: 360,
           step2: 610,
           step3: 780,
-
           heroVH: 68,
           heroMin: 665,
           heroMax: 870,
-
           indicatorSafeSpace: 98,
           indicatorBottom: 32,
           centerNudge: 14,
-
           padY: "py-8",
         };
 
-  return { w, bp, cfg };
+  return { cfg };
+}
+
+function formatDateRange(start, end) {
+  if (!start || !end) return "";
+  const s = new Date(start);
+  const e = new Date(end);
+  const yy = String(s.getFullYear()).slice(2);
+  const mm = String(s.getMonth() + 1).padStart(2, "0");
+  const dd = String(s.getDate()).padStart(2, "0");
+  const yy2 = String(e.getFullYear()).slice(2);
+  const mm2 = String(e.getMonth() + 1).padStart(2, "0");
+  const dd2 = String(e.getDate()).padStart(2, "0");
+  return `${yy}.${mm}.${dd} ~ ${yy2}.${mm2}.${dd2}`;
+}
+
+function priceLabel(priceType) {
+  if (!priceType) return "";
+  const t = String(priceType).toUpperCase();
+  if (t.includes("FREE") || t.includes("NO") || t.includes("ZERO") || t === "FREE")
+    return "무료";
+  return "유료";
 }
 
 function MainPage() {
@@ -104,17 +113,7 @@ function MainPage() {
   // ✅ HERO를 화면 중앙으로 스크롤하기 위한 ref
   const heroScrollRef = useRef(null);
 
-  // ✅ 드래그(스와이프) (슬라이드 기능 제거했지만 기존 변수는 유지)
-  const isDraggingRef = useRef(false);
-  const startXRef = useRef(0);
-  const lastXRef = useRef(0);
-  const movedRef = useRef(false);
-
-  // ✅ 자동 슬라이드 제거 (기존 setInterval useEffect 삭제)
-
   const go = (idx) => setActive(idx);
-  const next = () => setActive((p) => (p + 1) % posters.length);
-  const prev = () => setActive((p) => (p - 1 + posters.length) % posters.length);
 
   const getOffset = (index) => {
     const n = posters.length;
@@ -137,46 +136,179 @@ function MainPage() {
   const PURPLE = {
     neon: "#9B2CFF",
     deep: "#5A00B8",
-    glow: "rgba(155,44,255,0.85)",
     glowSoft: "rgba(155,44,255,0.35)",
     glowMid: "rgba(155,44,255,0.55)",
   };
 
-  // ✅ 드래그 핸들러 (슬라이드 기능 제거했지만 기존 함수는 유지)
-  const onPointerDown = (e) => {
-    isDraggingRef.current = true;
-    movedRef.current = false;
-    startXRef.current = e.clientX;
-    lastXRef.current = e.clientX;
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {}
-  };
+  // =========================
+  // ✅ 메인 섹션 데이터 (apiClient)
+  // =========================
+  const [latestPopups, setLatestPopups] = useState([]);
+  const [endingSoonPopups, setEndingSoonPopups] = useState([]);
+  const [mainLoading, setMainLoading] = useState(false);
 
-  const onPointerMove = (e) => {
-    if (!isDraggingRef.current) return;
-    lastXRef.current = e.clientX;
+  // ✅ 추천(로그인 시 AI / 비로그인 시 인기) - 같은 API로 처리
+  const [recommendedPopups, setRecommendedPopups] = useState([]);
+  const [recommendType, setRecommendType] = useState(null); // "AI" | "POPULAR" 등
 
-    const dx = lastXRef.current - startXRef.current;
+  const MAIN_CARD_LIMIT = 4; // ✅ 프론트에서 원하는 만큼 조절
+  const RECO_LIMIT = 4;
 
-    if (Math.abs(dx) > 6) movedRef.current = true;
-  };
+  useEffect(() => {
+    let alive = true;
 
-  const onPointerUp = () => {
-    if (!isDraggingRef.current) return;
-    isDraggingRef.current = false;
+    const load = async () => {
+      try {
+        setMainLoading(true);
 
-    const dx = lastXRef.current - startXRef.current;
+        const [mainRes, recoRes] = await Promise.all([
+          apiClient.get("/api/main/popups", {
+            params: { limit: MAIN_CARD_LIMIT },
+            headers: { "Content-Type": "application/json" },
+          }),
+          apiClient.get("/api/main/recommend", {
+            params: { limit: RECO_LIMIT },
+            headers: { "Content-Type": "application/json" },
+          }),
+        ]);
 
-    const threshold = 12;
+        const mainData = mainRes?.data;
+        const recoData = recoRes?.data;
 
-    if (dx > threshold) prev();
-    else if (dx < -threshold) next();
-  };
+        if (!alive) return;
 
-  const onPointerCancel = () => {
-    isDraggingRef.current = false;
-  };
+        setLatestPopups(Array.isArray(mainData?.latest) ? mainData.latest : []);
+        setEndingSoonPopups(Array.isArray(mainData?.endingSoon) ? mainData.endingSoon : []);
+
+        setRecommendType(recoData?.type || null);
+        setRecommendedPopups(Array.isArray(recoData?.items) ? recoData.items : []);
+      } catch (e) {
+        if (!alive) return;
+        setLatestPopups([]);
+        setEndingSoonPopups([]);
+        setRecommendType(null);
+        setRecommendedPopups([]);
+      } finally {
+        if (!alive) return;
+        setMainLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const CardGridSection = ({ title, items, onAllClick }) => (
+    <div className="mt-8 md:mt-10 flex justify-center">
+      <div className="w-full max-w-[1400px] px-4 sm:px-6">
+        <div
+          className="bg-paper rounded-card px-6 sm:px-8 py-7 sm:py-8"
+          style={{
+            boxShadow: `0 10px 40px rgba(155,44,255,0.08)`,
+            border: "1px solid rgba(155,44,255,0.10)",
+          }}
+        >
+          <div className="flex justify-between items-center mb-5 sm:mb-6">
+            <h2 className="text-[16px] font-bold" style={{ color: PURPLE.deep }}>
+              {title}
+            </h2>
+            <span
+              className="text-[13px] transition-colors cursor-pointer font-medium"
+              style={{ color: PURPLE.neon }}
+              onClick={onAllClick}
+            >
+              전체보기 &gt;
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+            {(items || []).map((p) => {
+              const badge = priceLabel(p?.popPriceType);
+
+              return (
+                <div
+                  key={p.popId}
+                  className="group cursor-pointer transition-transform hover:scale-105"
+                  onClick={() => {
+                    // ✅ 상세 라우팅은 프로젝트 라우트에 맞게 수정
+                    // 예: navigate(`/popup/${p.popId}`);
+                  }}
+                >
+                  <div
+                    className="w-full aspect-[3/4] rounded-[18px] overflow-hidden transition-all group-hover:ring-2 group-hover:ring-primary relative"
+                    style={{
+                      boxShadow: `0 10px 30px rgba(155,44,255,0.08)`,
+                      border: "1px solid rgba(155,44,255,0.10)",
+                      background: "#fff",
+                    }}
+                  >
+                    <img
+                      src={
+                        p.popThumbnail ||
+                        "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&h=600&fit=crop"
+                      }
+                      alt={p.popName || "popup"}
+                      className="w-full h-full object-cover"
+                      draggable={false}
+                    />
+                  </div>
+
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[14px] font-semibold text-text-black truncate">
+                        {p.popName}
+                      </p>
+
+                      {/* ✅ 하트 제거 → index.css 색 변수로 무료/유료 배지 */}
+                      {badge && (
+                        <span
+                          className="shrink-0 px-3 py-[4px] rounded-full text-[12px] font-semibold"
+                          style={{
+                            backgroundColor:
+                              badge === "무료"
+                                ? "var(--color-primary-soft2)"
+                                : "var(--color-primary-soft)",
+                            color: "var(--color-primary)",
+                          }}
+                        >
+                          {badge}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-[12px] text-text-sub mt-1 truncate">
+                      {p.popLocation}
+                    </p>
+
+                    <p className="text-[13px] text-text-black mt-2">
+                      {formatDateRange(p.popStartDate, p.popEndDate)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* 로딩중인데 데이터가 비면 레이아웃 유지용 더미 */}
+            {mainLoading &&
+              (!items || items.length === 0) &&
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={`skeleton-${i}`} className="animate-pulse">
+                  <div
+                    className="w-full aspect-[3/4] rounded-[18px]"
+                    style={{ background: "rgba(0,0,0,0.06)" }}
+                  />
+                  <div className="mt-3 h-4 w-3/4 rounded" style={{ background: "rgba(0,0,0,0.06)" }} />
+                  <div className="mt-2 h-3 w-1/2 rounded" style={{ background: "rgba(0,0,0,0.06)" }} />
+                  <div className="mt-2 h-4 w-2/3 rounded" style={{ background: "rgba(0,0,0,0.06)" }} />
+                </div>
+              ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <main className="min-h-[calc(100vh-88px)] bg-secondary-light pb-16">
@@ -190,7 +322,6 @@ function MainPage() {
             background: `linear-gradient(180deg, #1a0628 0%, #2b0a3d 38%, #12031d 100%)`,
           }}
         >
-          {/* ✅ active 포스터를 “쇼룸 벽”처럼 은은하게 */}
           <div className="absolute inset-0">
             <img
               src={posters[active]?.img}
@@ -199,7 +330,6 @@ function MainPage() {
               draggable={false}
             />
 
-            {/* ✅ 보라 그레인(질감) */}
             <div
               className="absolute inset-0 opacity-[0.40]"
               style={{
@@ -213,7 +343,6 @@ function MainPage() {
               }}
             />
 
-            {/* ✅ 네온 조명 */}
             <div
               className="absolute inset-0"
               style={{
@@ -225,11 +354,9 @@ function MainPage() {
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0)_0%,rgba(0,0,0,0.22)_55%,rgba(0,0,0,0.46)_100%)]" />
           </div>
 
-          {/* ✅ 바닥(하단 음영) */}
           <div className="absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-black/[0.25] to-transparent" />
 
           <div className={`relative mx-auto w-full max-w-[1200px] px-4 sm:px-6 ${cfg.padY}`}>
-            {/* ✅ 슬라이드 제거: pointer 이벤트 바인딩 제거 */}
             <div
               ref={heroScrollRef}
               className="relative touch-pan-y"
@@ -259,33 +386,26 @@ function MainPage() {
                     ? -cfg.step3
                     : cfg.step3;
 
-                const scale =
-                  d === 0 ? 1.1 : absD === 1 ? 0.92 : absD === 2 ? 0.78 : 0.68;
-
+                const scale = d === 0 ? 1.1 : absD === 1 ? 0.92 : absD === 2 ? 0.78 : 0.68;
                 const z = d === 0 ? 40 : absD === 1 ? 30 : absD === 2 ? 20 : 10;
-
                 const darkAlpha = absD === 1 ? 0.58 : absD === 2 ? 0.74 : 0.86;
 
                 return (
                   <div
                     key={p.id}
-                    className={`absolute transition-all duration-700 ease-in-out ${
-                      isVisible ? "block" : "hidden"
-                    } cursor-pointer`}
+                    className={`absolute transition-all duration-700 ease-in-out ${isVisible ? "block" : "hidden"} cursor-pointer`}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") go(idx);
                     }}
                     onClick={() => {
-                      // ✅ 클릭 시 hero 영역이 화면 중앙에 오도록 스크롤
                       heroScrollRef.current?.scrollIntoView({
                         behavior: "smooth",
                         block: "center",
                         inline: "nearest",
                       });
-
-                      go(idx); // ✅ 클릭하면 해당 카드가 중앙(active)으로 이동
+                      go(idx);
                     }}
                     style={{
                       top: "50%",
@@ -350,13 +470,7 @@ function MainPage() {
                         />
                       )}
 
-                      <div
-                        className="absolute inset-0"
-                        style={{
-                          padding: isActive ? "10px" : "9px",
-                          zIndex: 10,
-                        }}
-                      >
+                      <div className="absolute inset-0" style={{ padding: isActive ? "10px" : "9px", zIndex: 10 }}>
                         <div className="w-full h-full rounded-[16px] overflow-hidden relative">
                           <img
                             src={p.img}
@@ -391,7 +505,7 @@ function MainPage() {
                 );
               })}
 
-              {/* ✅ 인디케이터(클릭으로 중앙 이동만) */}
+              {/* ✅ 인디케이터 */}
               <div
                 className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 z-50 px-4 py-2.5 rounded-full border"
                 style={{
@@ -502,91 +616,37 @@ function MainPage() {
           </div>
         </div>
 
-        {/* RECENT VIEWED */}
-        <div className="mt-8 md:mt-10 flex justify-center">
-          <div className="w-full max-w-[1400px] px-4 sm:px-6">
-            <div
-              className="bg-paper rounded-card px-6 sm:px-8 py-7 sm:py-8"
-              style={{
-                boxShadow: `0 10px 40px rgba(155,44,255,0.08)`,
-                border: "1px solid rgba(155,44,255,0.10)",
-              }}
-            >
-              <div className="flex justify-between items-center mb-5 sm:mb-6">
-                <h2 className="text-[16px] font-bold" style={{ color: PURPLE.deep }}>
-                  최근 본 팝업
-                </h2>
-                <span className="text-[13px] transition-colors cursor-pointer font-medium" style={{ color: PURPLE.neon }}>
-                  전체보기 &gt;
-                </span>
-              </div>
+        {/* =========================
+            ✅ 추천 섹션 추가 (로그인: AI / 비로그인: 인기)
+           ========================= */}
+        {recommendedPopups && recommendedPopups.length > 0 && (
+          <CardGridSection
+            title={recommendType === "AI" ? "AI 추천 팝업" : "지금 인기 팝업"}
+            items={recommendedPopups}
+            onAllClick={() => {
+              // 예: navigate("/popup/list?sort=recommend")
+            }}
+          />
+        )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
-                {[
-                  { img: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&h=600&fit=crop" },
-                  { img: "https://images.unsplash.com/photo-1515378960530-7c0da6231fb1?w=400&h=600&fit=crop" },
-                  { img: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=600&fit=crop" },
-                  { img: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=600&fit=crop" },
-                ].map((item, i) => (
-                  <div key={i} className="group cursor-pointer transition-transform hover:scale-105">
-                    <div
-                      className="w-full aspect-[3/4] rounded-[18px] overflow-hidden transition-all group-hover:ring-2 group-hover:ring-primary"
-                      style={{
-                        boxShadow: `0 10px 30px rgba(155,44,255,0.08)`,
-                        border: "1px solid rgba(155,44,255,0.10)",
-                      }}
-                    >
-                      <img src={item.img} alt={`poster-${i}`} className="w-full h-full object-cover" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* =========================
+            ✅ 여기부터: 요청한 2개 섹션 유지
+           ========================= */}
+        <CardGridSection
+          title="따끈따끈 팝업"
+          items={latestPopups}
+          onAllClick={() => {
+            // 예: navigate("/popup/list?sort=latest")
+          }}
+        />
 
-        {/* POPULAR */}
-        <div className="mt-8 md:mt-10 flex justify-center">
-          <div className="w-full max-w-[1400px] px-4 sm:px-6">
-            <div
-              className="bg-paper rounded-card px-6 sm:px-8 py-7 sm:py-8"
-              style={{
-                boxShadow: `0 10px 40px rgba(155,44,255,0.08)`,
-                border: "1px solid rgba(155,44,255,0.10)",
-              }}
-            >
-              <div className="flex justify-between items-center mb-5 sm:mb-6">
-                <h2 className="text-[16px] font-bold" style={{ color: PURPLE.deep }}>
-                  인기 팝업
-                </h2>
-                <span className="text-[13px] transition-colors cursor-pointer font-medium" style={{ color: PURPLE.neon }}>
-                  전체보기 &gt;
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
-                {[
-                  { img: "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400&h=600&fit=crop" },
-                  { img: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=600&fit=crop" },
-                  { img: "https://images.unsplash.com/photo-1557821552-17105176677c?w=400&h=600&fit=crop" },
-                  { img: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=600&fit=crop" },
-                ].map((item, i) => (
-                  <div key={i} className="group cursor-pointer transition-transform hover:scale-105">
-                    <div
-                      className="w-full aspect-[3/4] rounded-[18px] overflow-hidden transition-all group-hover:ring-2 group-hover:ring-primary"
-                      style={{
-                        boxShadow: `0 10px 30px rgba(155,44,255,0.08)`,
-                        border: "1px solid rgba(155,44,255,0.10)",
-                      }}
-                    >
-                      <img src={item.img} alt={`poster-${i}`} className="w-full h-full object-cover" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        <CardGridSection
+          title="팝업 마감 임박"
+          items={endingSoonPopups}
+          onAllClick={() => {
+            // 예: navigate("/popup/list?sort=endingSoon")
+          }}
+        />
 
         <div className="h-10 md:h-0" />
       </section>
