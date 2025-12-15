@@ -1,9 +1,86 @@
 import { useState, useRef } from "react";
 import BlurModal from "../../common/BlurModal";
+import { RotateCcw, X } from "lucide-react";
 import privateChatIcon from "../../../assets/privateChat.png";
 
 const MAX_PREVIEW_CHARS = 600; // 긴 메시지 기준
 const AI_USER_ID = 20251212;
+
+const ImageBubble = ({
+  src,
+  pending,
+  failed,
+  onClick,
+  onLoad,
+  onRetry,
+  onCancel,
+}) => (
+  <div className="relative block leading-none">
+    <img
+      src={src}
+      onClick={failed || pending ? undefined : onClick}
+      onLoad={onLoad}
+      alt="chat-image"
+      className={`
+        max-w-[420px] w-full h-auto rounded-2xl object-cover transition
+        ${pending ? "blur-sm opacity-80" : ""}
+        ${failed ? "opacity-70" : "cursor-pointer"}
+      `}
+    />
+
+    {/* ⏳ 업로드 중 */}
+    {pending && (
+      <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-2xl">
+        <svg
+          className="animate-spin"
+          width="34"
+          height="34"
+          viewBox="0 0 50 50"
+        >
+          <circle
+            cx="25"
+            cy="25"
+            r="20"
+            fill="none"
+            stroke="white"
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeDasharray="90 150"
+          />
+        </svg>
+      </div>
+    )}
+
+    {/* ❌ 실패 오버레이 */}
+    {failed && (
+      <div
+        className="absolute inset-0 flex flex-col items-center justify-center gap-3
+                      bg-black/35 rounded-2xl backdrop-blur-sm"
+      >
+        {/* 액션 버튼 */}
+        <div className="flex gap-3">
+          <button
+            onClick={onRetry}
+            className="flex items-center gap-1 px-3 py-3
+                       rounded-full bg-white/20 text-white 
+                       text-xs font-semibold hover:bg-white/30 transition"
+          >
+            <RotateCcw size={14} />
+          </button>
+
+          <button
+            onClick={onCancel}
+            className="flex items-center gap-1 px-3 py-3
+                       rounded-full bg-black/20 text-primary-soft
+                       text-xs hover:bg-black/40 transition"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+    )}
+  </div>
+);
 
 export default function MessageItem({
   msg,
@@ -16,6 +93,9 @@ export default function MessageItem({
   currentUserId,
   otherUserId,
   onOpenUserPopover,
+  onImageLoad,
+  onRetryImage,
+  onCancelImage,
 }) {
   const [openFullModal, setOpenFullModal] = useState(false);
   const avatarRef = useRef(null);
@@ -36,6 +116,8 @@ export default function MessageItem({
 
   const bubbleAnimationClass =
     isAiMessage && msg.animateIn ? "animate-ai-bubble" : "";
+  const isUploading = msg.uploadStatus === "UPLOADING";
+  const isFailed = msg.uploadStatus === "FAILED";
 
   console.log("🟡 MessageItem debug");
   console.log("msg.cmId =", msg.cmId);
@@ -117,22 +199,22 @@ export default function MessageItem({
             <div className="flex items-end gap-2 mt-1">
               {/* 말풍선 */}
               <div
-                className={`relative px-4 py-2 rounded-2xl whitespace-pre-wrap break-words 
+                className={`relative rounded-2xl whitespace-pre-wrap break-words 
                   bg-white/20 text-white max-w-[500px] overflow-hidden
+                  ${isImage ? "" : "px-4 py-2"}
                   ${msg.isPending ? "opacity-50" : ""}
                   ${bubbleAnimationClass}
                 `}
               >
                 {isImage ? (
-                  <img
+                  <ImageBubble
                     src={msg.content}
-                    alt="chat-image"
-                    className="
-                      max-w-full max-h-full p-4
-                      rounded-4xl object-cover cursor-pointer
-                      hover:opacity-90 transition
-                    "
+                    pending={isUploading}
+                    failed={isFailed}
                     onClick={() => setOpenFullModal(true)}
+                    onLoad={onImageLoad}
+                    onRetry={onRetryImage}
+                    onCancel={onCancelImage}
                   />
                 ) : (
                   previewText
@@ -198,21 +280,21 @@ export default function MessageItem({
 
               {/* 말풍선 */}
               <div
-                className={`relative px-4 py-2 rounded-2xl whitespace-pre-wrap break-words 
+                className={`relative rounded-2xl whitespace-pre-wrap break-words 
                 bg-white text-purple-700 max-w-[500px] overflow-hidden
+                ${isImage ? "" : "px-4 py-2"}
                 ${msg.isPending ? "opacity-50" : ""}
               `}
               >
                 {isImage ? (
-                  <img
+                  <ImageBubble
                     src={msg.content}
-                    alt="chat-image"
-                    className="
-                max-w-full max-h-full p-2
-                rounded-2xl object-cover cursor-pointer
-                hover:opacity-90 transition
-              "
+                    pending={isUploading}
+                    failed={isFailed}
                     onClick={() => setOpenFullModal(true)}
+                    onLoad={onImageLoad}
+                    onRetry={onRetryImage}
+                    onCancel={onCancelImage}
                   />
                 ) : (
                   previewText
