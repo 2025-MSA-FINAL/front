@@ -20,7 +20,9 @@ export default function MessageItem({
   const [openFullModal, setOpenFullModal] = useState(false);
   const avatarRef = useRef(null);
 
-  const isLong = (msg.content?.length || 0) > MAX_PREVIEW_CHARS;
+  const isImage = msg.messageType === "IMAGE";
+  const isAiMessage = msg.senderId === AI_USER_ID;
+  const isLong = !isImage && (msg.content?.length || 0) > MAX_PREVIEW_CHARS;
   const previewText = isLong
     ? msg.content.slice(0, MAX_PREVIEW_CHARS) + "..."
     : msg.content;
@@ -31,8 +33,6 @@ export default function MessageItem({
     : msg.senderProfileUrl;
 
   const computedNickname = isDeletedUser ? "알 수 없음" : msg.senderNickname;
-
-  const isAiMessage = msg.senderId === AI_USER_ID;
 
   const bubbleAnimationClass =
     isAiMessage && msg.animateIn ? "animate-ai-bubble" : "";
@@ -123,7 +123,20 @@ export default function MessageItem({
                   ${bubbleAnimationClass}
                 `}
               >
-                {previewText}
+                {isImage ? (
+                  <img
+                    src={msg.content}
+                    alt="chat-image"
+                    className="
+                      max-w-[240px] max-h-[240px]
+                      rounded-xl object-cover cursor-pointer
+                      hover:opacity-90 transition
+                    "
+                    onClick={() => setOpenFullModal(true)}
+                  />
+                ) : (
+                  previewText
+                )}
 
                 {/* 🔽 페이드아웃 + 전체보기 버튼 (카카오톡 스타일) */}
                 {isLong && (
@@ -222,9 +235,17 @@ export default function MessageItem({
             {computedNickname || (isMine ? "나" : "")}
           </p>
           <div className="mt-2 p-3 rounded-xl bg-gray-50 border border-gray-200 max-h-[55vh] overflow-y-auto custom-scroll">
-            <p className="whitespace-pre-wrap break-words text-gray-900 text-sm align-o">
-              {msg.content}
-            </p>
+            {isImage ? (
+              <img
+                src={msg.content}
+                alt="full-image"
+                className="max-w-full max-h-[60vh] rounded-xl mx-auto"
+              />
+            ) : (
+              <p className="whitespace-pre-wrap break-words text-gray-900 text-sm">
+                {msg.content}
+              </p>
+            )}
           </div>
 
           <p className="text-xs text-gray-400 text-right mr-2">
