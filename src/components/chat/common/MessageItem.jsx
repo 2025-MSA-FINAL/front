@@ -128,8 +128,8 @@ export default function MessageItem({
                     src={msg.content}
                     alt="chat-image"
                     className="
-                      max-w-[240px] max-h-[240px]
-                      rounded-xl object-cover cursor-pointer
+                      max-w-full max-h-full p-4
+                      rounded-4xl object-cover cursor-pointer
                       hover:opacity-90 transition
                     "
                     onClick={() => setOpenFullModal(true)}
@@ -203,19 +203,30 @@ export default function MessageItem({
                 ${msg.isPending ? "opacity-50" : ""}
               `}
               >
-                {previewText}
+                {isImage ? (
+                  <img
+                    src={msg.content}
+                    alt="chat-image"
+                    className="
+                max-w-full max-h-full p-2
+                rounded-2xl object-cover cursor-pointer
+                hover:opacity-90 transition
+              "
+                    onClick={() => setOpenFullModal(true)}
+                  />
+                ) : (
+                  previewText
+                )}
 
                 {/* 🔽 페이드아웃 + 전체보기 버튼 */}
-                {isLong && (
+                {isLong && !isImage && (
                   <div
                     className="absolute bottom-0 left-0 w-full h-20 flex items-end justify-end pr-4
-                    bg-gradient-to-t from-gray-200/90 to-transparent rounded-b-2xl"
+                  bg-gradient-to-t from-gray-200/90 to-transparent rounded-b-2xl"
                   >
                     <button
                       className="mb-2 px-3 py-1 text-[12px] font-medium
-                        rounded-full
-                        text-purple-700 
-                        hover:bg-purple-300 transition"
+                  rounded-full text-purple-700 hover:bg-purple-300 transition"
                       onClick={() => setOpenFullModal(true)}
                     >
                       전체보기
