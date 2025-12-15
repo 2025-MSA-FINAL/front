@@ -6,6 +6,7 @@ import {
   deletePrivateChatRoom,
   updateGroupChatRoom,
   leaveGroupChatRoom,
+  uploadChatImage,
 } from "../../../api/chatApi";
 import BlurModal from "../../common/BlurModal";
 import MessageItem from "../../chat/common/MessageItem";
@@ -111,6 +112,8 @@ export default function MessageChatSection() {
   const typingTimeoutRef = useRef(null);
   const isTypingRef = useRef(false);
   const prevMessageCountRef = useRef(0);
+  const fileInputRef = useRef(null);
+  const isSendingImageRef = useRef(false);
 
   const currentUserId = useAuthStore((s) => s.user?.userId);
   const activeRoom = useChatStore((s) => s.activeChatRoom);
@@ -897,8 +900,71 @@ export default function MessageChatSection() {
               }
             }}
           />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={async (e) => {
+              if (isSendingImageRef.current) return; // 중복 방지
+              isSendingImageRef.current = true;
 
-          <button className="p-2 hover:bg-white/10 rounded-full">
+              const file = e.target.files?.[0];
+              if (!file) {
+                isSendingImageRef.current = false;
+                return;
+              }
+
+              const clientMessageKey = uuidv4();
+              const tempId = `temp-${clientMessageKey}`;
+              const previewUrl = URL.createObjectURL(file);
+
+              // optimistic image message
+              setMessages((prev) => [
+                ...prev,
+                {
+                  cmId: tempId,
+                  roomId,
+                  roomType,
+                  senderId: currentUserId,
+                  senderNickname: "나",
+                  senderProfileUrl: useAuthStore.getState().user?.photo ?? "",
+                  senderStatus: "ACTIVE",
+                  content: previewUrl,
+                  messageType: "IMAGE",
+                  createdAt: formatTime(new Date()),
+                  minuteKey: toMinuteKey(new Date()),
+                  dateLabel: formatDateLabel(new Date()),
+                  isPending: true,
+                  clientMessageKey,
+                },
+              ]);
+
+              try {
+                await uploadChatImage({
+                  roomType,
+                  roomId,
+                  file,
+                  clientMessageKey,
+                });
+              } catch {
+                alert("이미지 전송 실패");
+              } finally {
+                isSendingImageRef.current = false;
+                e.target.value = "";
+              }
+            }}
+          />
+
+          <button
+            disabled={isSendingImageRef.current}
+            className="p-2 hover:bg-white/10 rounded-full disabled:opacity-40"
+            onClick={() => {
+              if (!isSendingImageRef.current) {
+                fileInputRef.current?.click();
+              }
+            }}
+          >
             <ImageUploadIcon className="w-6 h-6" fill="#fff" />
           </button>
 

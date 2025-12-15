@@ -20,7 +20,9 @@ export default function MessageItem({
   const [openFullModal, setOpenFullModal] = useState(false);
   const avatarRef = useRef(null);
 
-  const isLong = (msg.content?.length || 0) > MAX_PREVIEW_CHARS;
+  const isImage = msg.messageType === "IMAGE";
+  const isAiMessage = msg.senderId === AI_USER_ID;
+  const isLong = !isImage && (msg.content?.length || 0) > MAX_PREVIEW_CHARS;
   const previewText = isLong
     ? msg.content.slice(0, MAX_PREVIEW_CHARS) + "..."
     : msg.content;
@@ -31,8 +33,6 @@ export default function MessageItem({
     : msg.senderProfileUrl;
 
   const computedNickname = isDeletedUser ? "알 수 없음" : msg.senderNickname;
-
-  const isAiMessage = msg.senderId === AI_USER_ID;
 
   const bubbleAnimationClass =
     isAiMessage && msg.animateIn ? "animate-ai-bubble" : "";
@@ -123,7 +123,20 @@ export default function MessageItem({
                   ${bubbleAnimationClass}
                 `}
               >
-                {previewText}
+                {isImage ? (
+                  <img
+                    src={msg.content}
+                    alt="chat-image"
+                    className="
+                      max-w-full max-h-full p-4
+                      rounded-4xl object-cover cursor-pointer
+                      hover:opacity-90 transition
+                    "
+                    onClick={() => setOpenFullModal(true)}
+                  />
+                ) : (
+                  previewText
+                )}
 
                 {/* 🔽 페이드아웃 + 전체보기 버튼 (카카오톡 스타일) */}
                 {isLong && (
@@ -190,19 +203,30 @@ export default function MessageItem({
                 ${msg.isPending ? "opacity-50" : ""}
               `}
               >
-                {previewText}
+                {isImage ? (
+                  <img
+                    src={msg.content}
+                    alt="chat-image"
+                    className="
+                max-w-full max-h-full p-2
+                rounded-2xl object-cover cursor-pointer
+                hover:opacity-90 transition
+              "
+                    onClick={() => setOpenFullModal(true)}
+                  />
+                ) : (
+                  previewText
+                )}
 
                 {/* 🔽 페이드아웃 + 전체보기 버튼 */}
-                {isLong && (
+                {isLong && !isImage && (
                   <div
                     className="absolute bottom-0 left-0 w-full h-20 flex items-end justify-end pr-4
-                    bg-gradient-to-t from-gray-200/90 to-transparent rounded-b-2xl"
+                  bg-gradient-to-t from-gray-200/90 to-transparent rounded-b-2xl"
                   >
                     <button
                       className="mb-2 px-3 py-1 text-[12px] font-medium
-                        rounded-full
-                        text-purple-700 
-                        hover:bg-purple-300 transition"
+                  rounded-full text-purple-700 hover:bg-purple-300 transition"
                       onClick={() => setOpenFullModal(true)}
                     >
                       전체보기
@@ -222,9 +246,17 @@ export default function MessageItem({
             {computedNickname || (isMine ? "나" : "")}
           </p>
           <div className="mt-2 p-3 rounded-xl bg-gray-50 border border-gray-200 max-h-[55vh] overflow-y-auto custom-scroll">
-            <p className="whitespace-pre-wrap break-words text-gray-900 text-sm align-o">
-              {msg.content}
-            </p>
+            {isImage ? (
+              <img
+                src={msg.content}
+                alt="full-image"
+                className="max-w-full max-h-[60vh] rounded-xl mx-auto"
+              />
+            ) : (
+              <p className="whitespace-pre-wrap break-words text-gray-900 text-sm">
+                {msg.content}
+              </p>
+            )}
           </div>
 
           <p className="text-xs text-gray-400 text-right mr-2">
