@@ -14,6 +14,7 @@ export default function MessageItem({
   roomType,
   participants,
   currentUserId,
+  otherUserId,
   onOpenUserPopover,
 }) {
   const [openFullModal, setOpenFullModal] = useState(false);
@@ -41,6 +42,9 @@ export default function MessageItem({
   console.log("participants =", participants);
 
   const unread = (() => {
+    const isAiRoom = roomType === "PRIVATE" && otherUserId === AI_USER_ID;
+
+    if (isAiRoom) return 0;
     if (typeof msg.cmId !== "number") return 0;
     if (isAiMessage) return 0;
 

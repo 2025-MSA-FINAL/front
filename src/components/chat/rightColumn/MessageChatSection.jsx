@@ -144,17 +144,19 @@ export default function MessageChatSection() {
   const participants = roomState?.participants ?? [];
   const initialUnreadIndex = roomState?.initialUnreadIndex ?? null;
 
+  const AI_USER_ID = 20251212;
+
   const iconSize =
     roomType === "GROUP"
       ? "w-11 h-9"
-      : otherUserId === 20251212
+      : otherUserId === AI_USER_ID
       ? "w-8.5 h-10"
       : "w-9 h-9";
 
   const roomIcon =
     roomType === "GROUP"
       ? groupChatIcon
-      : otherUserId === 20251212
+      : otherUserId === AI_USER_ID
       ? POPBOT
       : privateChatIcon;
 
@@ -190,7 +192,7 @@ export default function MessageChatSection() {
     ([userId, nickname]) => ({ userId, nickname })
   );
 
-  const isAiTyping = typingUserList.some((u) => u.userId === 20251212);
+  const isAiTyping = typingUserList.some((u) => u.userId === AI_USER_ID);
 
   const inputPlaceholder =
     roomType === "PRIVATE" && isAiTyping
@@ -212,7 +214,7 @@ export default function MessageChatSection() {
 
       const unreadIncrement = newMessages.filter((m) => {
         const isMine = m.senderId === currentUserId;
-        const isAi = m.senderId === 20251212;
+        const isAi = m.senderId === AI_USER_ID;
         return !isMine && !isAi;
       }).length;
 
@@ -284,13 +286,13 @@ export default function MessageChatSection() {
     // 🔹 2) 메시지
     if (body.type === "MESSAGE") {
       const payload = body.payload;
-      const isAi = payload.senderId === 20251212;
+      const isAi = payload.senderId === AI_USER_ID;
 
       // ⭐ AI 메시지 오면 typing 종료
       if (isAi) {
         setTypingUsers((prev) => {
           const next = new Map(prev);
-          next.delete(20251212);
+          next.delete(AI_USER_ID);
           return next;
         });
       }
@@ -379,6 +381,7 @@ export default function MessageChatSection() {
   };
 
   const sendRead = (messageId) => {
+    if (roomType === "PRIVATE" && otherUserId === AI_USER_ID) return;
     if (messageId <= myLastReadMessageId) return;
 
     const client = getStompClient();
@@ -484,7 +487,10 @@ export default function MessageChatSection() {
             (m) => typeof m.cmId === "number" && m.senderId !== currentUserId
           );
 
-        if (lastUnreadFromOther.cmId > myLastReadMessageId) {
+        if (
+          lastUnreadFromOther &&
+          lastUnreadFromOther.cmId > myLastReadMessageId
+        ) {
           setUnreadCount(0);
           sendRead(lastUnreadFromOther.cmId);
         }
@@ -742,6 +748,7 @@ export default function MessageChatSection() {
                   participants={participants}
                   roomType={roomType}
                   currentUserId={currentUserId}
+                  otherUserId={otherUserId}
                   onOpenUserPopover={(id, ref) => {
                     setOpenUserPopover(id);
                     setUserAnchorRef(ref);
