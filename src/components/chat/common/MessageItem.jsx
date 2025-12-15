@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom"; //팝업 상세 페이지 이동을 위해 추가
 import BlurModal from "../../common/BlurModal";
 import { RotateCcw, X } from "lucide-react";
 import privateChatIcon from "../../../assets/privateChat.png";
@@ -6,6 +7,41 @@ import privateChatIcon from "../../../assets/privateChat.png";
 const MAX_PREVIEW_CHARS = 600; // 긴 메시지 기준
 const AI_USER_ID = 20251212;
 
+//팝업 카드 컴포넌트
+//클릭 시 해당 팝업 상세 페이지(/popup/:id)로 이동
+const PopupCardBubble = ({ popupData, onClick }) => (
+  <div
+    className="flex flex-col w-[240px] bg-white rounded-xl overflow-hidden shadow-sm border border-gray-200 cursor-pointer transition hover:shadow-md active:scale-95"
+    onClick={onClick}
+  >
+    {/* 썸네일 영역 */}
+    <div className="w-full h-[140px] bg-gray-100">
+      <img
+        src={popupData?.popThumbnail || "/assets/dummy/image1.jpg"}
+        alt="popup thumbnail"
+        className="w-full h-full object-cover"
+      />
+    </div>
+
+    {/* 텍스트 정보 영역 */}
+    <div className="p-3 flex flex-col gap-1 text-left">
+      {/* 뱃지 */}
+      <span className="text-[10px] text-purple-600 font-bold bg-purple-50 px-1.5 py-0.5 rounded w-fit">
+        팝업 공유
+      </span>
+      {/* 팝업 이름 */}
+      <h4 className="font-bold text-gray-800 text-sm line-clamp-1">
+        {popupData?.popName || "알 수 없는 팝업"}
+      </h4>
+      {/* 장소 */}
+      <p className="text-xs text-gray-500 line-clamp-1">
+        📍 {popupData?.popLocation || "장소 정보 없음"}
+      </p>
+      {/* 바로가기 버튼 모양 */}
+      <button className="mt-2 w-full py-1.5 text-xs font-semibold text-white bg-primary-dark rounded-md hover:bg-primary-main transition">
+        보러가기
+      </button>
+    </div>
 const ImageBubble = ({
   src,
   pending,
@@ -100,6 +136,69 @@ export default function MessageItem({
   const [openFullModal, setOpenFullModal] = useState(false);
   const avatarRef = useRef(null);
 
+  // =========================================================================
+  // 팝업 공유 메시지 처리 로직
+  // 설명: 메시지 타입이 'POPUP'일 경우, 텍스트 대신 카드 UI를 보여주기 위한 준비 단계
+  // =========================================================================
+
+  const navigate = useNavigate(); // 페이지 이동 훅
+
+  //content가 객체일 수도 있어서 안전하게 문자열로 변환 (모달/프리뷰 안정화)
+  const safeContentString =
+    typeof msg.content === "string"
+      ? msg.content
+      : msg.content
+        ? JSON.stringify(msg.content)
+        : "";
+
+  //팝업 데이터 키 정규화 함수(서버/소켓에서 키가 달라도 카드가 뜨게)
+  const normalizePopupData = (raw) => {
+    if (!raw || typeof raw !== "object") return null;
+
+    const popId = raw.popId ?? raw.popupId ?? raw.id;
+    const popName = raw.popName ?? raw.name;
+    const popThumbnail = raw.popThumbnail ?? raw.thumbnailUrl ?? raw.thumbnail;
+    const popLocation = raw.popLocation ?? raw.location;
+
+    //id나 name 같은 최소 필드라도 있어야 카드로 취급
+    if (!popId && !popName && !popThumbnail && !popLocation) return null;
+
+    return { popId, popName, popThumbnail, popLocation };
+  };
+
+  // 1. 현재 메시지가 '팝업 공유' 타입인지 확인
+  //백엔드나 소켓에서 messageType: "POPUP"으로 보낸 경우
+  const isPopupMessage = msg.messageType === "POPUP" || msg.contentType === "POPUP";
+
+  let popupData = null;
+
+  // 2. 팝업 데이터 파싱
+  //content에 JSON 문자열(팝업 ID, 이름, 썸네일 등)이 들어있으므로 객체로 변환
+  if (isPopupMessage) {
+    try {
+      //이미 객체라면 그대로 쓰고, 문자열이라면 JSON.parse 시도
+      const raw =
+        typeof msg.content === "string" ? JSON.parse(msg.content) : msg.content;
+
+      //파싱한 raw를 pop* 형태로 정규화
+      popupData = normalizePopupData(raw);
+    } catch (e) {
+      console.error("[MessageItem] 팝업 데이터 파싱 실패:", e);
+      //파싱 실패 시 일반 텍스트로 보여주거나 에러 처리가 될 수 있도록 null 유지
+      popupData = null;
+    }
+  }
+
+  //msg.content가 객체여도 길이/프리뷰 계산이 깨지지 않게 safeContentString 사용
+  const isLong = (safeContentString?.length || 0) > MAX_PREVIEW_CHARS;
+
+  //POPUP인데 파싱 실패하면 JSON 그대로 보여주기보다 안내 텍스트로 fallback
+  const previewText =
+    isPopupMessage && !popupData
+      ? "[팝업 공유 메시지]"
+      : isLong
+        ? safeContentString.slice(0, MAX_PREVIEW_CHARS) + "..."
+        : safeContentString;
   const isImage = msg.messageType === "IMAGE";
   const isAiMessage = msg.senderId === AI_USER_ID;
   const isLong = !isImage && (msg.content?.length || 0) > MAX_PREVIEW_CHARS;
@@ -108,9 +207,7 @@ export default function MessageItem({
     : msg.content;
 
   const isDeletedUser = msg.senderStatus === "DELETED";
-  const computedProfileImg = isDeletedUser
-    ? privateChatIcon
-    : msg.senderProfileUrl;
+  const computedProfileImg = isDeletedUser ? privateChatIcon : msg.senderProfileUrl;
 
   const computedNickname = isDeletedUser ? "알 수 없음" : msg.senderNickname;
 
@@ -184,9 +281,8 @@ export default function MessageItem({
             onClick={() =>
               !isDeletedUser && onOpenUserPopover(msg.senderId, avatarRef)
             }
-            className={`w-10 h-10 rounded-full object-cover ${
-              isDeletedUser ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-            } ${isGroupWithPrev ? "invisible" : ""}`}
+            className={`w-10 h-10 rounded-full object-cover ${isDeletedUser ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+              } ${isGroupWithPrev ? "invisible" : ""}`}
           />
 
           <div className="flex flex-col ml-2 items-start">
@@ -198,6 +294,17 @@ export default function MessageItem({
 
             <div className="flex items-end gap-2 mt-1">
               {/* 말풍선 */}
+              {/* ========================================================= */}
+              {/* 팝업 메시지인지 일반 텍스트인지 구분하여 렌더링 */}
+              {/* ========================================================= */}
+              {isPopupMessage && popupData ? (
+                // (A) 팝업 공유 메시지인 경우 -> 카드 컴포넌트 표시 (props 전달)
+                <PopupCardBubble
+                  popupData={popupData}
+                  //popId가 없을 때 대비
+                  onClick={() => navigate(`/popup/${popupData?.popId ?? ""}`)}
+                />
+              ) :  ( 
               <div
                 className={`relative rounded-2xl whitespace-pre-wrap break-words 
                   bg-white/20 text-white max-w-[500px] overflow-hidden
@@ -238,6 +345,7 @@ export default function MessageItem({
                   </div>
                 )}
               </div>
+              )}
               <div className="flex flex-col">
                 {/* ✅ 읽음 숫자 표시 (카톡 방식) */}
                 {!isAiMessage && unread > 0 && (
@@ -278,8 +386,17 @@ export default function MessageItem({
                 )}
               </div>
 
-              {/* 말풍선 */}
-              <div
+              {/* ========================================================= */}
+              {/* 내 메시지 팝업 여부 체크 */}
+              {/* ========================================================= */}
+              {isPopupMessage && popupData ? (
+                // (A) 팝업 공유 메시지 -> 카드 표시 (props 전달)
+                <PopupCardBubble
+                  popupData={popupData}
+                  //popId가 없을 때 대비
+                  onClick={() => navigate(`/popup/${popupData?.popId ?? ""}`)}
+                />
+              ) : ( <div
                 className={`relative rounded-2xl whitespace-pre-wrap break-words 
                 bg-white text-purple-700 max-w-[500px] overflow-hidden
                 ${isImage ? "" : "px-4 py-2"}
@@ -316,6 +433,8 @@ export default function MessageItem({
                   </div>
                 )}
               </div>
+              )}
+              {/* 분기 처리 종료 */}
             </div>
           </div>
         </div>
@@ -328,6 +447,10 @@ export default function MessageItem({
             {computedNickname || (isMine ? "나" : "")}
           </p>
           <div className="mt-2 p-3 rounded-xl bg-gray-50 border border-gray-200 max-h-[55vh] overflow-y-auto custom-scroll">
+            <p className="whitespace-pre-wrap break-words text-gray-900 text-sm align-o">
+              {/* 객체 content여도 깨지지 않게 safeContentString 사용 */}
+              {safeContentString}
+            </p>
             {isImage ? (
               <img
                 src={msg.content}
