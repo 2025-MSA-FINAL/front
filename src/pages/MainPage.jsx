@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ghost1 from "../assets/ghost2.png";
 import image1 from "../assets/dummy/image1.jpg";
 import image2 from "../assets/dummy/image2.webp";
@@ -17,7 +17,9 @@ import image7 from "../assets/dummy/image7.jpg";
  *   3) 카드 중심을 safeSpace 기준으로 살짝만 위/아래 보정(centerNudge)
  */
 function useHeroLayout() {
-  const [w, setW] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 1200));
+  const [w, setW] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth : 1200
+  );
 
   useEffect(() => {
     const onResize = () => setW(window.innerWidth);
@@ -99,14 +101,20 @@ function MainPage() {
   const { cfg } = useHeroLayout();
   const [active, setActive] = useState(0);
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      setActive((prev) => (prev + 1) % posters.length);
-    }, 3500);
-    return () => clearInterval(id);
-  }, [posters.length]);
+  // ✅ HERO를 화면 중앙으로 스크롤하기 위한 ref
+  const heroScrollRef = useRef(null);
+
+  // ✅ 드래그(스와이프) (슬라이드 기능 제거했지만 기존 변수는 유지)
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const lastXRef = useRef(0);
+  const movedRef = useRef(false);
+
+  // ✅ 자동 슬라이드 제거 (기존 setInterval useEffect 삭제)
 
   const go = (idx) => setActive(idx);
+  const next = () => setActive((p) => (p + 1) % posters.length);
+  const prev = () => setActive((p) => (p - 1 + posters.length) % posters.length);
 
   const getOffset = (index) => {
     const n = posters.length;
@@ -134,6 +142,42 @@ function MainPage() {
     glowMid: "rgba(155,44,255,0.55)",
   };
 
+  // ✅ 드래그 핸들러 (슬라이드 기능 제거했지만 기존 함수는 유지)
+  const onPointerDown = (e) => {
+    isDraggingRef.current = true;
+    movedRef.current = false;
+    startXRef.current = e.clientX;
+    lastXRef.current = e.clientX;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const onPointerMove = (e) => {
+    if (!isDraggingRef.current) return;
+    lastXRef.current = e.clientX;
+
+    const dx = lastXRef.current - startXRef.current;
+
+    if (Math.abs(dx) > 6) movedRef.current = true;
+  };
+
+  const onPointerUp = () => {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+
+    const dx = lastXRef.current - startXRef.current;
+
+    const threshold = 12;
+
+    if (dx > threshold) prev();
+    else if (dx < -threshold) next();
+  };
+
+  const onPointerCancel = () => {
+    isDraggingRef.current = false;
+  };
+
   return (
     <main className="min-h-[calc(100vh-88px)] bg-secondary-light pb-16">
       {/* =========================
@@ -143,7 +187,6 @@ function MainPage() {
         <div
           className="w-full relative overflow-hidden"
           style={{
-            // ✅ 배경은 퍼플 쇼룸 유지
             background: `linear-gradient(180deg, #1a0628 0%, #2b0a3d 38%, #12031d 100%)`,
           }}
         >
@@ -186,8 +229,10 @@ function MainPage() {
           <div className="absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-black/[0.25] to-transparent" />
 
           <div className={`relative mx-auto w-full max-w-[1200px] px-4 sm:px-6 ${cfg.padY}`}>
+            {/* ✅ 슬라이드 제거: pointer 이벤트 바인딩 제거 */}
             <div
-              className="relative"
+              ref={heroScrollRef}
+              className="relative touch-pan-y"
               style={{
                 ...heroHeightStyle,
                 paddingBottom: `${cfg.indicatorSafeSpace}px`,
@@ -195,7 +240,8 @@ function MainPage() {
             >
               {posters.map((p, idx) => {
                 const d = getOffset(idx);
-                const isVisible = Math.abs(d) <= 3;
+                const absD = Math.abs(d);
+                const isVisible = absD <= 3;
                 const isActive = d === 0;
 
                 const translateX =
@@ -213,23 +259,42 @@ function MainPage() {
                     ? -cfg.step3
                     : cfg.step3;
 
-                const scale = d === 0 ? 1.1 : Math.abs(d) === 1 ? 0.92 : Math.abs(d) === 2 ? 0.78 : 0.68;
-                const opacity = d === 0 ? 1 : Math.abs(d) === 1 ? 0.55 : Math.abs(d) === 2 ? 0.28 : 0.16;
-                const z = d === 0 ? 40 : Math.abs(d) === 1 ? 30 : Math.abs(d) === 2 ? 20 : 10;
+                const scale =
+                  d === 0 ? 1.1 : absD === 1 ? 0.92 : absD === 2 ? 0.78 : 0.68;
+
+                const z = d === 0 ? 40 : absD === 1 ? 30 : absD === 2 ? 20 : 10;
+
+                const darkAlpha = absD === 1 ? 0.58 : absD === 2 ? 0.74 : 0.86;
 
                 return (
                   <div
                     key={p.id}
-                    className={`absolute transition-all duration-700 ease-in-out ${isVisible ? "block" : "hidden"}`}
+                    className={`absolute transition-all duration-700 ease-in-out ${
+                      isVisible ? "block" : "hidden"
+                    } cursor-pointer`}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") go(idx);
+                    }}
+                    onClick={() => {
+                      // ✅ 클릭 시 hero 영역이 화면 중앙에 오도록 스크롤
+                      heroScrollRef.current?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                        inline: "nearest",
+                      });
+
+                      go(idx); // ✅ 클릭하면 해당 카드가 중앙(active)으로 이동
+                    }}
                     style={{
                       top: "50%",
                       left: "50%",
                       transform: `translate(-50%, -50%) translateX(${translateX}px) translateY(${baseCardY}px) scale(${scale})`,
-                      opacity,
+                      opacity: 1,
                       zIndex: z,
                     }}
                   >
-                    {/* ✅ active 카드 네온 스포트라이트 (유지) */}
                     {isActive && (
                       <>
                         <div
@@ -259,12 +324,11 @@ function MainPage() {
                       </>
                     )}
 
-                    {/* ✅ 카드: 화이트 유지 + HERO 카드들에 보라색 shadow(글로우) 추가 */}
                     <div
                       className="relative aspect-[3/4] rounded-[22px] overflow-hidden transition-all duration-300 ease-out hover:scale-[1.02] hover:-translate-y-1"
                       style={{
                         width: `${cfg.cardW}px`,
-                        background: "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.92))",
+                        background: "#ffffff",
                         boxShadow: isActive
                           ? `0 26px 90px rgba(0,0,0,0.34),
      0 0 30px rgba(155,44,255,0.8),
@@ -275,20 +339,38 @@ function MainPage() {
      0 0 0 1px rgba(255,255,255,0.16)`,
                       }}
                     >
-                      {/* 프레임(매트) */}
+                      {!isActive && (
+                        <div
+                          className="absolute inset-0 pointer-events-none"
+                          style={{
+                            background: `rgba(0,0,0,${darkAlpha})`,
+                            borderRadius: "22px",
+                            zIndex: 30,
+                          }}
+                        />
+                      )}
+
                       <div
                         className="absolute inset-0"
                         style={{
                           padding: isActive ? "10px" : "9px",
+                          zIndex: 10,
                         }}
                       >
                         <div className="w-full h-full rounded-[16px] overflow-hidden relative">
-                          <img src={p.img} alt={p.title} className="w-full h-full object-cover" />
+                          <img
+                            src={p.img}
+                            alt={p.title}
+                            className="w-full h-full object-cover"
+                            draggable={false}
+                            style={{
+                              filter: "none",
+                              transform: isActive ? "none" : "scale(1.02)",
+                            }}
+                          />
 
-                          {/* ✅ 가독성만 확보 (보라 틴트 없음) */}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/12 to-transparent" />
 
-                          {/* 하이라이트: 유리 반사 느낌 (active만 은은하게) */}
                           {isActive && (
                             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_12%,rgba(255,255,255,0.16)_0%,transparent_55%)]" />
                           )}
@@ -309,7 +391,7 @@ function MainPage() {
                 );
               })}
 
-              {/* ✅ 인디케이터: “보라보라” 제거 -> 뉴트럴 글래스 + active만 퍼플 포인트 */}
+              {/* ✅ 인디케이터(클릭으로 중앙 이동만) */}
               <div
                 className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 z-50 px-4 py-2.5 rounded-full border"
                 style={{
@@ -339,43 +421,41 @@ function MainPage() {
         </div>
 
         {/* 퀵슬롯 */}
-<div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-[62%] md:translate-y-[76%] w-full px-4 sm:px-6 z-50">
-  <div
-    className="mx-auto w-full max-w-[1400px] md:max-w-[1100px] bg-paper rounded-card ring-2"
-    style={{
-      // ✅ 색/투명/보라 없이 “입체감”만: 뉴트럴 섀도 + 상단 하이라이트(inset)
-      boxShadow:
-        "0 22px 60px rgba(0,0,0,0.16), 0 6px 16px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.95)",
-      borderColor: "rgba(0,0,0,0.08)",
-      ringColor: "rgba(0,0,0,0.06)",
-    }}
-  >
-    <div className="flex flex-col md:flex-row md:items-center px-5 sm:px-8 md:px-12 py-4 sm:py-6 md:py-6 gap-5 md:gap-0">
-      <div className="flex items-center gap-4 min-w-0 md:min-w-[200px] md:ml-8">
-        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shrink-0 overflow-visible">
-          <img src={ghost1} alt="ghost" className="w-full h-full object-contain" />
+        <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-[62%] md:translate-y-[76%] w-full px-4 sm:px-6 z-50">
+          <div
+            className="mx-auto w-full max-w-[1400px] md:max-w-[1100px] bg-paper rounded-card ring-2"
+            style={{
+              boxShadow:
+                "0 22px 60px rgba(0,0,0,0.16), 0 6px 16px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.95)",
+              borderColor: "rgba(0,0,0,0.08)",
+              ringColor: "rgba(0,0,0,0.06)",
+            }}
+          >
+            <div className="flex flex-col md:flex-row md:items-center px-5 sm:px-8 md:px-12 py-4 sm:py-6 md:py-6 gap-5 md:gap-0">
+              <div className="flex items-center gap-4 min-w-0 md:min-w-[200px] md:ml-8">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shrink-0 overflow-visible">
+                  <img src={ghost1} alt="ghost" className="w-full h-full object-contain" />
+                </div>
+
+                <div className="leading-tight">
+                  <p className="text-[15px] sm:text-[16px] font-semibold text-text-black">팝업스토어 안내</p>
+                  <p className="text-[13px] sm:text-[14px] text-text-sub">팝스팟 도우미</p>
+                </div>
+              </div>
+
+              <div className="hidden md:block h-12 w-[1px] bg-gradient-to-b from-transparent via-secondary to-transparent mx-5" />
+
+              <div className="flex-1">
+                <div className="grid grid-cols-2 gap-6 sm:gap-8 md:flex md:justify-center md:gap-30">
+                  <MenuItem label="팝업리스트" />
+                  <MenuItem label="AI 챗봇" />
+                  <MenuItem label="팝업등록" />
+                  <MenuItem label="마이페이지" />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-
-        <div className="leading-tight">
-          <p className="text-[15px] sm:text-[16px] font-semibold text-text-black">팝업스토어 안내</p>
-          <p className="text-[13px] sm:text-[14px] text-text-sub">팝스팟 도우미</p>
-        </div>
-      </div>
-
-      <div className="hidden md:block h-12 w-[1px] bg-gradient-to-b from-transparent via-secondary to-transparent mx-5" />
-
-      <div className="flex-1">
-        <div className="grid grid-cols-2 gap-6 sm:gap-8 md:flex md:justify-center md:gap-30">
-          <MenuItem label="팝업리스트" />
-          <MenuItem label="AI 챗봇" />
-          <MenuItem label="팝업등록" />
-          <MenuItem label="마이페이지" />
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
       </section>
 
       {/* =========================
@@ -519,10 +599,9 @@ function MenuItem({ label }) {
     <div className="flex flex-col items-center gap-2 group cursor-pointer">
       <div className="w-12 h-12 flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:scale-110 group-hover:drop-shadow-lg">
         {label === "마이페이지" ? (
-          // ✅ 원래 핑크
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-12 h-12">
             <path
-              d="M17 21C17 18.2386 14.7614 16 12 16C9.23858 16 7 18.2386 7 21M17 21H17.8031C18.921 21 19.48 21 19.9074 20.7822C20.2837 20.5905 20.5905 20.2837 20.7822 19.9074C21 19.48 21 18.921 21 17.8031V6.19691C21 5.07899 21 4.5192 20.7822 4.0918C20.5905 3.71547 20.2837 3.40973 19.9074 3.21799C19.4796 3 18.9203 3 17.8002 3H6.2002C5.08009 3 4.51962 3 4.0918 3.21799C3.71547 3.40973 3.40973 3.71547 3.21799 4.0918C3 4.51962 3 5.08009 3 6.2002V17.8002C3 18.9203 3 19.4796 3.21799 19.9074C3.40973 20.2837 3.71547 20.5905 4.0918 20.7822C4.5192 21 5.07899 21 6.19691 21H7M17 21H7M12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10C15 11.6569 13.6569 13 12 13Z"
+              d="M17 21C17 18.2386 14.7614 16 12 16C9.23858 16 7 18.2386 7 21M17 21H17.8031C18.921 21 19.48 21 19.9074 20.7822C20.2837 20.5905 20.5905 20.2837 20.7822 19.9074C21 19.48 21 18.921 21 17.8031V6.19691C21 5.07899 21 4.5192 20.7822 4.0918C20.5905 3.71547 20.2837 3.40973 19.9074 3.21799C19.4796 3 18.9203 3 17.8002 3H6.2002C5.08009 3 4.51962 3 4.0918 3.21799C3.71547 3.40973 3.40973 3.71547 3.21799 4.0918C3 4.51962 3 5.08009 3 6.2002V17.8002C3 18.9203 3 19.4796 3.21799 19.9074C3.40973 20.2837 3.71547 20.5905 4.0918 20.7822C4.5192 21 5.07899 21 6.19691 21H7M17 21H17.8031C18.921 21 19.48 21 19.9074 20.7822C20.2837 20.5905 20.5905 20.2837 20.7822 19.9074C21 19.48 21 18.921 21 17.8031V6.19691C21 5.07899 21 4.5192 20.7822 4.0918C20.5905 3.71547 20.2837 3.40973 19.9074 3.21799C19.4796 3 18.9203 3 17.8002 3H6.2002C5.08009 3 4.51962 3 4.0918 3.21799C3.71547 3.40973 3.40973 3.71547 3.21799 4.0918C3 4.51962 3 5.08009 3 6.2002V17.8002C3 18.9203 3 19.4796 3.21799 19.9074C3.40973 20.2837 3.71547 20.5905 4.0918 20.7822C4.5192 21 5.07899 21 6.19691 21H7M17 21H7M12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10C15 11.6569 13.6569 13 12 13Z"
               stroke="#FF2A7E"
               strokeWidth="2"
               strokeLinecap="round"
@@ -530,29 +609,13 @@ function MenuItem({ label }) {
             />
           </svg>
         ) : label === "AI 챗봇" ? (
-          // ✅ 원래 라임
-          <svg
-            viewBox="0 0 24 24"
-            data-name="025_SCIENCE"
-            id="_025_SCIENCE"
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-12 h-12"
-          >
+          <svg viewBox="0 0 24 24" data-name="025_SCIENCE" id="_025_SCIENCE" xmlns="http://www.w3.org/2000/svg" className="w-12 h-12">
             <defs>
               <style>{`.cls-1{fill:#B7F731;}`}</style>
             </defs>
-            <path
-              className="cls-1"
-              d="M16,13H8a3,3,0,0,1-3-3V6A3,3,0,0,1,8,3h8a3,3,0,0,1,3,3v4A3,3,0,0,1,16,13ZM8,5A1,1,0,0,0,7,6v4a1,1,0,0,0,1,1h8a1,1,0,0,0,1-1V6a1,1,0,0,0-1-1Z"
-            />
-            <path
-              className="cls-1"
-              d="M10,9a1.05,1.05,0,0,1-.71-.29A1,1,0,0,1,10.19,7a.6.6,0,0,1,.19.06.56.56,0,0,1,.17.09l.16.12A1,1,0,0,1,10,9Z"
-            />
-            <path
-              className="cls-1"
-              d="M14,9a1,1,0,0,1-.71-1.71,1,1,0,0,1,1.42,1.42,1,1,0,0,1-.16.12.56.56,0,0,1-.17.09.6.6,0,0,1-.19.06Z"
-            />
+            <path className="cls-1" d="M16,13H8a3,3,0,0,1-3-3V6A3,3,0,0,1,8,3h8a3,3,0,0,1,3,3v4A3,3,0,0,1,16,13ZM8,5A1,1,0,0,0,7,6v4a1,1,0,0,0,1,1h8a1,1,0,0,0,1-1V6a1,1,0,0,0-1-1Z" />
+            <path className="cls-1" d="M10,9a1.05,1.05,0,0,1-.71-.29A1,1,0,0,1,10.19,7a.6.6,0,0,1,.19.06.56.56,0,0,1,.17.09l.16.12A1,1,0,0,1,10,9Z" />
+            <path className="cls-1" d="M14,9a1,1,0,0,1-.71-1.71,1,1,0,0,1,1.42,1.42,1,1,0,0,1-.16.12.56.56,0,0,1-.17.09.6.6,0,0,1-.19.06Z" />
             <path className="cls-1" d="M12,4a1,1,0,0,1-1-1V2a1,1,0,0,1,2,0V3A1,1,0,0,1,12,4Z" />
             <path className="cls-1" d="M9,22a1,1,0,0,1-1-1V18a1,1,0,0,1,2,0v3A1,1,0,0,1,9,22Z" />
             <path className="cls-1" d="M15,22a1,1,0,0,1-1-1V18a1,1,0,0,1,2,0v3A1,1,0,0,1,15,22Z" />
@@ -561,7 +624,6 @@ function MenuItem({ label }) {
             <path className="cls-1" d="M19,17a.93.93,0,0,1-.45-.11l-4-2a1,1,0,1,1,.9-1.78l4,2a1,1,0,0,1,.44,1.34A1,1,0,0,1,19,17Z" />
           </svg>
         ) : label === "팝업등록" ? (
-          // ✅ 원래 아쿠아
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-12 h-12">
             <path
               fillRule="evenodd"
@@ -571,7 +633,6 @@ function MenuItem({ label }) {
             />
           </svg>
         ) : label === "팝업리스트" ? (
-          // ✅ 원래 레몬
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-12 h-12">
             <path
               d="M9 11.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm2-1a1 1 0 0 1 1-1h3a1 1 0 1 1 0 2h-3a1 1 0 0 1-1-1zm1 2a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2h-3zm0 3a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2h-3zm-2-2a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-1 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"
