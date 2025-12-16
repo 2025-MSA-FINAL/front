@@ -141,6 +141,26 @@ export async function startAiChat() {
 }
 
 /* -------------------------------------------
+    7) 채팅 이미지 전송
+------------------------------------------- */
+export async function uploadChatImage({ roomType, roomId, file, clientMessageKey }) {
+  const formData = new FormData();
+  formData.append("roomType", roomType);
+  formData.append("roomId", roomId);
+  formData.append("image", file);
+  formData.append("clientMessageKey", clientMessageKey);
+
+  const res = await apiClient.post(
+    "/api/chat/messages/image",
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+
+  return res.data;
+}
+
+
+/* -------------------------------------------
     기본 export
 ------------------------------------------- */
 export default {
@@ -162,4 +182,6 @@ export default {
   unhideChatRoom,
   getMiniUserProfile,
   startAiChat,
+
+  uploadChatImage,
 };

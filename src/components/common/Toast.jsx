@@ -37,10 +37,18 @@ const ErrorIcon = () => (
   </svg>
 );
 
-export default function Toast({ message, visible, variant = "success" }) {
+
+export default function Toast({
+  message,
+  visible,
+  variant = "success",
+  actionLabel,
+  onAction,
+}) {
   if (!visible) return null;
 
   const isError = variant === "error";
+  const hasAction = !!actionLabel && typeof onAction === "function";
 
   return (
     <div
@@ -57,7 +65,23 @@ export default function Toast({ message, visible, variant = "success" }) {
       <span className={isError ? "text-white" : "text-accent-lime"}>
         {isError ? <ErrorIcon /> : <CheckIcon />}
       </span>
+
       <span>{message}</span>
+
+      {/* 액션 버튼 */}
+      {hasAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className={`
+            ml-1 px-3 py-1 rounded-full text-[13px] font-semibold
+            ${isError ? "bg-white/15 hover:bg-white/25 text-white" : "bg-white/10 hover:bg-white/20 text-text-white"}
+            transition
+          `}
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }

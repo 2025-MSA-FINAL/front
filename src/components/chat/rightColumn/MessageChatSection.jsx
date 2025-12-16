@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import heic2any from "heic2any";
 import { useEffect, useState, useRef } from "react";
 import { connectStomp, getStompClient } from "../../../api/socket";
 import {
@@ -6,6 +7,7 @@ import {
   deletePrivateChatRoom,
   updateGroupChatRoom,
   leaveGroupChatRoom,
+  uploadChatImage,
 } from "../../../api/chatApi";
 import BlurModal from "../../common/BlurModal";
 import MessageItem from "../../chat/common/MessageItem";
@@ -15,6 +17,7 @@ import GroupRoomInfoPopover from "../../chat/common/GroupRoomInfoPopover";
 import UserProfilePopover from "../../chat/common/UserProfilePopover";
 import { UserTypingDots, AiTypingDots } from "../common/TypingDots";
 import { useChatPopupStore } from "../../../store/chat/chatPopupStore";
+import { useChatMessageStore } from "../../../store/chat/chatMessageStore";
 import { useChatStore } from "../../../store/chat/chatStore";
 import { useAuthStore } from "../../../store/authStore";
 import axios from "axios";
@@ -98,6 +101,9 @@ export default function MessageChatSection() {
   const [openUserPopover, setOpenUserPopover] = useState(null);
   const [userAnchorRef, setUserAnchorRef] = useState(null);
   const [typingUsers, setTypingUsers] = useState(new Map());
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isSendingImage, setIsSendingImage] = useState(false);
 
   const subRef = useRef(null);
   const scrollRef = useRef(null);
@@ -107,29 +113,57 @@ export default function MessageChatSection() {
   const roomInfoRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const isTypingRef = useRef(false);
+  const prevMessageCountRef = useRef(0);
+  const fileInputRef = useRef(null);
+  const isSendingImageRef = useRef(false);
+  const bottomRef = useRef(null);
+  const pendingUploadMapRef = useRef(new Map());
 
   const currentUserId = useAuthStore((s) => s.user?.userId);
   const activeRoom = useChatStore((s) => s.activeChatRoom);
   const setActiveRoom = useChatStore((s) => s.setActiveChatRoom);
-  const roomId = activeRoom?.gcrId ?? activeRoom?.roomId;
-  const roomType = activeRoom?.roomType;
-  const otherUserId = activeRoom?.otherUserId;
   const removeRoom = useChatStore((s) => s.removeRoom);
   const updateRoomOrder = useChatStore((s) => s.updateRoomOrder);
 
+  const roomId = activeRoom?.gcrId ?? activeRoom?.roomId;
+  const roomType = activeRoom?.roomType;
+  const otherUserId = activeRoom?.otherUserId;
+
+  const showUnreadButton = !isAtBottom && unreadCount > 0;
+
   const toggleRoomInfo = () => setShowRoomInfo((prev) => !prev);
+
+  const roomKey = activeRoom
+    ? `${roomType}-${
+        roomType === "GROUP" ? activeRoom.gcrId : activeRoom.roomId
+      }`
+    : null;
+
+  const roomState = useChatMessageStore((s) =>
+    roomKey ? s.roomState[roomKey] : null
+  );
+
+  const initRoomReadState = useChatMessageStore((s) => s.initRoomReadState);
+  const applyReadEvent = useChatMessageStore((s) => s.applyReadEvent);
+
+  const myLastReadMessageId = roomState?.myLastReadMessageId ?? 0;
+  const otherLastReadMessageId = roomState?.otherLastReadMessageId ?? 0;
+  const participants = roomState?.participants ?? [];
+  const initialUnreadIndex = roomState?.initialUnreadIndex ?? null;
+
+  const AI_USER_ID = 20251212;
 
   const iconSize =
     roomType === "GROUP"
       ? "w-11 h-9"
-      : otherUserId === 20251212
+      : otherUserId === AI_USER_ID
       ? "w-8.5 h-10"
       : "w-9 h-9";
 
   const roomIcon =
     roomType === "GROUP"
       ? groupChatIcon
-      : otherUserId === 20251212
+      : otherUserId === AI_USER_ID
       ? POPBOT
       : privateChatIcon;
 
@@ -156,23 +190,45 @@ export default function MessageChatSection() {
   }, []);
 
   /* 자동 스크롤 */
-  const scrollToBottom = () => {
-    const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+  const scrollToBottom = (behavior = "auto") => {
+    bottomRef.current?.scrollIntoView({ block: "end", behavior });
   };
 
   const typingUserList = Array.from(typingUsers.entries()).map(
     ([userId, nickname]) => ({ userId, nickname })
   );
 
-  const isAiTyping = typingUserList.some((u) => u.userId === 20251212);
+  const isAiTyping = typingUserList.some((u) => u.userId === AI_USER_ID);
 
   const inputPlaceholder =
     roomType === "PRIVATE" && isAiTyping
       ? "POPBOT이 생각 중이에요…"
       : "메시지 입력";
 
-  useEffect(() => scrollToBottom(), [messages]);
+  useEffect(() => {
+    if (isAtBottom) scrollToBottom("auto");
+  }, [messages, isAtBottom]);
+
+  useEffect(() => {
+    const prevCount = prevMessageCountRef.current;
+    const currentCount = messages.length;
+
+    if (!isAtBottom && currentCount > prevCount) {
+      const newMessages = messages.slice(prevCount);
+
+      const unreadIncrement = newMessages.filter((m) => {
+        const isMine = m.senderId === currentUserId;
+        const isAi = m.senderId === AI_USER_ID;
+        return !isMine && !isAi;
+      }).length;
+
+      if (unreadIncrement > 0) {
+        setUnreadCount((c) => c + unreadIncrement);
+      }
+    }
+
+    prevMessageCountRef.current = currentCount;
+  }, [messages, isAtBottom, currentUserId]);
 
   /* textarea 자동 높이 (최대 120px) */
   useEffect(() => {
@@ -196,6 +252,7 @@ export default function MessageChatSection() {
   /* WebSocket 메시지 수신 */
   const onMessageReceived = (msg) => {
     const body = JSON.parse(msg.body);
+    console.log("📩 WS recv:", body.type, body);
 
     // 🔹 1) 타이핑 이벤트
     if (body.type === "TYPING_START") {
@@ -218,16 +275,28 @@ export default function MessageChatSection() {
       return;
     }
 
+    // 🔹 3) 읽음 이벤트
+    if (body.type === "READ") {
+      applyReadEvent({
+        roomType,
+        roomId,
+        readerUserId: body.readerUserId,
+        lastReadMessageId: body.lastReadMessageId,
+        currentUserId,
+      });
+      return;
+    }
+
     // 🔹 2) 메시지
     if (body.type === "MESSAGE") {
       const payload = body.payload;
-      const isAi = payload.senderId === 20251212;
+      const isAi = payload.senderId === AI_USER_ID;
 
       // ⭐ AI 메시지 오면 typing 종료
       if (isAi) {
         setTypingUsers((prev) => {
           const next = new Map(prev);
-          next.delete(20251212);
+          next.delete(AI_USER_ID);
           return next;
         });
       }
@@ -238,6 +307,14 @@ export default function MessageChatSection() {
         const filtered = prev.filter(
           (m) => m.clientMessageKey !== payload.clientMessageKey
         );
+
+        const key = payload.clientMessageKey;
+
+        if (key && pendingUploadMapRef.current.has(key)) {
+          const entry = pendingUploadMapRef.current.get(key);
+          if (entry?.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+          pendingUploadMapRef.current.delete(key);
+        }
 
         const next = [
           ...filtered,
@@ -298,6 +375,8 @@ export default function MessageChatSection() {
     // ⭐ 화면에 즉시 추가
     setMessages((prev) => [...prev, optimisticMessage]);
 
+    setTimeout(() => scrollToBottom("auto"), 0);
+
     // 서버 전송
     client.publish({
       destination: "/pub/chat/message",
@@ -312,7 +391,25 @@ export default function MessageChatSection() {
     });
 
     setInput("");
-    setTimeout(scrollToBottom, 20);
+    setTimeout(() => scrollToBottom("auto"), 0);
+  };
+
+  const sendRead = (messageId) => {
+    if (roomType === "PRIVATE" && otherUserId === AI_USER_ID) return;
+    if (messageId <= myLastReadMessageId) return;
+
+    const client = getStompClient();
+    if (!client?.connected) return;
+
+    client.publish({
+      destination: "/pub/chat/read",
+      body: JSON.stringify({
+        roomType,
+        roomId,
+        lastReadMessageId: messageId,
+        senderId: currentUserId,
+      }),
+    });
   };
 
   /* 초기 메시지 로드 + WebSocket 연결 */
@@ -323,23 +420,49 @@ export default function MessageChatSection() {
     if (!roomKey) return;
 
     const load = async () => {
-      try {
-        const res = await axios.get(`${API_BASE}/api/chat/messages`, {
-          params: { roomId: roomKey, roomType, limit: 60 },
-          withCredentials: true,
-        });
+      const res = await axios.get(`${API_BASE}/api/chat/messages`, {
+        params: { roomId: roomKey, roomType, limit: 60 },
+        withCredentials: true,
+      });
 
-        setMessages(
-          res.data.reverse().map((m) => ({
-            ...m,
-            createdAt: formatTime(m.createdAt),
-            minuteKey: toMinuteKey(m.createdAt),
-            dateLabel: formatDateLabel(m.createdAt),
-          }))
+      const {
+        messages,
+        lastReadMessageId,
+        otherLastReadMessageId,
+        participants,
+      } = res.data;
+
+      const formattedMessages = messages.reverse().map((m) => ({
+        ...m,
+        createdAt: formatTime(m.createdAt),
+        minuteKey: toMinuteKey(m.createdAt),
+        dateLabel: formatDateLabel(m.createdAt),
+      }));
+
+      setMessages(formattedMessages);
+
+      // 여기까지읽음 위치 계산 (입장 시 1회)
+      // ✅ 입장 기준 읽음 고정 + divider index 계산은 store가 함
+      const idx = initRoomReadState({
+        roomType,
+        roomId,
+        entryReadMessageId: lastReadMessageId ?? 0, // 🔒 여기까지읽음 기준
+        myLastReadMessageId: lastReadMessageId ?? 0, // 내 실시간 읽음 초기값
+        otherLastReadMessageId: otherLastReadMessageId ?? 0, // 상대 실시간 읽음 초기값
+        participants: participants ?? [],
+        formattedMessages,
+      });
+
+      // ✅ 스크롤도 딱 1번만
+      setTimeout(() => {
+        const el = scrollRef.current;
+        if (!el || idx == null) return;
+        const target = el.querySelector(
+          `[data-cmid="${formattedMessages[idx].cmId}"]`
         );
-      } catch (e) {
-        console.error("❌ fetchMessages:", e);
-      }
+
+        if (target) target.scrollIntoView({ block: "center" });
+      }, 50);
     };
 
     load();
@@ -359,6 +482,54 @@ export default function MessageChatSection() {
 
     return () => subRef.current?.unsubscribe();
   }, [activeRoom, roomType]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const handleScroll = () => {
+      const threshold = 20;
+      const atBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+
+      setIsAtBottom(atBottom);
+
+      if (atBottom && messages.length > 0) {
+        const lastUnreadFromOther = [...messages]
+          .reverse()
+          .find(
+            (m) => typeof m.cmId === "number" && m.senderId !== currentUserId
+          );
+
+        if (
+          lastUnreadFromOther &&
+          lastUnreadFromOther.cmId > myLastReadMessageId
+        ) {
+          setUnreadCount(0);
+          sendRead(lastUnreadFromOther.cmId);
+        }
+      }
+    };
+
+    el.addEventListener("scroll", handleScroll);
+    handleScroll();
+
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [messages, myLastReadMessageId]);
+
+  useEffect(() => {
+    if (!messages.length) return;
+    if (!isAtBottom) return;
+
+    const lastMsg = [...messages]
+      .reverse()
+      .find((m) => typeof m.cmId === "number");
+
+    if (!lastMsg) return;
+    if (lastMsg.cmId <= myLastReadMessageId) return;
+
+    sendRead(lastMsg.cmId);
+  }, [messages, isAtBottom, myLastReadMessageId]);
 
   /* 날짜 구분선 */
   const DateDivider = ({ label }) => (
@@ -383,6 +554,90 @@ export default function MessageChatSection() {
         senderNickname: useAuthStore.getState().user?.nickname,
       }),
     });
+  };
+
+  const retryImageUpload = async (clientMessageKey) => {
+    const entry = pendingUploadMapRef.current.get(clientMessageKey);
+    if (!entry) return;
+
+    const { file, roomType: rt, roomId: rid } = entry;
+
+    // UI: 다시 업로딩 상태
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.clientMessageKey === clientMessageKey
+          ? { ...m, uploadStatus: "UPLOADING", isPending: true }
+          : m
+      )
+    );
+
+    try {
+      await uploadChatImage({
+        roomType: rt,
+        roomId: rid,
+        file,
+        clientMessageKey,
+      });
+
+      // 성공 시 정리
+      const cur = pendingUploadMapRef.current.get(clientMessageKey);
+      if (cur?.previewUrl) URL.revokeObjectURL(cur.previewUrl);
+      pendingUploadMapRef.current.delete(clientMessageKey);
+    } catch {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.clientMessageKey === clientMessageKey
+            ? { ...m, uploadStatus: "FAILED", isPending: false }
+            : m
+        )
+      );
+    }
+  };
+
+  const cancelImageUpload = (clientMessageKey) => {
+    const entry = pendingUploadMapRef.current.get(clientMessageKey);
+    if (entry?.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+    pendingUploadMapRef.current.delete(clientMessageKey);
+
+    // ✅ temp 메시지 제거
+    setMessages((prev) =>
+      prev.filter((m) => m.clientMessageKey !== clientMessageKey)
+    );
+  };
+
+  const convertHeicToJpgIfNeeded = async (file) => {
+    if (!file) return file;
+
+    const name = (file.name || "").toLowerCase();
+    const type = (file.type || "").toLowerCase();
+
+    // ✅ iOS에서 type이 "" 인 경우가 있어서 name/type 둘 다로 판단 + 느슨하게
+    const looksHeic =
+      type.includes("heic") ||
+      type.includes("heif") ||
+      name.endsWith(".heic") ||
+      name.endsWith(".heif");
+
+    if (!looksHeic) return file;
+
+    // ✅ 변환
+    const result = await heic2any({
+      blob: file,
+      toType: "image/jpeg",
+      quality: 0.9,
+    });
+
+    // ✅ result가 Blob[] 일 수도 있어서 Blob로 정규화
+    const convertedBlob = Array.isArray(result) ? result[0] : result;
+    if (!(convertedBlob instanceof Blob)) {
+      throw new Error("heic2any did not return a Blob");
+    }
+
+    const nextName = name
+      ? file.name.replace(/\.(heic|heif)$/i, ".jpg")
+      : `image-${Date.now()}.jpg`;
+
+    return new File([convertedBlob], nextName, { type: "image/jpeg" });
   };
 
   /* =======================================================================
@@ -560,19 +815,48 @@ export default function MessageChatSection() {
               next.senderId !== msg.senderId ||
               next.minuteKey !== msg.minuteKey;
 
+            const showUnreadDivider =
+              initialUnreadIndex !== null && i === initialUnreadIndex;
+
             return (
-              <div key={i} className="mb-1">
+              <div key={i} className="mb-1" data-cmid={msg.cmId}>
                 {showDateDivider && <DateDivider label={msg.dateLabel} />}
+
+                {showUnreadDivider && (
+                  <div className="flex justify-center my-3">
+                    <span
+                      className="
+                      text-xs font-semibold
+                      text-primary-light
+                      bg-primary-soft2/30
+                      px-4 py-1 rounded-full
+                    "
+                    >
+                      여기까지 읽음
+                    </span>
+                  </div>
+                )}
 
                 <MessageItem
                   msg={msg}
                   isMine={isMine}
                   isGroupWithPrev={isGroupWithPrev}
                   showTime={showTime}
+                  otherLastReadMessageId={otherLastReadMessageId}
+                  participants={participants}
+                  roomType={roomType}
+                  currentUserId={currentUserId}
+                  otherUserId={otherUserId}
                   onOpenUserPopover={(id, ref) => {
                     setOpenUserPopover(id);
                     setUserAnchorRef(ref);
                   }}
+                  onImageLoad={() => {
+                    if (msg.senderId === currentUserId) scrollToBottom("auto");
+                    else if (isAtBottom) scrollToBottom("auto");
+                  }}
+                  onRetryImage={() => retryImageUpload(msg.clientMessageKey)}
+                  onCancelImage={() => cancelImageUpload(msg.clientMessageKey)}
                 />
               </div>
             );
@@ -588,10 +872,34 @@ export default function MessageChatSection() {
             }}
             scrollParentRef={scrollRef}
           />
+          <div ref={bottomRef} />
         </div>
 
         {/* typing indicator 영역 (스크롤 X) */}
         <div className="h-3 flex items-center ml-3 mb-2">
+          {showUnreadButton && (
+            <button
+              onClick={() => {
+                scrollToBottom();
+                setUnreadCount(0);
+              }}
+              className="
+              absolute bottom-24 left-1/2 -translate-x-1/2
+              px-4 py-2
+              bg-primary-soft2/40 text-white text-sm font-semibold
+              rounded-full shadow-lg
+              backdrop-blur-md
+              transition-all duration-300 ease-out
+              opacity-100 translate-y-0 scale-100
+              hover:bg-primary-dark hover:scale-105
+              active:scale-95
+              z-20
+    "
+            >
+              ↓ 읽지 않은 메시지 {unreadCount}개
+            </button>
+          )}
+
           {typingUserList.length > 0 && (
             <div className="flex items-center text-sm transition-opacity duration-200 text-white/80">
               {/* AI */}
@@ -694,8 +1002,111 @@ export default function MessageChatSection() {
               }
             }}
           />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.heic,.heif"
+            hidden
+            onChange={async (e) => {
+              if (isSendingImageRef.current) return; // 중복 방지
+              isSendingImageRef.current = true;
+              setIsSendingImage(true);
 
-          <button className="p-2 hover:bg-white/10 rounded-full">
+              const rawFile = e.target.files?.[0];
+              if (!rawFile) {
+                isSendingImageRef.current = false;
+                setIsSendingImage(false);
+                return;
+              }
+
+              console.log("rawFile:", {
+                name: rawFile.name,
+                type: rawFile.type,
+                size: rawFile.size,
+              });
+
+              let file = rawFile;
+
+              try {
+                file = await convertHeicToJpgIfNeeded(rawFile);
+
+                console.log("converted file:", {
+                  name: file.name,
+                  type: file.type,
+                  size: file.size,
+                });
+              } catch (err) {
+                console.error("HEIC 변환 실패:", err);
+                alert("이미지 변환에 실패했어요. 다른 이미지로 시도해 주세요.");
+                isSendingImageRef.current = false;
+                setIsSendingImage(false);
+                e.target.value = "";
+                return;
+              }
+
+              const clientMessageKey = uuidv4();
+              const tempId = `temp-${clientMessageKey}`;
+              const previewUrl = URL.createObjectURL(file);
+
+              pendingUploadMapRef.current.set(clientMessageKey, {
+                file,
+                previewUrl,
+                roomType,
+                roomId,
+              });
+
+              // optimistic image message
+              setMessages((prev) => [
+                ...prev,
+                {
+                  cmId: tempId,
+                  roomId,
+                  roomType,
+                  senderId: currentUserId,
+                  senderNickname: "나",
+                  senderProfileUrl: useAuthStore.getState().user?.photo ?? "",
+                  senderStatus: "ACTIVE",
+                  content: previewUrl,
+                  messageType: "IMAGE",
+                  createdAt: formatTime(new Date()),
+                  minuteKey: toMinuteKey(new Date()),
+                  dateLabel: formatDateLabel(new Date()),
+                  clientMessageKey,
+                  uploadStatus: "UPLOADING", // 업로드 상태 "UPLOADING" | "FAILED"
+                  isPending: true,
+                },
+              ]);
+
+              try {
+                await uploadChatImage({
+                  roomType,
+                  roomId,
+                  file,
+                  clientMessageKey,
+                });
+              } catch {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.clientMessageKey === clientMessageKey
+                      ? { ...m, uploadStatus: "FAILED", isPending: false }
+                      : m
+                  )
+                );
+              } finally {
+                isSendingImageRef.current = false;
+                setIsSendingImage(false);
+                e.target.value = "";
+              }
+            }}
+          />
+
+          <button
+            disabled={isSendingImage}
+            className="p-2 hover:bg-white/10 rounded-full disabled:opacity-40"
+            onClick={() => {
+              if (!isSendingImageRef.current) fileInputRef.current?.click();
+            }}
+          >
             <ImageUploadIcon className="w-6 h-6" fill="#fff" />
           </button>
 
