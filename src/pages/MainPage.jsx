@@ -147,12 +147,7 @@ function MainPage() {
   const [endingSoonPopups, setEndingSoonPopups] = useState([]);
   const [mainLoading, setMainLoading] = useState(false);
 
-  // ✅ 추천(로그인 시 AI / 비로그인 시 인기) - 같은 API로 처리
-  const [recommendedPopups, setRecommendedPopups] = useState([]);
-  const [recommendType, setRecommendType] = useState(null); // "AI" | "POPULAR" 등
-
   const MAIN_CARD_LIMIT = 4; // ✅ 프론트에서 원하는 만큼 조절
-  const RECO_LIMIT = 4;
 
   useEffect(() => {
     let alive = true;
@@ -161,33 +156,21 @@ function MainPage() {
       try {
         setMainLoading(true);
 
-        const [mainRes, recoRes] = await Promise.all([
-          apiClient.get("/api/main/popups", {
-            params: { limit: MAIN_CARD_LIMIT },
-            headers: { "Content-Type": "application/json" },
-          }),
-          apiClient.get("/api/main/recommend", {
-            params: { limit: RECO_LIMIT },
-            headers: { "Content-Type": "application/json" },
-          }),
-        ]);
+        const mainRes = await apiClient.get("/api/main/popups", {
+          params: { limit: MAIN_CARD_LIMIT },
+          headers: { "Content-Type": "application/json" },
+        });
 
         const mainData = mainRes?.data;
-        const recoData = recoRes?.data;
 
         if (!alive) return;
 
         setLatestPopups(Array.isArray(mainData?.latest) ? mainData.latest : []);
         setEndingSoonPopups(Array.isArray(mainData?.endingSoon) ? mainData.endingSoon : []);
-
-        setRecommendType(recoData?.type || null);
-        setRecommendedPopups(Array.isArray(recoData?.items) ? recoData.items : []);
       } catch (e) {
         if (!alive) return;
         setLatestPopups([]);
         setEndingSoonPopups([]);
-        setRecommendType(null);
-        setRecommendedPopups([]);
       } finally {
         if (!alive) return;
         setMainLoading(false);
@@ -199,6 +182,15 @@ function MainPage() {
       alive = false;
     };
   }, []);
+
+  // ✅ HERO 자동 슬라이드 (1초 간격)
+  useEffect(() => {
+    const id = setInterval(() => {
+      setActive((prev) => (prev + 1) % posters.length);
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, [posters.length]);
 
   const CardGridSection = ({ title, items, onAllClick }) => (
     <div className="mt-8 md:mt-10 flex justify-center">
@@ -615,19 +607,6 @@ function MainPage() {
             </button>
           </div>
         </div>
-
-        {/* =========================
-            ✅ 추천 섹션 추가 (로그인: AI / 비로그인: 인기)
-           ========================= */}
-        {recommendedPopups && recommendedPopups.length > 0 && (
-          <CardGridSection
-            title={recommendType === "AI" ? "AI 추천 팝업" : "지금 인기 팝업"}
-            items={recommendedPopups}
-            onAllClick={() => {
-              // 예: navigate("/popup/list?sort=recommend")
-            }}
-          />
-        )}
 
         {/* =========================
             ✅ 여기부터: 요청한 2개 섹션 유지
