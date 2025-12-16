@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import ghost1 from "../assets/ghost2.png";
 import { apiClient } from "../api/authApi";
+import { useAuthStore } from "../store/authStore";
+import { useChatStore } from "../store/chat/chatStore";
 
 // =========================
 // ✅ 반응형 레이아웃 값 계산
@@ -81,12 +84,21 @@ function formatDateRange(start, end) {
 function priceLabel(priceType) {
   if (!priceType) return "";
   const t = String(priceType).toUpperCase();
-  if (t.includes("FREE") || t.includes("NO") || t.includes("ZERO") || t === "FREE")
+  if (
+    t.includes("FREE") ||
+    t.includes("NO") ||
+    t.includes("ZERO") ||
+    t === "FREE"
+  )
     return "무료";
   return "유료";
 }
 
 function MainPage() {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const role = user?.role; // USER | MANAGER | ADMIN
+
   const { cfg } = useHeroLayout();
   const [active, setActive] = useState(0);
 
@@ -145,7 +157,9 @@ function MainPage() {
 
         setHeroPopups(Array.isArray(mainData?.hero) ? mainData.hero : []);
         setLatestPopups(Array.isArray(mainData?.latest) ? mainData.latest : []);
-        setEndingSoonPopups(Array.isArray(mainData?.endingSoon) ? mainData.endingSoon : []);
+        setEndingSoonPopups(
+          Array.isArray(mainData?.endingSoon) ? mainData.endingSoon : []
+        );
       } catch (e) {
         if (!alive) return;
         setHeroPopups([]);
@@ -212,7 +226,10 @@ function MainPage() {
           }}
         >
           <div className="flex justify-between items-center mb-5 sm:mb-6">
-            <h2 className="text-[16px] font-bold" style={{ color: PURPLE.deep }}>
+            <h2
+              className="text-[16px] font-bold"
+              style={{ color: PURPLE.deep }}
+            >
               {title}
             </h2>
             <span
@@ -262,7 +279,6 @@ function MainPage() {
                         {p.popName}
                       </p>
 
-                      {/* ✅ 하트 제거 → index.css 색 변수로 무료/유료 배지 */}
                       {badge && (
                         <span
                           className="shrink-0 px-3 py-[4px] rounded-full text-[12px] font-semibold"
@@ -291,7 +307,6 @@ function MainPage() {
               );
             })}
 
-            {/* 로딩중인데 데이터가 비면 레이아웃 유지용 더미 */}
             {mainLoading &&
               (!items || items.length === 0) &&
               Array.from({ length: 4 }).map((_, i) => (
@@ -300,9 +315,18 @@ function MainPage() {
                     className="w-full aspect-[3/4] rounded-[18px]"
                     style={{ background: "rgba(0,0,0,0.06)" }}
                   />
-                  <div className="mt-3 h-4 w-3/4 rounded" style={{ background: "rgba(0,0,0,0.06)" }} />
-                  <div className="mt-2 h-3 w-1/2 rounded" style={{ background: "rgba(0,0,0,0.06)" }} />
-                  <div className="mt-2 h-4 w-2/3 rounded" style={{ background: "rgba(0,0,0,0.06)" }} />
+                  <div
+                    className="mt-3 h-4 w-3/4 rounded"
+                    style={{ background: "rgba(0,0,0,0.06)" }}
+                  />
+                  <div
+                    className="mt-2 h-3 w-1/2 rounded"
+                    style={{ background: "rgba(0,0,0,0.06)" }}
+                  />
+                  <div
+                    className="mt-2 h-4 w-2/3 rounded"
+                    style={{ background: "rgba(0,0,0,0.06)" }}
+                  />
                 </div>
               ))}
           </div>
@@ -310,6 +334,62 @@ function MainPage() {
       </div>
     </div>
   );
+
+  // =========================
+  // ✅ 퀵슬롯 navigate + role 체크
+  // =========================
+  const canAccessUserArea =
+    role === "USER" || role === "MANAGER" || role === "ADMIN";
+
+  const goTopAndNavigate = (path) => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    navigate(path);
+  };
+
+  const onQuickSlotClick = (label) => {
+    if (label === "팝업리스트") {
+      goTopAndNavigate("/pop-up");
+      return;
+    }
+
+    if (label === "마이페이지") {
+      if (!canAccessUserArea) {
+        alert("마이페이지 권한이 없습니다");
+        return;
+      }
+      goTopAndNavigate("/mypage");
+      return;
+    }
+
+    if (label === "AI 챗봇") {
+      if (!canAccessUserArea) {
+        alert("AI 챗봇 권한이 없습니다");
+        return;
+      }
+
+      // ✅ 핵심: ChatMainPage / MessageChatSection이 이해하는 형태로 세팅
+      useChatStore.getState().setActiveChatRoom({
+        roomType: "PRIVATE",
+        roomId: -1,                 // 임시 ID (API 호출 안 타게)
+        roomName: "POPBOT",
+        otherUserId: 20251212,      // ⭐ AI_USER_ID
+        otherUserNickname: "POPBOT",
+        otherUserProfileImage: null,
+      });
+
+      goTopAndNavigate("/chat");
+      return;
+    }
+
+    if (label === "팝업등록") {
+      if (role !== "MANAGER") {
+        alert("팝업등록 권한이 없습니다");
+        return;
+      }
+      goTopAndNavigate("/popup/register");
+      return;
+    }
+  };
 
   return (
     <main className="min-h-[calc(100vh-88px)] bg-secondary-light pb-16">
@@ -357,7 +437,9 @@ function MainPage() {
 
           <div className="absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-black/[0.25] to-transparent" />
 
-          <div className={`relative mx-auto w-full max-w-[1200px] px-4 sm:px-6 ${cfg.padY}`}>
+          <div
+            className={`relative mx-auto w-full max-w-[1200px] px-4 sm:px-6 ${cfg.padY}`}
+          >
             <div
               ref={heroScrollRef}
               className="relative touch-pan-y"
@@ -387,14 +469,17 @@ function MainPage() {
                     ? -cfg.step3
                     : cfg.step3;
 
-                const scale = d === 0 ? 1.1 : absD === 1 ? 0.92 : absD === 2 ? 0.78 : 0.68;
+                const scale =
+                  d === 0 ? 1.1 : absD === 1 ? 0.92 : absD === 2 ? 0.78 : 0.68;
                 const z = d === 0 ? 40 : absD === 1 ? 30 : absD === 2 ? 20 : 10;
                 const darkAlpha = absD === 1 ? 0.58 : absD === 2 ? 0.74 : 0.86;
 
                 return (
                   <div
                     key={p.id}
-                    className={`absolute transition-all duration-700 ease-in-out ${isVisible ? "block" : "hidden"} cursor-pointer`}
+                    className={`absolute transition-all duration-700 ease-in-out ${
+                      isVisible ? "block" : "hidden"
+                    } cursor-pointer`}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
@@ -471,7 +556,13 @@ function MainPage() {
                         />
                       )}
 
-                      <div className="absolute inset-0" style={{ padding: isActive ? "10px" : "9px", zIndex: 10 }}>
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          padding: isActive ? "10px" : "9px",
+                          zIndex: 10,
+                        }}
+                      >
                         <div className="w-full h-full rounded-[16px] overflow-hidden relative">
                           <img
                             src={p.img}
@@ -497,7 +588,9 @@ function MainPage() {
                             <p className="text-white/90 text-[12px] sm:text-[13px] mt-1.5 font-medium">
                               {p.date}
                             </p>
-                            <p className="text-white/85 text-[12px] sm:text-[13px] mt-1">{p.place}</p>
+                            <p className="text-white/85 text-[12px] sm:text-[13px] mt-1">
+                              {p.place}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -523,10 +616,14 @@ function MainPage() {
                     type="button"
                     aria-label={`slide-${i}`}
                     onClick={() => go(i)}
-                    className={`h-2 rounded-full transition-all duration-300 ${i === active ? "w-7" : "w-2"}`}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      i === active ? "w-7" : "w-2"
+                    }`}
                     style={{
-                      background: i === active ? PURPLE.neon : "rgba(255,255,255,0.32)",
-                      boxShadow: i === active ? `0 0 10px ${PURPLE.glowSoft}` : "none",
+                      background:
+                        i === active ? PURPLE.neon : "rgba(255,255,255,0.32)",
+                      boxShadow:
+                        i === active ? `0 0 10px ${PURPLE.glowSoft}` : "none",
                     }}
                   />
                 ))}
@@ -549,12 +646,20 @@ function MainPage() {
             <div className="flex flex-col md:flex-row md:items-center px-5 sm:px-8 md:px-12 py-4 sm:py-6 md:py-6 gap-5 md:gap-0">
               <div className="flex items-center gap-4 min-w-0 md:min-w-[200px] md:ml-8">
                 <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shrink-0 overflow-visible">
-                  <img src={ghost1} alt="ghost" className="w-full h-full object-contain" />
+                  <img
+                    src={ghost1}
+                    alt="ghost"
+                    className="w-full h-full object-contain"
+                  />
                 </div>
 
                 <div className="leading-tight">
-                  <p className="text-[15px] sm:text-[16px] font-semibold text-text-black">팝업스토어 안내</p>
-                  <p className="text-[13px] sm:text-[14px] text-text-sub">팝스팟 도우미</p>
+                  <p className="text-[15px] sm:text-[16px] font-semibold text-text-black">
+                    팝업스토어 안내
+                  </p>
+                  <p className="text-[13px] sm:text-[14px] text-text-sub">
+                    팝스팟 도우미
+                  </p>
                 </div>
               </div>
 
@@ -562,10 +667,18 @@ function MainPage() {
 
               <div className="flex-1">
                 <div className="grid grid-cols-2 gap-6 sm:gap-8 md:flex md:justify-center md:gap-30">
-                  <MenuItem label="팝업리스트" />
-                  <MenuItem label="AI 챗봇" />
-                  <MenuItem label="팝업등록" />
-                  <MenuItem label="마이페이지" />
+                  <div onClick={() => onQuickSlotClick("팝업리스트")}>
+                    <MenuItem label="팝업리스트" />
+                  </div>
+                  <div onClick={() => onQuickSlotClick("AI 챗봇")}>
+                    <MenuItem label="AI 챗봇" />
+                  </div>
+                  <div onClick={() => onQuickSlotClick("팝업등록")}>
+                    <MenuItem label="팝업등록" />
+                  </div>
+                  <div onClick={() => onQuickSlotClick("마이페이지")}>
+                    <MenuItem label="마이페이지" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -604,7 +717,12 @@ function MainPage() {
                 boxShadow: `0 10px 34px rgba(155,44,255,0.40)`,
               }}
             >
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-5 h-5"
+              >
                 <path
                   d="M16.6725 16.6412L21 21M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z"
                   stroke="#ffffff"
@@ -617,9 +735,6 @@ function MainPage() {
           </div>
         </div>
 
-        {/* =========================
-            ✅ 여기부터: 요청한 2개 섹션 유지
-           ========================= */}
         <CardGridSection
           title="따끈따끈 팝업"
           items={latestPopups}
@@ -647,9 +762,14 @@ function MenuItem({ label }) {
     <div className="flex flex-col items-center gap-2 group cursor-pointer">
       <div className="w-12 h-12 flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:scale-110 group-hover:drop-shadow-lg">
         {label === "마이페이지" ? (
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-12 h-12">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-12 h-12"
+          >
             <path
-              d="M17 21C17 18.2386 14.7614 16 12 16C9.23858 16 7 18.2386 7 21M17 21H17.8031C18.921 21 19.48 21 19.9074 20.7822C20.2837 20.5905 20.5905 20.2837 20.7822 19.9074C21 19.48 21 18.921 21 17.8031V6.19691C21 5.07899 21 4.5192 20.7822 4.0918C20.5905 3.71547 20.2837 3.40973 19.9074 3.21799C19.4796 3 18.9203 3 17.8002 3H6.2002C5.08009 3 4.51962 3 4.0918 3.21799C3.71547 3.40973 3.40973 3.71547 3.21799 4.0918C3 4.51962 3 5.08009 3 6.2002V17.8002C3 18.9203 3 19.4796 3.21799 19.9074C3.40973 20.2837 3.71547 20.5905 4.0918 20.7822C4.5192 21 5.07899 21 6.19691 21H7M17 21H17.8031C18.921 21 19.48 21 19.9074 20.7822C20.2837 20.5905 20.5905 20.2837 20.7822 19.9074C21 19.48 21 18.921 21 17.8031V6.19691C21 5.07899 21 4.5192 20.7822 4.0918C20.5905 3.71547 20.2837 3.40973 19.9074 3.21799C19.4796 3 18.9203 3 17.8002 3H6.2002C5.08009 3 4.51962 3 4.0918 3.21799C3.71547 3.40973 3.40973 3.71547 3.21799 4.0918C3 4.51962 3 5.08009 3 6.2002V17.8002C3 18.9203 3 19.4796 3.21799 19.9074C3.40973 20.2837 3.71547 20.5905 4.0918 20.7822C4.5192 21 5.07899 21 6.19691 21H7M17 21H17.8031C18.921 21 19.48 21 19.9074 20.7822C20.2837 20.5905 20.5905 20.2837 20.7822 19.9074C21 19.48 21 18.921 21 17.8031V6.19691C21 5.07899 21 4.5192 20.7822 4.0918C20.5905 3.71547 20.2837 3.40973 19.9074 3.21799C19.4796 3 18.9203 3 17.8002 3H6.2002C5.08009 3 4.51962 3 4.0918 3.21799C3.71547 3.40973 3.40973 3.71547 3.21799 4.0918C3 4.51962 3 5.08009 3 6.2002V17.8002C3 18.9203 3 19.4796 3.21799 19.9074C3.40973 20.2837 3.71547 20.5905 4.0918 20.7822C4.5192 21 5.07899 21 6.19691 21H7M17 21H7M12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10C15 11.6569 13.6569 13 12 13Z"
+              d="M17 21C17 18.2386 14.7614 16 12 16C9.23858 16 7 18.2386 7 21M17 21H17.8031C18.921 21 19.48 21 19.9074 20.7822C20.2837 20.5905 20.5905 20.2837 20.7822 19.9074C21 19.48 21 18.921 21 17.8031V6.19691C21 5.07899 21 4.5192 20.7822 4.0918C20.5905 3.71547 20.2837 3.40973 19.9074 3.21799C19.4796 3 18.9203 3 17.8002 3H6.2002C5.08009 3 4.51962 3 4.0918 3.21799C3.71547 3.40973 3.40973 3.71547 3.21799 4.0918C3 4.51962 3 5.08009 3 6.2002V17.8002C3 18.9203 3 19.4796 3.21799 19.9074C3.40973 20.2837 3.71547 20.5905 4.0918 20.7822C4.5192 21 5.07899 21 6.19691 21H7M17 21H7M12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10C15 11.6569 13.6569 13 12 13Z"
               stroke="#FF2A7E"
               strokeWidth="2"
               strokeLinecap="round"
@@ -657,22 +777,60 @@ function MenuItem({ label }) {
             />
           </svg>
         ) : label === "AI 챗봇" ? (
-          <svg viewBox="0 0 24 24" data-name="025_SCIENCE" id="_025_SCIENCE" xmlns="http://www.w3.org/2000/svg" className="w-12 h-12">
+          <svg
+            viewBox="0 0 24 24"
+            data-name="025_SCIENCE"
+            id="_025_SCIENCE"
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-12 h-12"
+          >
             <defs>
               <style>{`.cls-1{fill:#B7F731;}`}</style>
             </defs>
-            <path className="cls-1" d="M16,13H8a3,3,0,0,1-3-3V6A3,3,0,0,1,8,3h8a3,3,0,0,1,3,3v4A3,3,0,0,1,16,13ZM8,5A1,1,0,0,0,7,6v4a1,1,0,0,0,1,1h8a1,1,0,0,0,1-1V6a1,1,0,0,0-1-1Z" />
-            <path className="cls-1" d="M10,9a1.05,1.05,0,0,1-.71-.29A1,1,0,0,1,10.19,7a.6.6,0,0,1,.19.06.56.56,0,0,1,.17.09l.16.12A1,1,0,0,1,10,9Z" />
-            <path className="cls-1" d="M14,9a1,1,0,0,1-.71-1.71,1,1,0,0,1,1.42,1.42,1,1,0,0,1-.16.12.56.56,0,0,1-.17.09.6.6,0,0,1-.19.06Z" />
-            <path className="cls-1" d="M12,4a1,1,0,0,1-1-1V2a1,1,0,0,1,2,0V3A1,1,0,0,1,12,4Z" />
-            <path className="cls-1" d="M9,22a1,1,0,0,1-1-1V18a1,1,0,0,1,2,0v3A1,1,0,0,1,9,22Z" />
-            <path className="cls-1" d="M15,22a1,1,0,0,1-1-1V18a1,1,0,0,1,2,0v3A1,1,0,0,1,15,22Z" />
-            <path className="cls-1" d="M15,19H9a1,1,0,0,1-1-1V12a1,1,0,0,1,1-1h6a1,1,0,0,1,1,1v6A1,1,0,0,1,15,19Zm-5-2h4V13H10Z" />
-            <path className="cls-1" d="M5,17a1,1,0,0,1-.89-.55,1,1,0,0,1,.44-1.34l4-2a1,1,0,1,1,.9,1.78l-4,2A.93.93,0,0,1,5,17Z" />
-            <path className="cls-1" d="M19,17a.93.93,0,0,1-.45-.11l-4-2a1,1,0,1,1,.9-1.78l4,2a1,1,0,0,1,.44,1.34A1,1,0,0,1,19,17Z" />
+            <path
+              className="cls-1"
+              d="M16,13H8a3,3,0,0,1-3-3V6A3,3,0,0,1,8,3h8a3,3,0,0,1,3,3v4A3,3,0,0,1,16,13ZM8,5A1,1,0,0,0,7,6v4a1,1,0,0,0,1,1h8a1,1,0,0,0,1-1V6a1,1,0,0,0-1-1Z"
+            />
+            <path
+              className="cls-1"
+              d="M10,9a1.05,1.05,0,0,1-.71-.29A1,1,0,0,1,10.19,7a.6.6,0,0,1,.19.06.56.56,0,0,1,.17.09l.16.12A1,1,0,0,1,10,9Z"
+            />
+            <path
+              className="cls-1"
+              d="M14,9a1,1,0,0,1-.71-1.71,1,1,0,0,1,1.42,1.42,1,1,0,0,1-.16.12.56.56,0,0,1-.17.09.6.6,0,0,1-.19.06Z"
+            />
+            <path
+              className="cls-1"
+              d="M12,4a1,1,0,0,1-1-1V2a1,1,0,0,1,2,0V3A1,1,0,0,1,12,4Z"
+            />
+            <path
+              className="cls-1"
+              d="M9,22a1,1,0,0,1-1-1V18a1,1,0,0,1,2,0v3A1,1,0,0,1,9,22Z"
+            />
+            <path
+              className="cls-1"
+              d="M15,22a1,1,0,0,1-1-1V18a1,1,0,0,1,2,0v3A1,1,0,0,1,15,22Z"
+            />
+            <path
+              className="cls-1"
+              d="M15,19H9a1,1,0,0,1-1-1V12a1,1,0,0,1,1-1h6a1,1,0,0,1,1,1v6A1,1,0,0,1,15,19Zm-5-2h4V13H10Z"
+            />
+            <path
+              className="cls-1"
+              d="M5,17a1,1,0,0,1-.89-.55,1,1,0,0,1,.44-1.34l4-2a1,1,0,1,1,.9,1.78l-4,2A.93.93,0,0,1,5,17Z"
+            />
+            <path
+              className="cls-1"
+              d="M19,17a.93.93,0,0,1-.45-.11l-4-2a1,1,0,1,1,.9-1.78l4,2a1,1,0,0,1,.44,1.34A1,1,0,0,1,19,17Z"
+            />
           </svg>
         ) : label === "팝업등록" ? (
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-12 h-12">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-12 h-12"
+          >
             <path
               fillRule="evenodd"
               clipRule="evenodd"
@@ -681,7 +839,12 @@ function MenuItem({ label }) {
             />
           </svg>
         ) : label === "팝업리스트" ? (
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-12 h-12">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-12 h-12"
+          >
             <path
               d="M9 11.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm2-1a1 1 0 0 1 1-1h3a1 1 0 1 1 0 2h-3a1 1 0 0 1-1-1zm1 2a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2h-3zm0 3a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2h-3zm-2-2a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-1 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"
               fill="#FFD93D"
