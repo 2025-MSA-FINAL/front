@@ -1,12 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ghost1 from "../assets/ghost2.png";
-import image1 from "../assets/dummy/image1.jpg";
-import image2 from "../assets/dummy/image2.webp";
-import image3 from "../assets/dummy/image3.jpeg";
-import image4 from "../assets/dummy/image4.png";
-import image5 from "../assets/dummy/image5.png";
-import image6 from "../assets/dummy/image6.jpg";
-import image7 from "../assets/dummy/image7.jpg";
 import { apiClient } from "../api/authApi";
 
 // =========================
@@ -94,19 +87,6 @@ function priceLabel(priceType) {
 }
 
 function MainPage() {
-  const posters = useMemo(
-    () => [
-      { id: 1, img: image1, title: "팝마트 윈터 빌리지", date: "25.12.01 - 12.31", place: "서울 성동구" },
-      { id: 2, img: image2, title: "나 혼자만 레벨업", date: "25.12.13 - 03.01", place: "서울 마포구" },
-      { id: 3, img: image3, title: "새로 가챠 팝업", date: "25.11.21 - 12.14", place: "서울 광진구" },
-      { id: 4, img: image4, title: "오프라인 팝업 스토어", date: "25.12.05 - 12.25", place: "서울 강남구" },
-      { id: 5, img: image5, title: "브랜드 쇼케이스", date: "25.12.10 - 12.31", place: "서울 용산구" },
-      { id: 6, img: image6, title: "콜라보 한정 굿즈전", date: "25.12.18 - 01.05", place: "서울 종로구" },
-      { id: 7, img: image7, title: "아트 토이 페스티벌", date: "25.12.20 - 01.12", place: "서울 송파구" },
-    ],
-    []
-  );
-
   const { cfg } = useHeroLayout();
   const [active, setActive] = useState(0);
 
@@ -114,23 +94,6 @@ function MainPage() {
   const heroScrollRef = useRef(null);
 
   const go = (idx) => setActive(idx);
-
-  const getOffset = (index) => {
-    const n = posters.length;
-    let diff = index - active;
-    if (diff > n / 2) diff -= n;
-    if (diff < -n / 2) diff += n;
-    return diff;
-  };
-
-  const heroHeightStyle = {
-    height: `${cfg.heroVH}vh`,
-    minHeight: `${cfg.heroMin}px`,
-    maxHeight: `${cfg.heroMax}px`,
-  };
-
-  // ✅ 카드 세로 중심 보정
-  const baseCardY = -Math.round(cfg.indicatorSafeSpace / 2) + cfg.centerNudge;
 
   // ✅ 강한 퍼플 팔레트(이 파일 내부에서만 사용)
   const PURPLE = {
@@ -143,11 +106,26 @@ function MainPage() {
   // =========================
   // ✅ 메인 섹션 데이터 (apiClient)
   // =========================
+  const [heroPopups, setHeroPopups] = useState([]);
   const [latestPopups, setLatestPopups] = useState([]);
   const [endingSoonPopups, setEndingSoonPopups] = useState([]);
   const [mainLoading, setMainLoading] = useState(false);
 
   const MAIN_CARD_LIMIT = 4; // ✅ 프론트에서 원하는 만큼 조절
+
+  // ✅ HERO에서 기존 posters 형태 유지하기 위한 변환 (JSX/스타일 건드리지 않기)
+  const posters = useMemo(() => {
+    const list = Array.isArray(heroPopups) ? heroPopups : [];
+    return list.map((p) => ({
+      id: p?.popId,
+      img:
+        p?.popThumbnail ||
+        "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&h=800&fit=crop",
+      title: p?.popName || "팝업",
+      date: formatDateRange(p?.popStartDate, p?.popEndDate),
+      place: p?.popLocation || "",
+    }));
+  }, [heroPopups]);
 
   useEffect(() => {
     let alive = true;
@@ -165,10 +143,12 @@ function MainPage() {
 
         if (!alive) return;
 
+        setHeroPopups(Array.isArray(mainData?.hero) ? mainData.hero : []);
         setLatestPopups(Array.isArray(mainData?.latest) ? mainData.latest : []);
         setEndingSoonPopups(Array.isArray(mainData?.endingSoon) ? mainData.endingSoon : []);
       } catch (e) {
         if (!alive) return;
+        setHeroPopups([]);
         setLatestPopups([]);
         setEndingSoonPopups([]);
       } finally {
@@ -183,14 +163,43 @@ function MainPage() {
     };
   }, []);
 
-  // ✅ HERO 자동 슬라이드 (1초 간격)
+  // ✅ HERO 자동 슬라이드 (1초 간격) - 데이터 없을 때 가드
   useEffect(() => {
+    if (!posters || posters.length <= 1) return;
+
     const id = setInterval(() => {
       setActive((prev) => (prev + 1) % posters.length);
     }, 1000);
 
     return () => clearInterval(id);
   }, [posters.length]);
+
+  // ✅ 데이터 변경으로 active가 범위를 벗어나면 보정
+  useEffect(() => {
+    if (!posters || posters.length === 0) {
+      if (active !== 0) setActive(0);
+      return;
+    }
+    if (active >= posters.length) setActive(0);
+  }, [posters.length]);
+
+  const getOffset = (index) => {
+    const n = posters.length;
+    if (n === 0) return 0;
+    let diff = index - active;
+    if (diff > n / 2) diff -= n;
+    if (diff < -n / 2) diff += n;
+    return diff;
+  };
+
+  const heroHeightStyle = {
+    height: `${cfg.heroVH}vh`,
+    minHeight: `${cfg.heroMin}px`,
+    maxHeight: `${cfg.heroMax}px`,
+  };
+
+  // ✅ 카드 세로 중심 보정
+  const baseCardY = -Math.round(cfg.indicatorSafeSpace / 2) + cfg.centerNudge;
 
   const CardGridSection = ({ title, items, onAllClick }) => (
     <div className="mt-8 md:mt-10 flex justify-center">
@@ -640,7 +649,7 @@ function MenuItem({ label }) {
         {label === "마이페이지" ? (
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-12 h-12">
             <path
-              d="M17 21C17 18.2386 14.7614 16 12 16C9.23858 16 7 18.2386 7 21M17 21H17.8031C18.921 21 19.48 21 19.9074 20.7822C20.2837 20.5905 20.5905 20.2837 20.7822 19.9074C21 19.48 21 18.921 21 17.8031V6.19691C21 5.07899 21 4.5192 20.7822 4.0918C20.5905 3.71547 20.2837 3.40973 19.9074 3.21799C19.4796 3 18.9203 3 17.8002 3H6.2002C5.08009 3 4.51962 3 4.0918 3.21799C3.71547 3.40973 3.40973 3.71547 3.21799 4.0918C3 4.51962 3 5.08009 3 6.2002V17.8002C3 18.9203 3 19.4796 3.21799 19.9074C3.40973 20.2837 3.71547 20.5905 4.0918 20.7822C4.5192 21 5.07899 21 6.19691 21H7M17 21H17.8031C18.921 21 19.48 21 19.9074 20.7822C20.2837 20.5905 20.5905 20.2837 20.7822 19.9074C21 19.48 21 18.921 21 17.8031V6.19691C21 5.07899 21 4.5192 20.7822 4.0918C20.5905 3.71547 20.2837 3.40973 19.9074 3.21799C19.4796 3 18.9203 3 17.8002 3H6.2002C5.08009 3 4.51962 3 4.0918 3.21799C3.71547 3.40973 3.40973 3.71547 3.21799 4.0918C3 4.51962 3 5.08009 3 6.2002V17.8002C3 18.9203 3 19.4796 3.21799 19.9074C3.40973 20.2837 3.71547 20.5905 4.0918 20.7822C4.5192 21 5.07899 21 6.19691 21H7M17 21H7M12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10C15 11.6569 13.6569 13 12 13Z"
+              d="M17 21C17 18.2386 14.7614 16 12 16C9.23858 16 7 18.2386 7 21M17 21H17.8031C18.921 21 19.48 21 19.9074 20.7822C20.2837 20.5905 20.5905 20.2837 20.7822 19.9074C21 19.48 21 18.921 21 17.8031V6.19691C21 5.07899 21 4.5192 20.7822 4.0918C20.5905 3.71547 20.2837 3.40973 19.9074 3.21799C19.4796 3 18.9203 3 17.8002 3H6.2002C5.08009 3 4.51962 3 4.0918 3.21799C3.71547 3.40973 3.40973 3.71547 3.21799 4.0918C3 4.51962 3 5.08009 3 6.2002V17.8002C3 18.9203 3 19.4796 3.21799 19.9074C3.40973 20.2837 3.71547 20.5905 4.0918 20.7822C4.5192 21 5.07899 21 6.19691 21H7M17 21H17.8031C18.921 21 19.48 21 19.9074 20.7822C20.2837 20.5905 20.5905 20.2837 20.7822 19.9074C21 19.48 21 18.921 21 17.8031V6.19691C21 5.07899 21 4.5192 20.7822 4.0918C20.5905 3.71547 20.2837 3.40973 19.9074 3.21799C19.4796 3 18.9203 3 17.8002 3H6.2002C5.08009 3 4.51962 3 4.0918 3.21799C3.71547 3.40973 3.40973 3.71547 3.21799 4.0918C3 4.51962 3 5.08009 3 6.2002V17.8002C3 18.9203 3 19.4796 3.21799 19.9074C3.40973 20.2837 3.71547 20.5905 4.0918 20.7822C4.5192 21 5.07899 21 6.19691 21H7M17 21H17.8031C18.921 21 19.48 21 19.9074 20.7822C20.2837 20.5905 20.5905 20.2837 20.7822 19.9074C21 19.48 21 18.921 21 17.8031V6.19691C21 5.07899 21 4.5192 20.7822 4.0918C20.5905 3.71547 20.2837 3.40973 19.9074 3.21799C19.4796 3 18.9203 3 17.8002 3H6.2002C5.08009 3 4.51962 3 4.0918 3.21799C3.71547 3.40973 3.40973 3.71547 3.21799 4.0918C3 4.51962 3 5.08009 3 6.2002V17.8002C3 18.9203 3 19.4796 3.21799 19.9074C3.40973 20.2837 3.71547 20.5905 4.0918 20.7822C4.5192 21 5.07899 21 6.19691 21H7M17 21H7M12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10C15 11.6569 13.6569 13 12 13Z"
               stroke="#FF2A7E"
               strokeWidth="2"
               strokeLinecap="round"
