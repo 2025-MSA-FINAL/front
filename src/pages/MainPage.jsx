@@ -370,9 +370,9 @@ function MainPage() {
       // ✅ 핵심: ChatMainPage / MessageChatSection이 이해하는 형태로 세팅
       useChatStore.getState().setActiveChatRoom({
         roomType: "PRIVATE",
-        roomId: -1,                 // 임시 ID (API 호출 안 타게)
+        roomId: -1,
         roomName: "POPBOT",
-        otherUserId: 20251212,      // ⭐ AI_USER_ID
+        otherUserId: 20251212,
         otherUserNickname: "POPBOT",
         otherUserProfileImage: null,
       });
@@ -389,6 +389,20 @@ function MainPage() {
       goTopAndNavigate("/popup/register");
       return;
     }
+  };
+
+  // =========================
+  // ✅ 메인 검색 → 팝업리스트 검색결과로 이동
+  // =========================
+  const [mainKeyword, setMainKeyword] = useState("");
+
+  const goPopupSearch = () => {
+    const q = (mainKeyword || "").trim();
+    if (!q) {
+      goTopAndNavigate("/pop-up");
+      return;
+    }
+    goTopAndNavigate(`/pop-up?search=${encodeURIComponent(q)}`);
   };
 
   return (
@@ -694,6 +708,9 @@ function MainPage() {
           <div className="w-full max-w-[980px] px-4 sm:px-6 flex flex-col sm:flex-row gap-3">
             <input
               type="text"
+              value={mainKeyword}
+              onChange={(e) => setMainKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && goPopupSearch()}
               placeholder="팝업스토어를 검색해보세요."
               className="flex-1 h-[48px] bg-paper rounded-full px-6 text-[14px] text-text-black placeholder:text-text-sub outline-none ring-2 ring-secondary-light focus:ring-2 focus:ring-primary transition-all"
               style={{
@@ -704,6 +721,7 @@ function MainPage() {
             <button
               type="button"
               aria-label="search"
+              onClick={goPopupSearch}
               className="
                 w-full sm:w-[48px] h-[48px]
                 rounded-full

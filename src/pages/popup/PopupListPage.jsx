@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import { usePopupList } from "../../hooks/usePopupList"; // 훅 import
 
@@ -15,6 +16,7 @@ const VIEW_MODES = {
 
 export default function PopupListPage() {
   const user = useAuthStore((state) => state.user);
+  const [searchParams] = useSearchParams();
 
   const {
     popups,
@@ -42,6 +44,37 @@ export default function PopupListPage() {
     toggleQuickFilter,
     retryLoad,
   } = usePopupList();
+
+  // =========================
+  // ✅ URL ?search= 를 받아서 검색 실행 (추가 로직)
+  // =========================
+  const pendingSearchRef = useRef(null);
+  const appliedRef = useRef(false);
+
+  useEffect(() => {
+    const q = (searchParams.get("search") || "").trim();
+    if (!q) return;
+
+    // 이미 한 번 적용했으면 반복 방지
+    if (appliedRef.current) return;
+
+    pendingSearchRef.current = q;
+    setSearchQuery(q);
+  }, [searchParams, setSearchQuery]);
+
+  useEffect(() => {
+    const pending = pendingSearchRef.current;
+    if (!pending) return;
+    if (appliedRef.current) return;
+
+    if ((searchQuery || "").trim() === pending) {
+      handleSearch();
+      appliedRef.current = true;
+      pendingSearchRef.current = null;
+
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, [searchQuery, handleSearch]);
 
   // 모달 열림 시 스크롤 잠금
   useEffect(() => {
