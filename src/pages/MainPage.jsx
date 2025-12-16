@@ -250,8 +250,8 @@ function MainPage() {
                   key={p.popId}
                   className="group cursor-pointer transition-transform hover:scale-105"
                   onClick={() => {
-                    // ✅ 상세 라우팅은 프로젝트 라우트에 맞게 수정
-                    // 예: navigate(`/popup/${p.popId}`);
+                    // ✅ (HERO 제외) 리스트 카드 클릭 시 상세로 이동
+                    navigate(`/popup/${p.popId}`);
                   }}
                 >
                   <div
@@ -475,7 +475,9 @@ function MainPage() {
               ref={heroScrollRef}
               className="relative touch-pan-y"
               style={{
-                ...heroHeightStyle,
+                height: `${cfg.heroVH}vh`,
+                minHeight: `${cfg.heroMin}px`,
+                maxHeight: `${cfg.heroMax}px`,
                 paddingBottom: `${cfg.indicatorSafeSpace}px`,
               }}
             >
@@ -527,7 +529,9 @@ function MainPage() {
                     style={{
                       top: "50%",
                       left: "50%",
-                      transform: `translate(-50%, -50%) translateX(${translateX}px) translateY(${baseCardY}px) scale(${scale})`,
+                      transform: `translate(-50%, -50%) translateX(${translateX}px) translateY(${
+                        -Math.round(cfg.indicatorSafeSpace / 2) + cfg.centerNudge
+                      }px) scale(${scale})`,
                       opacity: 1,
                       zIndex: z,
                     }}
@@ -774,7 +778,7 @@ function MainPage() {
           title="따끈따끈 팝업"
           items={latestPopups}
           onAllClick={() => {
-            // 예: navigate("/popup/list?sort=latest")
+            goTopAndNavigate("/pop-up");
           }}
         />
 
@@ -782,7 +786,7 @@ function MainPage() {
           title="팝업 마감 임박"
           items={endingSoonPopups}
           onAllClick={() => {
-            // 예: navigate("/popup/list?sort=endingSoon")
+            goTopAndNavigate("/pop-up");
           }}
         />
 
