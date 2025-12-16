@@ -367,17 +367,34 @@ function MainPage() {
         return;
       }
 
-      // ✅ 핵심: ChatMainPage / MessageChatSection이 이해하는 형태로 세팅
-      useChatStore.getState().setActiveChatRoom({
-        roomType: "PRIVATE",
-        roomId: -1,
-        roomName: "POPBOT",
-        otherUserId: 20251212,
-        otherUserNickname: "POPBOT",
-        otherUserProfileImage: null,
-      });
+      (async () => {
+        const AI_USER_ID = 20251212;
 
-      goTopAndNavigate("/chat");
+        const store = useChatStore.getState();
+
+        // 1) rooms 없으면 먼저 로딩
+        if (!store.rooms || store.rooms.length === 0) {
+          await store.fetchRooms();
+        }
+
+        // 2) 챗봇 PRIVATE 방 찾기 (실제 roomId 있는 방)
+        const { rooms } = useChatStore.getState();
+        const botRoom = (rooms || []).find(
+          (r) => r.roomType === "PRIVATE" && r.otherUserId === AI_USER_ID
+        );
+
+        if (!botRoom) {
+          alert("챗봇 채팅방을 찾을 수 없습니다.");
+          return;
+        }
+
+        // 3) ChatMainPage가 이해하는 실제 방으로 선택
+        useChatStore.getState().selectRoom(botRoom);
+
+        // 4) 이동
+        goTopAndNavigate("/chat");
+      })();
+
       return;
     }
 
