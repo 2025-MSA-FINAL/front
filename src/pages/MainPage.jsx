@@ -107,6 +107,9 @@ function MainPage() {
 
   const go = (idx) => setActive(idx);
 
+  // ✅ 중앙 HERO hover 시 자동 슬라이드 멈춤
+  const [isHeroCenterHovered, setIsHeroCenterHovered] = useState(false);
+
   // ✅ 강한 퍼플 팔레트(이 파일 내부에서만 사용)
   const PURPLE = {
     neon: "#9B2CFF",
@@ -177,16 +180,17 @@ function MainPage() {
     };
   }, []);
 
-  // ✅ HERO 자동 슬라이드 (1초 간격) - 데이터 없을 때 가드
+  // ✅ HERO 자동 슬라이드 (1초 간격) - 데이터 없을 때 가드 + 중앙 hover 시 멈춤
   useEffect(() => {
     if (!posters || posters.length <= 1) return;
+    if (isHeroCenterHovered) return;
 
     const id = setInterval(() => {
       setActive((prev) => (prev + 1) % posters.length);
     }, 1000);
 
     return () => clearInterval(id);
-  }, [posters.length]);
+  }, [posters.length, isHeroCenterHovered]);
 
   // ✅ 데이터 변경으로 active가 범위를 벗어나면 보정
   useEffect(() => {
@@ -250,8 +254,8 @@ function MainPage() {
                   key={p.popId}
                   className="group cursor-pointer transition-transform hover:scale-105"
                   onClick={() => {
-                    // ✅ (HERO 제외) 리스트 카드 클릭 시 상세로 이동
-                    navigate(`/popup/${p.popId}`);
+                    // ✅ 상세 라우팅은 프로젝트 라우트에 맞게 수정
+                    // 예: navigate(`/popup/${p.popId}`);
                   }}
                 >
                   <div
@@ -518,7 +522,20 @@ function MainPage() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") go(idx);
                     }}
+                    onMouseEnter={() => {
+                      if (isActive) setIsHeroCenterHovered(true);
+                    }}
+                    onMouseLeave={() => {
+                      if (isActive) setIsHeroCenterHovered(false);
+                    }}
                     onClick={() => {
+                      // ✅ 중앙(활성) 카드 클릭 시 상세 이동
+                      if (isActive) {
+                        navigate(`/popup/${p.id}`);
+                        return;
+                      }
+
+                      // ✅ 그 외는 기존처럼 중앙으로 가져오기
                       heroScrollRef.current?.scrollIntoView({
                         behavior: "smooth",
                         block: "center",
@@ -529,9 +546,7 @@ function MainPage() {
                     style={{
                       top: "50%",
                       left: "50%",
-                      transform: `translate(-50%, -50%) translateX(${translateX}px) translateY(${
-                        -Math.round(cfg.indicatorSafeSpace / 2) + cfg.centerNudge
-                      }px) scale(${scale})`,
+                      transform: `translate(-50%, -50%) translateX(${translateX}px) translateY(${baseCardY}px) scale(${scale})`,
                       opacity: 1,
                       zIndex: z,
                     }}
@@ -778,7 +793,7 @@ function MainPage() {
           title="따끈따끈 팝업"
           items={latestPopups}
           onAllClick={() => {
-            goTopAndNavigate("/pop-up");
+            // 예: navigate("/popup/list?sort=latest")
           }}
         />
 
@@ -786,7 +801,7 @@ function MainPage() {
           title="팝업 마감 임박"
           items={endingSoonPopups}
           onAllClick={() => {
-            goTopAndNavigate("/pop-up");
+            // 예: navigate("/popup/list?sort=endingSoon")
           }}
         />
 
