@@ -1,5 +1,5 @@
 // src/pages/reservation/PopupUserReservationPage.jsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import PrimaryButton from "../../components/button/PrimaryButton.jsx";
 import { fetchPopupDetailApi } from "../../api/popupApi.js";
@@ -32,9 +32,15 @@ function DayCell({ date, isAvailable, isSelected, onClick }) {
   const disabled = "text-secondary-dark/40 cursor-default";
   const available =
     "cursor-pointer text-text-black hover:bg-primary-light hover:text-primary-dark";
-  const selected = "bg-primary text-text-white shadow-card font-semibold";
+  const selected =
+    "bg-primary text-text-white shadow-card font-semibold";
 
-  const className = [base, !isAvailable && disabled, isAvailable && available, isSelected && selected]
+  const className = [
+    base,
+    !isAvailable && disabled,
+    isAvailable && available,
+    isSelected && selected,
+  ]
     .filter(Boolean)
     .join(" ");
 
@@ -67,6 +73,7 @@ function UserReservationCalendar({
   }, [selectedDate, startDate]);
 
   const baseTime = baseDate.getTime();
+
   const [monthOffset, setMonthOffset] = useState(0);
 
   const currentMonth = useMemo(() => {
@@ -83,7 +90,9 @@ function UserReservationCalendar({
   const firstWeekday = firstDayOfMonth.getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const monthLabel = `${year}년 ${(month + 1).toString().padStart(2, "0")}월`;
+  const monthLabel = `${year}년 ${(month + 1)
+    .toString()
+    .padStart(2, "0")}월`;
 
   const goPrevMonth = () => setMonthOffset((prev) => prev - 1);
   const goNextMonth = () => setMonthOffset((prev) => prev + 1);
@@ -152,8 +161,10 @@ function UserReservationCalendar({
         {Array.from({ length: daysInMonth }).map((_, idx) => {
           const date = new Date(year, month, idx + 1);
           const key = formatDateKey(date);
-          const isAvailable = isInRange(date) && availableDateKeys?.has(key);
-          const isSelected = selectedDate && key === formatDateKey(selectedDate);
+          const isAvailable =
+            isInRange(date) && availableDateKeys?.has(key);
+          const isSelected =
+            selectedDate && key === formatDateKey(selectedDate);
 
           return (
             <DayCell
@@ -179,126 +190,42 @@ function UserReservationCalendar({
  * remainingCount <= 0 이면 disabled 처리 이미 되어 있음
  */
 function TimeSlotButton({ slot, selected, onClick }) {
-  const disabled = slot.remainingCount !== undefined && slot.remainingCount <= 0;
+  const disabled =
+    slot.remainingCount !== undefined && slot.remainingCount <= 0;
 
   const base =
     "w-full flex items-center justify-between gap-3 rounded-full px-4 py-2 text-[13px] md:text-[14px] transition-all";
   const active = "bg-primary text-text-white shadow-card";
   const normal =
     "bg-primary-light text-primary-dark hover:bg-primary hover:text-text-white";
-  const disabledCls = "bg-secondary-light text-text-sub cursor-not-allowed";
+  const disabledCls =
+    "bg-secondary-light text-text-sub cursor-not-allowed";
 
-  const className = [base, disabled && disabledCls, !disabled && (selected ? active : normal)]
+  const className = [
+    base,
+    disabled && disabledCls,
+    !disabled && (selected ? active : normal),
+  ]
     .filter(Boolean)
     .join(" ");
 
   return (
-    <button type="button" disabled={disabled} onClick={onClick} className={className}>
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={className}
+    >
       <div className="font-semibold flex items-center gap-1">
+        {/* 시작 시간 */}
         <span>{slot.startTime}</span>
+
+        {/* (3명) 형태로 표시 — "잔여" 글자 제거 */}
         {slot.remainingCount != null && (
           <span className="text-[12px]">({slot.remainingCount}명)</span>
         )}
       </div>
     </button>
-  );
-}
-
-/**
- * ✅ 검색 가능한 인원 드롭다운 (기존 <select> 대체)
- */
-function PeopleCountDropdown({ value, onChange, options }) {
-  const wrapRef = useRef(null);
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-
-  const filtered = useMemo(() => {
-    const query = (q || "").trim();
-    if (!query) return options || [];
-    return (options || []).filter((n) => String(n).includes(query));
-  }, [options, q]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const onDocMouseDown = (e) => {
-      if (!wrapRef.current) return;
-      if (!wrapRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-
-    const onKeyDown = (e) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-
-    document.addEventListener("mousedown", onDocMouseDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onDocMouseDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) setQ("");
-  }, [open]);
-
-  return (
-    <div ref={wrapRef} className="relative w-full">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full h-11 md:h-12 px-4 rounded-full border border-secondary-light bg-paper-light text-[14px] text-text-black focus:outline-none focus:ring-2 focus:ring-primary/60 flex items-center justify-between"
-      >
-        <span>{value}명</span>
-        <span className="text-[12px] text-text-black/70">▼</span>
-      </button>
-
-      {open && (
-        <div className="absolute z-50 mt-2 w-full rounded-[18px] border border-secondary-light bg-paper shadow-card overflow-hidden">
-          <div className="p-3 border-b border-secondary-light bg-paper-light">
-            <input
-              autoFocus
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="인원 검색 (숫자)"
-              className="w-full h-10 px-4 rounded-full border border-secondary-light bg-paper text-[13px] text-text-black focus:outline-none focus:ring-2 focus:ring-primary/60"
-            />
-          </div>
-
-          <div className="max-h-52 overflow-y-auto p-2">
-            {filtered.length === 0 ? (
-              <div className="px-3 py-2 text-[13px] text-text-black/60">
-                검색 결과가 없어요.
-              </div>
-            ) : (
-              filtered.map((n) => {
-                const active = n === value;
-                return (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => {
-                      onChange(n);
-                      setOpen(false);
-                    }}
-                    className={[
-                      "w-full text-left px-4 py-2 rounded-[14px] text-[13px] transition-all",
-                      active
-                        ? "bg-primary text-text-white"
-                        : "hover:bg-secondary-light text-text-black",
-                    ].join(" ")}
-                  >
-                    {n}명
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -388,7 +315,9 @@ export default function PopupUserReservationPage() {
 
   // ✅ 예약 설정 기반 최대 인원 / 금액 계산
   const maxPeoplePerReservation =
-    popup?.maxPeoplePerReservation ?? popup?.reservationMaxPeople ?? 4; // 기본값 4명
+    popup?.maxPeoplePerReservation ??
+    popup?.reservationMaxPeople ??
+    4; // 기본값 4명
 
   const pricePerPerson = popup?.popPrice ?? 0;
 
@@ -425,10 +354,14 @@ export default function PopupUserReservationPage() {
       );
 
       // ✅ 지금은: 성공하면 바로 상세 페이지로 이동
+      // (나중에 토스 콜백에서 이 navigate만 호출하면 됨)
       navigate(`/popup/${popupId}`);
     } catch (e) {
       if (e?.response?.status === 409) {
-        alert("해당 시간대가 가득 찼습니다. 다른 시간대를 선택해주세요.");
+        // 정원 초과 → 알림 + 슬롯 다시 로딩
+        alert(
+          "정원이 초과되었습니다. 다른 시간대를 선택해주세요."
+        );
 
         try {
           if (selectedDate && popupId) {
@@ -475,13 +408,22 @@ export default function PopupUserReservationPage() {
 
   const dateRangeLabel =
     popup.popStartDate || popup.popEndDate
-      ? `${popup.popStartDate?.slice(0, 10)} ~ ${popup.popEndDate?.slice(0, 10)}`
+      ? `${popup.popStartDate?.slice(0, 10)} ~ ${popup.popEndDate?.slice(
+          0,
+          10
+        )}`
       : "";
 
   const thumbnailUrl =
-    popup.popThumbnailUrl || popup.popThumbnail || popup.images?.[0] || "";
+    popup.popThumbnailUrl ||
+    popup.popThumbnail ||
+    popup.images?.[0] ||
+    "";
 
-  const selectedDateLabel = selectedDate ? formatDateKey(selectedDate) : "-";
+  const selectedDateLabel = selectedDate
+    ? formatDateKey(selectedDate)
+    : "-";
+
   const selectedTimeLabel = selectedSlot?.startTime || "-";
 
   return (
@@ -596,14 +538,18 @@ export default function PopupUserReservationPage() {
               <h2 className="text-[16px] md:text-[18px] font-semibold text-text-black mb-3">
                 예약 인원
               </h2>
-
-              {/* ✅ 기존 select 대신 검색 드롭다운 */}
               <div className="w-full">
-                <PeopleCountDropdown
+                <select
+                  className="w-full h-11 md:h-12 px-4 rounded-full border border-secondary-light bg-paper-light text-[14px] text-text-black focus:outline-none focus:ring-2 focus:ring-primary/60"
                   value={peopleCount}
-                  onChange={(n) => setPeopleCount(Number(n))}
-                  options={peopleOptions}
-                />
+                  onChange={(e) => setPeopleCount(Number(e.target.value))}
+                >
+                  {peopleOptions.map((n) => (
+                    <option key={n} value={n}>
+                      {n}명
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -612,7 +558,9 @@ export default function PopupUserReservationPage() {
                 총 가격
               </h3>
               <div className="rounded-[18px] border border-primary-light bg-primary-light/20 px-5 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                <div className="text-[13px] text-text-black">예상 결제 금액</div>
+                <div className="text-[13px] text-text-black">
+                  예상 결제 금액
+                </div>
                 <div className="text-[20px] md:text-[22px] font-semibold text-primary-dark">
                   {totalPrice.toLocaleString("ko-KR")}원
                 </div>
