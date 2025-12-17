@@ -1,18 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import BlurModal from "../common/BlurModal";
 import { getMyChatRooms } from "../../api/chatApi";
+
+import privateChatIcon from "../../assets/privateChat.png";
+import groupChatIcon from "../../assets/groupChat.png";
+import popbotIcon from "../../assets/POPBOT.png";
 
 export default function ChatRoomSelectModal({ isOpen, onClose, onSelectRoom }) {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  //roomType/roomId 정규화
+  const [query, setQuery] = useState("");
+  const searchInputRef = useRef(null);
+
   const normalizeRoom = (room) => {
     if (!room) return null;
 
-    const rawType = room.roomType ?? room.type;
-    let roomType = rawType;
-
+    let roomType = room.roomType ?? room.type;
     if (roomType === "GROUP_CHAT" || roomType === "GROUPCHAT") roomType = "GROUP";
     if (roomType === "PRIVATE_CHAT" || roomType === "PRIVATECHAT") roomType = "PRIVATE";
 
@@ -26,10 +30,42 @@ export default function ChatRoomSelectModal({ isOpen, onClose, onSelectRoom }) {
     };
   };
 
-  useEffect(() => {
-    if (isOpen) {
-      loadRooms();
+  const formatTimeLabel = (value) => {
+    if (!value || typeof value !== "string") return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+
+    const now = new Date();
+    const isToday =
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate();
+
+    if (isToday) {
+      return d.toLocaleTimeString("ko-KR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
     }
+
+    return d
+      .toLocaleDateString("ko-KR", { year: "2-digit", month: "2-digit", day: "2-digit" })
+      .replaceAll(". ", ".")
+      .replaceAll(".", "."); 
+  };
+
+  const getRoomIcon = (room) => {
+    const name = (room?.roomName || "").toUpperCase();
+    if (name.includes("POPBOT")) return popbotIcon;
+    return room?.roomType === "PRIVATE" ? privateChatIcon : groupChatIcon;
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setQuery("");
+    loadRooms();
+    setTimeout(() => searchInputRef.current?.focus(), 50);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
@@ -38,7 +74,6 @@ export default function ChatRoomSelectModal({ isOpen, onClose, onSelectRoom }) {
       setLoading(true);
       const data = await getMyChatRooms();
 
-      //data가 배열이 아닐 가능성까지 방어
       const list = Array.isArray(data)
         ? data
         : Array.isArray(data?.rooms)
@@ -47,69 +82,217 @@ export default function ChatRoomSelectModal({ isOpen, onClose, onSelectRoom }) {
         ? data.data
         : [];
 
-      //roomId/roomType 정규화 + 유효한 방만
       const normalized = list
         .map(normalizeRoom)
         .filter((r) => r && r.roomType && r.roomId);
 
       setRooms(normalized);
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
       setRooms([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const filteredRooms = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
+    const sorted = [...rooms].sort((a, b) => {
+      const ta = new Date(a?.latestMessageTime || a?.updatedAt || a?.createdAt || 0).getTime();
+      const tb = new Date(b?.latestMessageTime || b?.updatedAt || b?.createdAt || 0).getTime();
+      return tb - ta;
+    });
+
+    if (!q) return sorted;
+    return sorted.filter((r) => (r?.roomName || "").toLowerCase().includes(q));
+  }, [rooms, query]);
+
   return (
     <BlurModal open={isOpen} onClose={onClose}>
-      <div className="flex flex-col w-[350px] max-h-[60vh]">
-        <h2 className="text-xl font-bold text-gray-800 mb-4 px-2">채팅방 선택</h2>
+      <style>{`
+        @media (max-width: 360px) {
+          .crsm-wrap { width: 96vw !important; }
+          .crsm-pad { padding-left: 12px !important; padding-right: 12px !important; }
+          .crsm-title { font-size: 16px !important; }
+          .crsm-desc { font-size: 12px !important; }
+          .crsm-input { height: 40px !important; font-size: 13px !important; }
+          .crsm-row { padding: 10px !important; border-radius: 16px !important; }
+          .crsm-icon { width: 36px !important; height: 36px !important; }
+          .crsm-name { font-size: 13px !important; }
+          .crsm-time { font-size: 11px !important; }
+          .crsm-line { flex-direction: column !important; align-items: flex-start !important; gap: 2px !important; }
+        }
 
-        <div className="flex-1 overflow-y-auto custom-scroll flex flex-col gap-2 p-1">
-          {loading ? (
-            <p className="text-center text-gray-400 py-10">목록을 불러오는 중...</p>
-          ) : rooms.length === 0 ? (
-            <p className="text-center text-gray-400 py-10">참여 중인 채팅방이 없어요.</p>
-          ) : (
-            rooms.map((room) => (
+        .crsm-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: var(--color-primary) var(--color-paper);
+        }
+        .crsm-scroll::-webkit-scrollbar { width: 10px; }
+        .crsm-scroll::-webkit-scrollbar-track { background: var(--color-paper); }
+        .crsm-scroll::-webkit-scrollbar-thumb {
+          background: var(--color-primary);
+          border-radius: 999px;
+          border: 3px solid var(--color-paper);
+        }
+        .crsm-scroll::-webkit-scrollbar-thumb:hover { background: var(--color-primary-dark); }
+      `}</style>
+
+      <div
+        className="
+          crsm-wrap
+          flex flex-col overflow-hidden
+          w-[92vw] max-w-[420px]
+          h-[72svh] sm:h-[60vh]
+          rounded-[var(--radius-card)]
+          bg-[var(--color-paper)]
+        "
+      >
+        {/* Header */}
+        <div className="crsm-pad px-4 sm:px-6 pt-5 sm:pt-6 pb-4 shrink-0">
+          <h2 className="crsm-title text-[18px] sm:text-xl font-bold text-[var(--color-text-black)]">
+            채팅방 선택
+          </h2>
+          <p className="crsm-desc text-xs sm:text-sm mt-1 text-[var(--color-text-sub)]">
+            팝업을 공유할 채팅방을 선택하세요.
+          </p>
+
+          {/* Search */}
+          <div className="mt-3 sm:mt-4 relative">
+            <input
+              ref={searchInputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setQuery("");
+              }}
+              placeholder="채팅방 검색"
+              aria-label="채팅방 검색"
+              className="
+                crsm-input
+                w-full h-11 px-4 pr-10
+                rounded-[var(--radius-input)]
+                border border-[var(--color-secondary-light)]
+                bg-[var(--color-paper)]
+                text-sm text-[var(--color-text-black)]
+                placeholder:text-[var(--color-text-sub)]
+                outline-none
+                focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]
+                focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-paper)]
+              "
+            />
+            {query && (
               <button
-                //key를 정규화된 roomType/roomId 기준으로 안전하게
-                key={`${room.roomType}-${room.roomId}`}
-                //onSelectRoom에 "정규화된 room"을 넘김 (PopupDetailPage에서 바로 사용 가능)
-                onClick={() => onSelectRoom(room)}
-                className="flex items-center gap-3 p-3 rounded-xl hover:bg-purple-50 transition border border-transparent hover:border-purple-100 text-left group"
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  searchInputRef.current?.focus();
+                }}
+                className="
+                  absolute right-3 top-1/2 -translate-y-1/2
+                  text-[var(--color-text-sub)]
+                  hover:text-[var(--color-text-black)]
+                  text-lg leading-none
+                  focus-visible:outline-none
+                  focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]
+                  focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-paper)]
+                  rounded-full
+                "
+                aria-label="검색어 지우기"
               >
-                {/* 아이콘 (1:1 또는 그룹) */}
-                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0 group-hover:bg-white transition">
-                  {/* 정규화된 room.roomType 기준 */}
-                  <span className="text-lg">
-                    {room.roomType === "PRIVATE" ? "👤" : "👨‍👩‍👧‍👦"}
-                  </span>
-                </div>
-
-                <div className="flex flex-col overflow-hidden">
-                  <span className="font-semibold text-gray-800 truncate">
-                    {room.roomName || "이름 없는 채팅방"}
-                  </span>
-                  <span className="text-xs text-gray-500 truncate">
-                    {/* 값이 문자열이 아닐 때도 방어 */}
-                    {typeof room.latestMessageTime === "string"
-                      ? room.latestMessageTime.split("T")[0]
-                      : "대화 기록 없음"}
-                  </span>
-                </div>
+                ×
               </button>
-            ))
-          )}
+            )}
+          </div>
         </div>
 
-        <button
-          onClick={onClose}
-          className="mt-4 w-full py-3 text-gray-500 hover:text-gray-800 transition"
-        >
-          취소
-        </button>
+        {/* List */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <div
+            className="h-full overflow-y-auto overflow-x-hidden crsm-scroll"
+            style={{ scrollbarGutter: "stable" }}
+          >
+            <div className="crsm-pad px-4 sm:px-6 pb-4 flex flex-col gap-2 sm:gap-3">
+              {loading ? (
+                <p className="text-center py-10 text-[var(--color-text-sub)]">
+                  목록을 불러오는 중...
+                </p>
+              ) : filteredRooms.length === 0 ? (
+                <p className="text-center py-10 text-[var(--color-text-sub)]">
+                  {query ? "검색 결과가 없어요." : "참여 중인 채팅방이 없어요."}
+                </p>
+              ) : (
+                filteredRooms.map((room) => (
+                  <button
+                    key={`${room.roomType}-${room.roomId}`}
+                    onClick={() => onSelectRoom(room)}
+                    aria-label={`${room.roomName || "이름 없는 채팅방"} 선택`}
+                    className="
+                      crsm-row
+                      w-full flex items-center gap-3
+                      p-3 rounded-2xl
+                      bg-[var(--color-paper)]
+                      border border-[var(--color-secondary-light)]
+                      text-left
+                      transition
+                      hover:bg-[var(--color-primary-soft2)]
+                      hover:border-[var(--color-primary)]
+                      focus-visible:outline-none
+                      focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]
+                      focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-paper)]
+                    "
+                  >
+                    {/* Icon */}
+                    <div
+                      className="
+                        crsm-icon
+                        w-11 h-11 rounded-full overflow-hidden shrink-0
+                        bg-[var(--color-paper-light)]
+                        border border-[var(--color-secondary-light)]
+                      "
+                    >
+                      <img
+                        src={getRoomIcon(room)}
+                        alt={room.roomType === "PRIVATE" ? "1:1 채팅" : "그룹 채팅"}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="crsm-line flex items-center justify-between gap-2">
+                        <span className="crsm-name font-semibold text-[var(--color-text-black)] truncate text-sm sm:text-base">
+                          {room.roomName || "이름 없는 채팅방"}
+                        </span>
+                        <span className="crsm-time text-xs text-[var(--color-text-sub)] shrink-0">
+                          {formatTimeLabel(room.latestMessageTime)}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="crsm-pad px-4 sm:px-6 py-3 sm:py-4 shrink-0 border-t border-[var(--color-secondary-light)] bg-[var(--color-paper)]">
+          <button
+            onClick={onClose}
+            className="
+              w-full py-2
+              text-[var(--color-text-sub)]
+              hover:text-[var(--color-text-black)]
+              transition
+              focus-visible:outline-none
+              focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]
+              focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-paper)]
+              rounded-[var(--radius-btn)]
+            "
+          >
+            취소
+          </button>
+        </div>
       </div>
     </BlurModal>
   );
