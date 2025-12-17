@@ -24,24 +24,26 @@ export const useChatMessageStore = create((set, get) => ({
   }) => {
     const key = `${roomType}-${roomId}`;
 
-  let initialUnreadIndex = null;
+    let initialUnreadMessageId = null;
 
-  if (entryReadMessageId > 0) {
-    const entryMsg = formattedMessages.find(
-      (m) => typeof m.cmId === "number" && m.cmId === entryReadMessageId
-    );
-
-    const entryIsMine = entryMsg?.senderId === currentUserId;
-
-    // ⭐ 마지막 읽은 메시지가 "내가 보낸 것"이 아닐 때만 divider 생성
-    if (!entryIsMine) {
-      const idx = formattedMessages.findIndex(
-        (m) => typeof m.cmId === "number" && m.cmId > entryReadMessageId
+    if (entryReadMessageId > 0) {
+      const entryMsg = formattedMessages.find(
+        (m) => typeof m.cmId === "number" && m.cmId === entryReadMessageId
       );
-      initialUnreadIndex = idx !== -1 ? idx : null;
-    }
-  }
 
+      const entryIsMine = entryMsg?.senderId === currentUserId;
+
+      if (!entryIsMine) {
+        const firstUnread = formattedMessages.find(
+          (m) =>
+            typeof m.cmId === "number" &&
+            m.cmId > entryReadMessageId &&
+            m.senderId !== currentUserId   
+        );
+
+        initialUnreadMessageId = firstUnread?.cmId ?? null;
+      }
+    }
 
     set((state) => ({
       roomState: {
@@ -51,13 +53,13 @@ export const useChatMessageStore = create((set, get) => ({
           myLastReadMessageId: myLastReadMessageId ?? entryReadMessageId ?? 0,
           otherLastReadMessageId: otherLastReadMessageId ?? 0,
           participants: participants ?? [],
-          initialUnreadIndex,
+          initialUnreadMessageId,
           didInit: true,
         },
       },
     }));
 
-    return initialUnreadIndex;
+    return initialUnreadMessageId;
   },
 
   /* ---------------------------
@@ -163,16 +165,19 @@ export const useChatMessageStore = create((set, get) => ({
 
 
 
-  resetInitialUnreadIndex: ({ roomType, roomId }) => {
-  const key = `${roomType}-${roomId}`;
-  const prev = get().roomState[key];
-  if (!prev) return;
+  resetInitialUnreadMessageId: ({ roomType, roomId }) => {
+    const key = `${roomType}-${roomId}`;
+    const prev = get().roomState[key];
+    if (!prev) return;
 
-  set(state => ({
-    roomState: {
-      ...state.roomState,
-      [key]: { ...prev, initialUnreadIndex: null },
-    },
-  }));
-},
+    set(state => ({
+      roomState: {
+        ...state.roomState,
+        [key]: {
+          ...prev,
+          initialUnreadMessageId: null,
+        },
+      },
+    }));
+  },
 }));

@@ -834,7 +834,7 @@ export default function MessageItem({
 
         {/* 이미지 */}
         <div
-          className="w-full h-full flex items-center justify-center overflow-hidden"
+          className="w-full h-full object-contain flex items-center justify-center overflow-visible"
           onDoubleClick={handleDoubleTap}
           onWheel={handleWheel}
           onMouseDown={handleMouseDown}
