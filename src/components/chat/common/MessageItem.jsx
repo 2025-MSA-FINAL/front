@@ -45,6 +45,130 @@ const PopupCardBubble = ({ popupData, onClick }) => (
   </div>
 );
 
+//이미지 그리드
+const ImageGrid = ({
+  urls,
+  pending,
+  failed,
+  onOpen,
+  onRetry,
+  onCancel,
+  onLoad,
+}) => {
+  const count = urls.length;
+
+  // row 정의 함수
+  const buildRows = (urls) => {
+    switch (count) {
+      case 1:
+        return [[urls[0]]];
+
+      case 2:
+        return [[urls[0], urls[1]]];
+
+      case 3:
+        // 1 + 2 (왼쪽 큰 이미지 느낌)
+        return [[urls[0]], [urls[1], urls[2]]];
+
+      case 4:
+        return [
+          [urls[0], urls[1]],
+          [urls[2], urls[3]],
+        ];
+
+      case 5:
+        return [
+          [urls[0], urls[1], urls[2]],
+          [urls[3], urls[4]],
+        ];
+
+      case 6:
+        return [
+          [urls[0], urls[1], urls[2]],
+          [urls[3], urls[4], urls[5]],
+        ];
+
+      case 7:
+        return [
+          [urls[0], urls[1], urls[2]],
+          [urls[3], urls[4]],
+          [urls[5], urls[6]],
+        ];
+
+      case 8:
+        return [
+          [urls[0], urls[1], urls[2]],
+          [urls[3], urls[4], urls[5]],
+          [urls[6], urls[7]],
+        ];
+
+      case 9:
+        return [
+          [urls[0], urls[1], urls[2]],
+          [urls[3], urls[4], urls[5]],
+          [urls[6], urls[7], urls[8]],
+        ];
+
+      case 10:
+        return [
+          [urls[0], urls[1], urls[2]],
+          [urls[3], urls[4], urls[5]],
+          [urls[6], urls[7]],
+          [urls[8], urls[9]],
+        ];
+
+      case 11:
+        return [
+          [urls[0], urls[1], urls[2]],
+          [urls[3], urls[4], urls[5]],
+          [urls[6], urls[7], urls[8]],
+          [urls[9], urls[10]],
+        ];
+
+      case 12:
+      default:
+        return [
+          [urls[0], urls[1], urls[2]],
+          [urls[3], urls[4], urls[5]],
+          [urls[6], urls[7], urls[8]],
+          [urls[9], urls[10], urls[11]],
+        ];
+    }
+  };
+
+  const rows = buildRows(urls);
+
+  return (
+    <div className="flex flex-col gap-0.5 max-w-[420px]">
+      {rows.map((row, rowIdx) => {
+        const cols =
+          row.length === 1
+            ? "grid-cols-1"
+            : row.length === 2
+            ? "grid-cols-2"
+            : "grid-cols-3";
+
+        return (
+          <div key={rowIdx} className={`grid ${cols} gap-0.5`}>
+            {row.map((url, idx) => (
+              <ImageBubble
+                key={`${rowIdx}-${idx}`}
+                src={url}
+                pending={pending}
+                failed={failed}
+                onClick={onOpen}
+                onRetry={onRetry}
+                onCancel={onCancel}
+                onLoad={onLoad}
+              />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const ImageBubble = ({
   src,
   pending,
@@ -61,7 +185,7 @@ const ImageBubble = ({
       onLoad={onLoad}
       alt="chat-image"
       className={`
-        max-w-[420px] w-full h-auto rounded-2xl object-cover transition
+        max-w-[420px] w-full h-auto rounded-2xl object-cover aspect-square transition
         ${pending ? "blur-sm opacity-80" : ""}
         ${failed ? "opacity-70" : "cursor-pointer"}
       `}
@@ -139,7 +263,10 @@ export default function MessageItem({
   const [openFullModal, setOpenFullModal] = useState(false);
   const avatarRef = useRef(null);
 
-  const isImage = msg.messageType === "IMAGE";
+  const isImage =
+    msg.messageType === "IMAGE" &&
+    Array.isArray(msg.imageUrls) &&
+    msg.imageUrls.length > 0;
   const isAiMessage = msg.senderId === AI_USER_ID;
 
   // =========================================================================
@@ -319,14 +446,14 @@ export default function MessageItem({
                 `}
                 >
                   {isImage ? (
-                    <ImageBubble
-                      src={msg.content}
+                    <ImageGrid
+                      urls={msg.imageUrls}
                       pending={isUploading}
                       failed={isFailed}
-                      onClick={() => setOpenFullModal(true)}
+                      onOpen={() => setOpenFullModal(true)}
                       onLoad={onImageLoad}
-                      onRetry={onRetryImage}
-                      onCancel={onCancelImage}
+                      onRetry={() => onRetryImage(msg.clientMessageKey)}
+                      onCancel={() => onCancelImage(msg.clientMessageKey)}
                     />
                   ) : (
                     previewText
@@ -409,14 +536,14 @@ export default function MessageItem({
               `}
                 >
                   {isImage ? (
-                    <ImageBubble
-                      src={msg.content}
+                    <ImageGrid
+                      urls={msg.imageUrls}
                       pending={isUploading}
                       failed={isFailed}
-                      onClick={() => setOpenFullModal(true)}
+                      onOpen={() => setOpenFullModal(true)}
                       onLoad={onImageLoad}
-                      onRetry={onRetryImage}
-                      onCancel={onCancelImage}
+                      onRetry={() => onRetryImage(msg.clientMessageKey)}
+                      onCancel={() => onCancelImage(msg.clientMessageKey)}
                     />
                   ) : (
                     previewText
@@ -452,11 +579,16 @@ export default function MessageItem({
           </p>
           <div className="mt-2 p-3 rounded-xl bg-gray-50 border border-gray-200 max-h-[55vh] overflow-y-auto custom-scroll">
             {isImage ? (
-              <img
-                src={msg.content}
-                alt="full-image"
-                className="max-w-full max-h-[60vh] rounded-xl mx-auto"
-              />
+              <div className="flex flex-col gap-3">
+                {msg.imageUrls.map((url, idx) => (
+                  <img
+                    key={idx}
+                    src={url}
+                    alt={`full-image-${idx}`}
+                    className="max-w-full max-h-[60vh] rounded-xl mx-auto"
+                  />
+                ))}
+              </div>
             ) : (
               <p className="whitespace-pre-wrap break-words text-gray-900 text-sm align-o">
                 {/* 객체 content여도 깨지지 않게 safeContentString 사용 */}
