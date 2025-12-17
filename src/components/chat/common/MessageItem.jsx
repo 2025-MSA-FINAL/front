@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom"; //팝업 상세 페이지 이동을 위해 추가
 import BlurModal from "../../common/BlurModal";
-import { RotateCcw, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCcw, X } from "lucide-react";
 import privateChatIcon from "../../../assets/privateChat.png";
+import DownloadIcon from "../icons/DownloadIcon";
 
 const MAX_PREVIEW_CHARS = 600; // 긴 메시지 기준
 const AI_USER_ID = 20251212;
@@ -156,7 +157,7 @@ const ImageGrid = ({
                 src={url}
                 pending={pending}
                 failed={failed}
-                onClick={onOpen}
+                onClick={() => onOpen(idx)}
                 onRetry={onRetry}
                 onCancel={onCancel}
                 onLoad={onLoad}
@@ -181,7 +182,7 @@ const ImageBubble = ({
   <div className="relative block leading-none">
     <img
       src={src}
-      onClick={failed || pending ? undefined : onClick}
+      onClick={() => !failed && !pending && onClick()}
       onLoad={onLoad}
       alt="chat-image"
       className={`
@@ -261,6 +262,8 @@ export default function MessageItem({
   onCancelImage,
 }) {
   const [openFullModal, setOpenFullModal] = useState(false);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
   const avatarRef = useRef(null);
 
   const isImage =
@@ -401,6 +404,29 @@ export default function MessageItem({
     return 0;
   })();
 
+  const isIOS = () =>
+    /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+  const getFilenameFromResponse = (response, fallbackUrl, index) => {
+    // Content-Disposition 헤더
+    const disposition = response.headers.get("Content-Disposition");
+    if (disposition) {
+      const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)/i);
+      if (match?.[1]) {
+        return decodeURIComponent(match[1]);
+      }
+    }
+
+    //  URL에서 파일명
+
+    const pathname = new URL(fallbackUrl).pathname;
+    const name = pathname.split("/").pop();
+    if (name) return name;
+
+    //  fallback
+    return `image_${index + 1}`;
+  };
+
   return (
     <>
       {/* LEFT (상대방 메시지) */}
@@ -439,7 +465,7 @@ export default function MessageItem({
               ) : (
                 <div
                   className={`relative rounded-2xl whitespace-pre-wrap break-words 
-                  bg-white/20 text-white max-w-[500px] overflow-hidden
+                  bg-white/20 text-white max-w-[500px] overflow-hidden  cursor-pointer
                   ${isImage ? "" : "px-4 py-2"}
                   ${msg.isPending ? "opacity-50" : ""}
                   ${bubbleAnimationClass}
@@ -450,7 +476,10 @@ export default function MessageItem({
                       urls={msg.imageUrls}
                       pending={isUploading}
                       failed={isFailed}
-                      onOpen={() => setOpenFullModal(true)}
+                      onOpen={(idx = 0) => {
+                        setViewerIndex(idx);
+                        setImageViewerOpen(true);
+                      }}
                       onLoad={onImageLoad}
                       onRetry={() => onRetryImage(msg.clientMessageKey)}
                       onCancel={() => onCancelImage(msg.clientMessageKey)}
@@ -540,7 +569,10 @@ export default function MessageItem({
                       urls={msg.imageUrls}
                       pending={isUploading}
                       failed={isFailed}
-                      onOpen={() => setOpenFullModal(true)}
+                      onOpen={(idx = 0) => {
+                        setViewerIndex(idx);
+                        setImageViewerOpen(true);
+                      }}
                       onLoad={onImageLoad}
                       onRetry={() => onRetryImage(msg.clientMessageKey)}
                       onCancel={() => onCancelImage(msg.clientMessageKey)}
@@ -570,6 +602,13 @@ export default function MessageItem({
           </div>
         </div>
       )}
+
+      <ImageViewerModal
+        open={imageViewerOpen}
+        urls={msg.imageUrls || []}
+        startIndex={viewerIndex}
+        onClose={() => setImageViewerOpen(false)}
+      />
 
       {/* 🔍 전체 내용 모달 */}
       <BlurModal open={openFullModal} onClose={() => setOpenFullModal(false)}>
@@ -604,4 +643,249 @@ export default function MessageItem({
       </BlurModal>
     </>
   );
+
+  function ImageViewerModal({ open, urls, startIndex = 0, onClose }) {
+    const [index, setIndex] = useState(startIndex);
+    const [scale, setScale] = useState(1);
+    const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+    const dragStart = useRef(null);
+    const isDragging = useRef(false);
+    const lastTapRef = useRef(0);
+    const pinchStartDist = useRef(null);
+
+    // 최초 오픈 시만 초기화
+    useEffect(() => {
+      if (open) {
+        setIndex(startIndex);
+        setScale(1);
+      }
+    }, [open, startIndex]);
+
+    // ⌨️ 키보드
+    useEffect(() => {
+      if (!open) return;
+
+      const handleKey = (e) => {
+        if (e.key === "Escape") onClose();
+        if (e.key === "ArrowLeft" && index > 0) setIndex((i) => i - 1);
+        if (e.key === "ArrowRight" && index < urls.length - 1)
+          setIndex((i) => i + 1);
+      };
+
+      window.addEventListener("keydown", handleKey);
+      return () => window.removeEventListener("keydown", handleKey);
+    }, [open, index, urls.length, onClose]);
+
+    if (!open) return null;
+
+    // 🔍 더블탭 / 더블클릭
+    const handleDoubleTap = () => {
+      const now = Date.now();
+      if (now - lastTapRef.current < 300) {
+        setScale((s) => {
+          const next = s === 1 ? 2 : 1;
+          if (next === 1) {
+            setOffset({ x: 0, y: 0 });
+            dragStart.current = null;
+          }
+          return next;
+        });
+      }
+      lastTapRef.current = now;
+    };
+
+    // 🖱️ 마우스 휠 줌
+    const handleWheel = (e) => {
+      e.preventDefault();
+      setScale((s) => {
+        const next = s - e.deltaY * 0.001;
+        return Math.min(Math.max(1, next), 4);
+      });
+    };
+
+    // 🤏 모바일 핀치 줌
+    const handleTouchMove = (e) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (!pinchStartDist.current) {
+          pinchStartDist.current = dist;
+        } else {
+          const diff = dist - pinchStartDist.current;
+          setScale((s) => Math.min(Math.max(1, s + diff * 0.005), 4));
+        }
+      }
+
+      // 🖐️ 한 손가락 드래그
+      if (e.touches.length === 1 && scale > 1) {
+        const touch = e.touches[0];
+        if (!dragStart.current) {
+          dragStart.current = {
+            x: touch.clientX,
+            y: touch.clientY,
+            ox: offset.x,
+            oy: offset.y,
+          };
+        } else {
+          setOffset({
+            x: dragStart.current.ox + (touch.clientX - dragStart.current.x),
+            y: dragStart.current.oy + (touch.clientY - dragStart.current.y),
+          });
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      dragStart.current = null;
+      pinchStartDist.current = null;
+    };
+    const handleMouseDown = (e) => {
+      if (scale <= 1) return;
+
+      isDragging.current = false;
+
+      dragStart.current = {
+        x: e.clientX,
+        y: e.clientY,
+        ox: offset.x,
+        oy: offset.y,
+      };
+    };
+    const handleMouseMove = (e) => {
+      if (!dragStart.current) return;
+
+      const dx = e.clientX - dragStart.current.x;
+      const dy = e.clientY - dragStart.current.y;
+
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        isDragging.current = true;
+      }
+
+      setOffset({
+        x: dragStart.current.ox + dx,
+        y: dragStart.current.oy + dy,
+      });
+    };
+    const handleMouseUp = () => {
+      dragStart.current = null;
+      isDragging.current = false;
+    };
+    //  다운로드 (CORS-safe)
+    const handleDownload = async () => {
+      const url = urls[index];
+
+      //  iOS Safari → 새 탭 열어서 저장 유도
+      if (isIOS()) {
+        window.open(url, "_blank");
+        return;
+      }
+
+      //  PC / Android
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+
+        const filename = getFilenameFromResponse(response, url, index);
+
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+      } catch (err) {
+        console.error("다운로드 실패:", err);
+        alert("이미지 다운로드에 실패했습니다.");
+      }
+    };
+
+    const showIndex = urls.length > 1;
+
+    return (
+      <div className="fixed inset-0 z-[9999] rounded-2xl bg-black/60 backdrop-blur-lg flex items-center justify-center overflow-hidden">
+        {/* 닫기 */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 flex items-center justify-center z-10 w-10 h-10 rounded-full  text-white hover:bg-white/10 cursor-pointer"
+        >
+          <X size={22} />
+        </button>
+
+        {/* 다운로드 */}
+        <button
+          onClick={handleDownload}
+          className="absolute top-4 right-16 flex items-center justify-center z-10 w-10 h-10 rounded-full text-white hover:bg-white/10 cursor-pointer"
+        >
+          <DownloadIcon />
+        </button>
+
+        {isIOS() && (
+          <div className="absolute top-16 right-4 text-xs text-white/60">
+            길게 눌러 사진 저장
+          </div>
+        )}
+
+        {/* 이미지 */}
+        <div
+          className="w-full h-full flex items-center justify-center overflow-hidden"
+          onDoubleClick={handleDoubleTap}
+          onWheel={handleWheel}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <img
+            src={urls[index]}
+            alt={`viewer-${index}`}
+            draggable={false}
+            className="max-w-[95vw] max-h-[85vh] object-contain transition-transform duration-100 "
+            style={{
+              transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+              cursor:
+                scale > 1
+                  ? dragStart.current
+                    ? "grabbing"
+                    : "grab"
+                  : "default",
+            }}
+          />
+        </div>
+
+        {/* 인덱스 */}
+        {showIndex && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-black/60 text-white text-xs">
+            {index + 1} / {urls.length}
+          </div>
+        )}
+
+        {/* 좌우 */}
+        {index > 0 && (
+          <button
+            onClick={() => setIndex((i) => i - 1)}
+            className="hidden md:flex items-center justify-center absolute left-4 w-12 h-12 rounded-full bg-black/30 text-white hover:bg-black/50 cursor-pointer"
+          >
+            <ChevronLeft size={32} />
+          </button>
+        )}
+        {index < urls.length - 1 && (
+          <button
+            onClick={() => setIndex((i) => i + 1)}
+            className="hidden md:flex  items-center justify-center absolute right-4 w-12 h-12 rounded-full bg-black/30 text-white hover:bg-black/50 cursor-pointer"
+          >
+            <ChevronRight size={32} />
+          </button>
+        )}
+      </div>
+    );
+  }
 }
