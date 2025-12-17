@@ -7,7 +7,7 @@ import {
   deletePrivateChatRoom,
   updateGroupChatRoom,
   leaveGroupChatRoom,
-  uploadChatImage,
+  uploadChatImages,
 } from "../../../api/chatApi";
 import BlurModal from "../../common/BlurModal";
 import MessageItem from "../../chat/common/MessageItem";
@@ -312,7 +312,9 @@ export default function MessageChatSection() {
 
         if (key && pendingUploadMapRef.current.has(key)) {
           const entry = pendingUploadMapRef.current.get(key);
-          if (entry?.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+          if (entry?.previewUrls?.length) {
+            entry.previewUrls.forEach((u) => URL.revokeObjectURL(u));
+          }
           pendingUploadMapRef.current.delete(key);
         }
 
@@ -560,9 +562,8 @@ export default function MessageChatSection() {
     const entry = pendingUploadMapRef.current.get(clientMessageKey);
     if (!entry) return;
 
-    const { file, roomType: rt, roomId: rid } = entry;
+    const { files, roomType: rt, roomId: rid } = entry;
 
-    // UI: 다시 업로딩 상태
     setMessages((prev) =>
       prev.map((m) =>
         m.clientMessageKey === clientMessageKey
@@ -572,17 +573,12 @@ export default function MessageChatSection() {
     );
 
     try {
-      await uploadChatImage({
+      await uploadChatImages({
         roomType: rt,
         roomId: rid,
-        file,
+        files,
         clientMessageKey,
       });
-
-      // 성공 시 정리
-      const cur = pendingUploadMapRef.current.get(clientMessageKey);
-      if (cur?.previewUrl) URL.revokeObjectURL(cur.previewUrl);
-      pendingUploadMapRef.current.delete(clientMessageKey);
     } catch {
       setMessages((prev) =>
         prev.map((m) =>
@@ -596,7 +592,9 @@ export default function MessageChatSection() {
 
   const cancelImageUpload = (clientMessageKey) => {
     const entry = pendingUploadMapRef.current.get(clientMessageKey);
-    if (entry?.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+    if (entry?.previewUrls?.length) {
+      entry.previewUrls.forEach((u) => URL.revokeObjectURL(u));
+    }
     pendingUploadMapRef.current.delete(clientMessageKey);
 
     // ✅ temp 메시지 제거
@@ -611,7 +609,7 @@ export default function MessageChatSection() {
     const name = (file.name || "").toLowerCase();
     const type = (file.type || "").toLowerCase();
 
-    // ✅ iOS에서 type이 "" 인 경우가 있어서 name/type 둘 다로 판단 + 느슨하게
+    // 🔒 iOS Safari 대비: type 비어 있어도 확장자로 판별
     const looksHeic =
       type.includes("heic") ||
       type.includes("heif") ||
@@ -620,24 +618,32 @@ export default function MessageChatSection() {
 
     if (!looksHeic) return file;
 
-    // ✅ 변환
-    const result = await heic2any({
-      blob: file,
-      toType: "image/jpeg",
-      quality: 0.9,
-    });
+    try {
+      const result = await heic2any({
+        blob: file,
+        toType: "image/jpeg",
+        quality: 0.9,
+      });
 
-    // ✅ result가 Blob[] 일 수도 있어서 Blob로 정규화
-    const convertedBlob = Array.isArray(result) ? result[0] : result;
-    if (!(convertedBlob instanceof Blob)) {
-      throw new Error("heic2any did not return a Blob");
+      const blob = Array.isArray(result) ? result[0] : result;
+
+      if (!(blob instanceof Blob)) {
+        throw new Error("heic2any returned non-Blob");
+      }
+
+      const safeName =
+        file.name?.replace(/\.(heic|heif)$/i, ".jpg") ??
+        `image-${Date.now()}.jpg`;
+
+      return new File([blob], safeName, {
+        type: "image/jpeg",
+        lastModified: Date.now(),
+      });
+    } catch (err) {
+      // ❗ 절대 throw 하지 말 것
+      console.warn(`⚠️ HEIC 변환 실패 → 원본 업로드 (${file.name})`, err);
+      return file;
     }
-
-    const nextName = name
-      ? file.name.replace(/\.(heic|heif)$/i, ".jpg")
-      : `image-${Date.now()}.jpg`;
-
-    return new File([convertedBlob], nextName, { type: "image/jpeg" });
   };
 
   /* =======================================================================
@@ -1006,85 +1012,82 @@ export default function MessageChatSection() {
             ref={fileInputRef}
             type="file"
             accept="image/*,.heic,.heif"
+            multiple
             hidden
             onChange={async (e) => {
-              if (isSendingImageRef.current) return; // 중복 방지
+              if (isSendingImageRef.current) return;
               isSendingImageRef.current = true;
               setIsSendingImage(true);
 
-              const rawFile = e.target.files?.[0];
-              if (!rawFile) {
+              const rawFiles = Array.from(e.target.files || []);
+              if (rawFiles.length === 0) {
                 isSendingImageRef.current = false;
                 setIsSendingImage(false);
-                return;
-              }
-
-              console.log("rawFile:", {
-                name: rawFile.name,
-                type: rawFile.type,
-                size: rawFile.size,
-              });
-
-              let file = rawFile;
-
-              try {
-                file = await convertHeicToJpgIfNeeded(rawFile);
-
-                console.log("converted file:", {
-                  name: file.name,
-                  type: file.type,
-                  size: file.size,
-                });
-              } catch (err) {
-                console.error("HEIC 변환 실패:", err);
-                alert("이미지 변환에 실패했어요. 다른 이미지로 시도해 주세요.");
-                isSendingImageRef.current = false;
-                setIsSendingImage(false);
-                e.target.value = "";
                 return;
               }
 
               const clientMessageKey = uuidv4();
               const tempId = `temp-${clientMessageKey}`;
-              const previewUrl = URL.createObjectURL(file);
-
-              pendingUploadMapRef.current.set(clientMessageKey, {
-                file,
-                previewUrl,
-                roomType,
-                roomId,
-              });
-
-              // optimistic image message
-              setMessages((prev) => [
-                ...prev,
-                {
-                  cmId: tempId,
-                  roomId,
-                  roomType,
-                  senderId: currentUserId,
-                  senderNickname: "나",
-                  senderProfileUrl: useAuthStore.getState().user?.photo ?? "",
-                  senderStatus: "ACTIVE",
-                  content: previewUrl,
-                  messageType: "IMAGE",
-                  createdAt: formatTime(new Date()),
-                  minuteKey: toMinuteKey(new Date()),
-                  dateLabel: formatDateLabel(new Date()),
-                  clientMessageKey,
-                  uploadStatus: "UPLOADING", // 업로드 상태 "UPLOADING" | "FAILED"
-                  isPending: true,
-                },
-              ]);
 
               try {
-                await uploadChatImage({
+                // ✅ HEIC → JPEG 변환
+                const convertedFiles = await Promise.all(
+                  rawFiles.map((raw) => convertHeicToJpgIfNeeded(raw))
+                );
+
+                convertedFiles.forEach((f) => {
+                  console.log(f.name, f.type);
+                });
+
+                const files = [];
+                const previewUrls = [];
+
+                for (const file of convertedFiles) {
+                  files.push(file);
+                  previewUrls.push(URL.createObjectURL(file));
+                }
+
+                // retry / cancel 용 저장
+                pendingUploadMapRef.current.set(clientMessageKey, {
+                  files,
+                  previewUrls,
                   roomType,
                   roomId,
-                  file,
+                });
+
+                // ⭐ Optimistic UI
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    cmId: tempId,
+                    roomId,
+                    roomType,
+                    senderId: currentUserId,
+                    senderNickname: "나",
+                    senderProfileUrl: useAuthStore.getState().user?.photo ?? "",
+                    senderStatus: "ACTIVE",
+                    content: null,
+                    imageUrls: previewUrls,
+                    messageType: "IMAGE",
+                    createdAt: formatTime(new Date()),
+                    minuteKey: toMinuteKey(new Date()),
+                    dateLabel: formatDateLabel(new Date()),
+                    clientMessageKey,
+                    uploadStatus: "UPLOADING",
+                    isPending: true,
+                  },
+                ]);
+
+                // 서버 업로드
+                await uploadChatImages({
+                  roomType,
+                  roomId,
+                  files,
                   clientMessageKey,
                 });
-              } catch {
+              } catch (err) {
+                console.error("이미지 업로드 실패:", err);
+
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.clientMessageKey === clientMessageKey

@@ -143,20 +143,28 @@ export async function startAiChat() {
 /* -------------------------------------------
     7) 채팅 이미지 전송
 ------------------------------------------- */
-export async function uploadChatImage({ roomType, roomId, file, clientMessageKey }) {
+export async function uploadChatImages({
+  roomType,
+  roomId,
+  files,
+  clientMessageKey,
+}) {
   const formData = new FormData();
   formData.append("roomType", roomType);
   formData.append("roomId", roomId);
-  formData.append("image", file);
   formData.append("clientMessageKey", clientMessageKey);
 
+  files.forEach((file) => {
+    formData.append("images", file); // ⭐ 여러 개
+  });
+
   const res = await apiClient.post(
-    "/api/chat/messages/image",
+    "/api/chat/messages/images",
     formData,
     { headers: { "Content-Type": "multipart/form-data" } }
   );
 
-  return res.data;
+  return res.data; // ChatMessageResponse
 }
 
 
@@ -183,5 +191,5 @@ export default {
   getMiniUserProfile,
   startAiChat,
 
-  uploadChatImage,
+  uploadChatImages,
 };
