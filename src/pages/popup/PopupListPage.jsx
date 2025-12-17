@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import { usePopupList } from "../../hooks/usePopupList"; // 훅 import
 
@@ -15,6 +16,7 @@ const VIEW_MODES = {
 
 export default function PopupListPage() {
   const user = useAuthStore((state) => state.user);
+  const [searchParams] = useSearchParams();
 
   const {
     popups,
@@ -42,6 +44,37 @@ export default function PopupListPage() {
     toggleQuickFilter,
     retryLoad,
   } = usePopupList();
+
+  // =========================
+  // ✅ URL ?search= 자동 검색 (레이스 방지 버전)
+  // - URL 값을 먼저 searchQuery에 넣고
+  // - 기본목록 로딩(isInitialLoaded) 끝난 뒤 검색을 실행해서
+  //   최종 상태가 "검색 결과"로 고정되게 함
+  // =========================
+  const targetSearchRef = useRef("");
+  const appliedRef = useRef(false);
+
+  useEffect(() => {
+    const q = (searchParams.get("search") || "").trim();
+    if (!q) return;
+
+    targetSearchRef.current = q;
+    appliedRef.current = false; // URL이 바뀌면 다시 적용 가능하게
+    setSearchQuery(q);
+  }, [searchParams, setSearchQuery]);
+
+  useEffect(() => {
+    const target = (targetSearchRef.current || "").trim();
+    if (!target) return;
+    if (appliedRef.current) return;
+
+    // ✅ "기본목록" 1차 로딩이 끝난 뒤에 검색 실행 (덮어쓰기 방지)
+    if (isInitialLoaded && (searchQuery || "").trim() === target) {
+      handleSearch();
+      appliedRef.current = true;
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, [isInitialLoaded, searchQuery, handleSearch]);
 
   // 모달 열림 시 스크롤 잠금
   useEffect(() => {
@@ -217,7 +250,7 @@ export default function PopupListPage() {
                   ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10"
                   : viewMode === VIEW_MODES.LIST_2
                   ? "grid grid-cols-1 md:grid-cols-2 gap-4"
-                  : "space-y-4" // LIST_1
+                  : "space-y-4"
               }
             >
               {popups.map((popup) => (
@@ -309,6 +342,7 @@ const SearchIcon = () => (
     />
   </svg>
 );
+
 const FilterIcon = () => (
   <svg
     width="16"
@@ -325,16 +359,19 @@ const FilterIcon = () => (
     />
   </svg>
 );
+
 const GridIcon = () => (
   <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
     <path d="M10 3H3v7h7V3zm11 0h-7v7h7V3zm0 11h-7v7h7v-7zM10 14H3v7h7v-7z" />
   </svg>
 );
+
 const ListTwoIcon = () => (
   <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
     <path d="M3 5h8v4H3V5zm10 0h8v4h-8V5zM3 13h8v4H3v-4zm10 0h8v4h-8v-4z" />
   </svg>
 );
+
 const ListOneIcon = () => (
   <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
     <path d="M4 10.5c-.83 0-1.5.67-1.5 1.5S3.17 13.5 4 13.5 5.5 12.83 5.5 12 4.83 10.5 4 10.5zm0-6C3.17 4.5 2.5 5.17 2.5 6S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5S3.17 19.5 4 19.5 5.5 18.83 5.5 18 4.83 16.5 4 16.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z" />
