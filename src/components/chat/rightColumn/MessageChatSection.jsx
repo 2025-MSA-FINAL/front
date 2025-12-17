@@ -104,6 +104,7 @@ export default function MessageChatSection() {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isSendingImage, setIsSendingImage] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const subRef = useRef(null);
   const scrollRef = useRef(null);
@@ -652,6 +653,88 @@ export default function MessageChatSection() {
     }
   };
 
+  const handleImageFiles = async (rawFiles) => {
+    if (isSendingImageRef.current) return;
+    isSendingImageRef.current = true;
+    setIsSendingImage(true);
+
+    if (!rawFiles || rawFiles.length === 0) {
+      isSendingImageRef.current = false;
+      setIsSendingImage(false);
+      return;
+    }
+
+    const clientMessageKey = uuidv4();
+    const tempId = `temp-${clientMessageKey}`;
+
+    try {
+      // 1️⃣ HEIC → JPG 변환
+      const convertedFiles = await Promise.all(
+        rawFiles.map((raw) => convertHeicToJpgIfNeeded(raw))
+      );
+
+      const files = [];
+      const previewUrls = [];
+
+      for (const file of convertedFiles) {
+        files.push(file);
+        previewUrls.push(URL.createObjectURL(file));
+      }
+
+      // retry / cancel용 저장
+      pendingUploadMapRef.current.set(clientMessageKey, {
+        files,
+        previewUrls,
+        roomType,
+        roomId,
+      });
+
+      // 2️⃣ Optimistic UI
+      setMessages((prev) => [
+        ...prev,
+        {
+          cmId: tempId,
+          roomId,
+          roomType,
+          senderId: currentUserId,
+          senderNickname: "나",
+          senderProfileUrl: useAuthStore.getState().user?.photo ?? "",
+          senderStatus: "ACTIVE",
+          content: null,
+          imageUrls: previewUrls,
+          messageType: "IMAGE",
+          createdAt: formatTime(new Date()),
+          minuteKey: toMinuteKey(new Date()),
+          dateLabel: formatDateLabel(new Date()),
+          clientMessageKey,
+          uploadStatus: "UPLOADING",
+          isPending: true,
+        },
+      ]);
+
+      // 3️⃣ 서버 업로드
+      await uploadChatImages({
+        roomType,
+        roomId,
+        files,
+        clientMessageKey,
+      });
+    } catch (err) {
+      console.error("이미지 업로드 실패:", err);
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.clientMessageKey === clientMessageKey
+            ? { ...m, uploadStatus: "FAILED", isPending: false }
+            : m
+        )
+      );
+    } finally {
+      isSendingImageRef.current = false;
+      setIsSendingImage(false);
+    }
+  };
+
   /* =======================================================================
         📌 RENDER
   ======================================================================= */
@@ -808,7 +891,6 @@ export default function MessageChatSection() {
             )}
           </div>
         </div>
-
         {roomType === "GROUP" && (
           <GroupRoomInfoPopover
             room={activeRoom}
@@ -818,11 +900,29 @@ export default function MessageChatSection() {
             onClose={() => setShowRoomInfo(false)}
           />
         )}
-
         {/* 메시지 리스트 */}
         <div
-          className="flex flex-col flex-1 overflow-y-auto scrollbar-hide justify-start border-t border-white/20 mb-2 px-1"
+          className="
+            flex flex-col flex-1 overflow-y-auto scrollbar-hide
+            border-t border-white/20 mb-2 px-1 justify-start"
           ref={scrollRef}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragOver(true);
+          }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={async (e) => {
+            e.preventDefault();
+            setIsDragOver(false);
+
+            const files = Array.from(e.dataTransfer.files || []).filter((f) =>
+              f.type.startsWith("image/")
+            );
+
+            if (files.length === 0) return;
+
+            await handleImageFiles(files);
+          }}
         >
           {messages.map((msg, i) => {
             const prev = messages[i - 1];
@@ -902,7 +1002,6 @@ export default function MessageChatSection() {
           />
           <div ref={bottomRef} />
         </div>
-
         {/* typing indicator 영역 (스크롤 X) */}
         <div className="h-3 flex items-center ml-3 mb-2">
           {showUnreadButton && (
@@ -987,7 +1086,6 @@ export default function MessageChatSection() {
             </div>
           )}
         </div>
-
         {/* 입력창 */}
         <div className="flex items-end gap-2 border border-white/20 px-5 py-2 rounded-2xl">
           <button className="p-2 hover:bg-white/10 rounded-full">
@@ -1037,93 +1135,46 @@ export default function MessageChatSection() {
             multiple
             hidden
             onChange={async (e) => {
-              if (isSendingImageRef.current) return;
-              isSendingImageRef.current = true;
-              setIsSendingImage(true);
-
-              const rawFiles = Array.from(e.target.files || []);
-              if (rawFiles.length === 0) {
-                isSendingImageRef.current = false;
-                setIsSendingImage(false);
-                return;
-              }
-
-              const clientMessageKey = uuidv4();
-              const tempId = `temp-${clientMessageKey}`;
-
-              try {
-                // ✅ HEIC → JPEG 변환
-                const convertedFiles = await Promise.all(
-                  rawFiles.map((raw) => convertHeicToJpgIfNeeded(raw))
-                );
-
-                convertedFiles.forEach((f) => {
-                  console.log(f.name, f.type);
-                });
-
-                const files = [];
-                const previewUrls = [];
-
-                for (const file of convertedFiles) {
-                  files.push(file);
-                  previewUrls.push(URL.createObjectURL(file));
-                }
-
-                // retry / cancel 용 저장
-                pendingUploadMapRef.current.set(clientMessageKey, {
-                  files,
-                  previewUrls,
-                  roomType,
-                  roomId,
-                });
-
-                // ⭐ Optimistic UI
-                setMessages((prev) => [
-                  ...prev,
-                  {
-                    cmId: tempId,
-                    roomId,
-                    roomType,
-                    senderId: currentUserId,
-                    senderNickname: "나",
-                    senderProfileUrl: useAuthStore.getState().user?.photo ?? "",
-                    senderStatus: "ACTIVE",
-                    content: null,
-                    imageUrls: previewUrls,
-                    messageType: "IMAGE",
-                    createdAt: formatTime(new Date()),
-                    minuteKey: toMinuteKey(new Date()),
-                    dateLabel: formatDateLabel(new Date()),
-                    clientMessageKey,
-                    uploadStatus: "UPLOADING",
-                    isPending: true,
-                  },
-                ]);
-
-                // 서버 업로드
-                await uploadChatImages({
-                  roomType,
-                  roomId,
-                  files,
-                  clientMessageKey,
-                });
-              } catch (err) {
-                console.error("이미지 업로드 실패:", err);
-
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.clientMessageKey === clientMessageKey
-                      ? { ...m, uploadStatus: "FAILED", isPending: false }
-                      : m
-                  )
-                );
-              } finally {
-                isSendingImageRef.current = false;
-                setIsSendingImage(false);
-                e.target.value = "";
-              }
+              const files = Array.from(e.target.files || []);
+              await handleImageFiles(files);
+              e.target.value = "";
             }}
           />
+
+          {isDragOver && (
+            <div
+              className="
+                absolute inset-0 z-50
+                flex items-center justify-center
+                pointer-events-none
+              "
+            >
+              {/* 전체 영역 반응 레이어 */}
+              <div
+                className="
+                  absolute inset-0
+                  border-5 border-dashed border-white/60
+                  rounded-2xl
+                  bg-white/40
+                "
+              />
+
+              {/* 중앙 가이드 */}
+              <div className="flex items-center gap-4">
+                <ImageUploadIcon
+                  className="w-12 h-12 text-white"
+                  fill="white"
+                />
+
+                <div className="flex flex-col">
+                  <p className="text-white text-[20px] font-semibold">
+                    이미지 업로드
+                  </p>
+                  <p className="text-white/60 text-sm">드래그해서 놓아주세요</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <button
             disabled={isSendingImage}
