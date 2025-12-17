@@ -43,11 +43,9 @@ export async function getGroupChatRoomList(popId) {
 }
 
 // 그룹 채팅 참여
-export async function joinGroupChatRoom(payload) {
-  const res = await apiClient.post("/api/chat/group/join", payload, {
-    headers: { "Content-Type": "application/json" },
-  });
-  return res.data;
+export async function joinGroupChatRoom(gcrId) {
+  const res = await apiClient.post(`/api/chat/group/${gcrId}/join`);
+  return res.data; 
 }
 
 // 그룹 채팅 상세 조회
