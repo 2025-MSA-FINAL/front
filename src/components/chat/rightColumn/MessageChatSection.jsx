@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import heic2any from "heic2any";
+import EmojiPicker from "emoji-picker-react";
 import { useEffect, useState, useRef } from "react";
 import { connectStomp, getStompClient } from "../../../api/socket";
 import {
@@ -105,6 +106,8 @@ export default function MessageChatSection() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isSendingImage, setIsSendingImage] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const subRef = useRef(null);
   const scrollRef = useRef(null);
@@ -119,6 +122,7 @@ export default function MessageChatSection() {
   const isSendingImageRef = useRef(false);
   const bottomRef = useRef(null);
   const pendingUploadMapRef = useRef(new Map());
+  const emojiRef = useRef(null);
 
   const currentUserId = useAuthStore((s) => s.user?.userId);
   const activeRoom = useChatStore((s) => s.activeChatRoom);
@@ -150,7 +154,7 @@ export default function MessageChatSection() {
   const myLastReadMessageId = roomState?.myLastReadMessageId ?? 0;
   const otherLastReadMessageId = roomState?.otherLastReadMessageId ?? 0;
   const participants = roomState?.participants ?? [];
-  const initialUnreadIndex = roomState?.initialUnreadIndex ?? null;
+  const initialUnreadMessageId = roomState?.initialUnreadMessageId ?? null;
 
   const AI_USER_ID = 20251212;
 
@@ -200,6 +204,8 @@ export default function MessageChatSection() {
   );
 
   const isAiTyping = typingUserList.some((u) => u.userId === AI_USER_ID);
+  const isEmojiDisabled =
+    roomType === "PRIVATE" && otherUserId === AI_USER_ID && isAiTyping;
 
   const inputPlaceholder =
     roomType === "PRIVATE" && isAiTyping
@@ -375,7 +381,7 @@ export default function MessageChatSection() {
       clientMessageKey,
     };
 
-    useChatMessageStore.getState().resetInitialUnreadIndex({
+    useChatMessageStore.getState().resetInitialUnreadMessageId({
       roomType,
       roomId,
     });
@@ -735,6 +741,58 @@ export default function MessageChatSection() {
     }
   };
 
+  const handleEmojiClick = (emojiData) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+
+    const newValue = input.slice(0, start) + emojiData.emoji + input.slice(end);
+
+    setInput(newValue);
+
+    // 커서 위치 복구
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(
+        start + emojiData.emoji.length,
+        start + emojiData.emoji.length
+      );
+    }, 0);
+  };
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (emojiRef.current && !emojiRef.current.contains(e.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // 🔥 방이 바뀌면 메시지 & unread UI 완전 초기화
+  useEffect(() => {
+    if (!activeRoom) {
+      setMessages([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    // 방 전환 시 무조건 초기화
+    setMessages([]);
+    setUnreadCount(0);
+  }, [activeRoom]);
+
   /* =======================================================================
         📌 RENDER
   ======================================================================= */
@@ -929,6 +987,11 @@ export default function MessageChatSection() {
             const next = messages[i + 1];
             const isMine = msg.senderId === currentUserId;
 
+            const key =
+              typeof msg.cmId === "number"
+                ? `msg-${msg.cmId}`
+                : `temp-${msg.clientMessageKey}`;
+
             const showDateDivider =
               i === 0 || prev?.dateLabel !== msg.dateLabel;
 
@@ -944,10 +1007,11 @@ export default function MessageChatSection() {
               next.minuteKey !== msg.minuteKey;
 
             const showUnreadDivider =
-              initialUnreadIndex !== null && i === initialUnreadIndex;
+              initialUnreadMessageId !== null &&
+              msg.cmId === initialUnreadMessageId;
 
             return (
-              <div key={i} className="mb-1" data-cmid={msg.cmId}>
+              <div key={key} className="mb-1" data-cmid={msg.cmId}>
                 {showDateDivider && <DateDivider label={msg.dateLabel} />}
 
                 {showUnreadDivider && (
@@ -1088,9 +1152,83 @@ export default function MessageChatSection() {
         </div>
         {/* 입력창 */}
         <div className="flex items-end gap-2 border border-white/20 px-5 py-2 rounded-2xl">
-          <button className="p-2 hover:bg-white/10 rounded-full">
-            <EmojiIcon className="w-6 h-6" fill="#fff" />
-          </button>
+          <div className="relative" ref={emojiRef}>
+            <button
+              disabled={isEmojiDisabled}
+              className={`
+              p-2 rounded-full transition
+              ${
+                isEmojiDisabled
+                  ? "opacity-40 cursor-not-allowed"
+                  : "hover:bg-white/10"
+              }
+            `}
+              onClick={() => {
+                if (isEmojiDisabled) return;
+                setShowEmojiPicker(true);
+              }}
+            >
+              <EmojiIcon className="w-6 h-6" fill="#fff" />
+            </button>
+
+            {/* 📱 Mobile Emoji Bottom Sheet */}
+            {isMobile && showEmojiPicker && (
+              <div className="fixed inset-0 z-[999] flex items-end">
+                {/* backdrop */}
+                <div
+                  className="absolute inset-0 bg-black/40"
+                  onClick={() => setShowEmojiPicker(false)}
+                />
+
+                {/* sheet */}
+                <div
+                  className="
+                  relative w-full
+                  bg-white/90 backdrop-blur-xl
+                  rounded-t-3xl
+                  p-4
+                  animate-slide-up
+                "
+                >
+                  {/* drag bar */}
+                  <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-3" />
+
+                  <EmojiPicker
+                    onEmojiClick={(e) => {
+                      handleEmojiClick(e);
+                      setShowEmojiPicker(false);
+                    }}
+                    theme="light"
+                    height={360}
+                    width="100%"
+                  />
+                </div>
+              </div>
+            )}
+
+            {!isMobile && showEmojiPicker && !isEmojiDisabled && (
+              <div
+                className="
+                absolute bottom-14 left-0 z-50
+                rounded-2xl
+                bg-white/35 backdrop-blur-xl
+                border border-white/20
+                shadow-[0_12px_40px_rgba(0,0,0,0.25)]
+                overflow-hidden
+                animate-scale-in
+              "
+              >
+                <EmojiPicker
+                  onEmojiClick={handleEmojiClick}
+                  theme="auto"
+                  SkinTones="neutral"
+                  height={360}
+                  width={350}
+                  searchDisabled={false}
+                />
+              </div>
+            )}
+          </div>
 
           <textarea
             ref={textareaRef}
