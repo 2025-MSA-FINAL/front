@@ -46,6 +46,7 @@ fetchPopups: async (keyword = "") => {
     try {
       set({ loading: true });
       const data = await getGroupChatRoomList(popId);
+         console.log("popupRooms (API raw)", data); 
       set({ popupRooms: data ?? [], loading: false });
     } catch (err) {
       set({ loading: false, error: err });
@@ -66,7 +67,7 @@ fetchRoomDetail: async (gcrId) => {
   // ⭐ 그룹방 참여 → 메시지창 전환
 joinRoom: async (gcrId) => {
   try {
-    await joinGroupChatRoom({ gcrId });
+    await joinGroupChatRoom(gcrId);
 
     const detail = await getGroupChatRoomDetail(gcrId);
 

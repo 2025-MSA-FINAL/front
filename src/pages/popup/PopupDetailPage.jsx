@@ -6,26 +6,41 @@ import PopupDetailBottomSection from "../../components/popup/PopupDetailBottomSe
 import Toast from "../../components/common/Toast";
 import ShareModal from "../../components/popup/ShareModal";
 
+import ChatRoomSelectModal from "../../components/popup/ChatRoomSelectModal";
+
 export default function PopupDetailPage() {
   const vm = usePopupDetailPage();
 
-  // 1. 공유 모달 상태 관리
+  //공유 모달 상태 관리
   const [isShareOpen, setIsShareOpen] = useState(false);
 
-  // 2. 모달 내부 버튼 핸들러들
+  //채팅방 선택 모달 상태 관리
+  const [isChatSelectOpen, setIsChatSelectOpen] = useState(false);
+
+  //모달 내부 버튼 핸들러들
   const handleCopyLink = () => {
-    vm.handleShareClick(); //훅에 있던 링크 복사 기능 호출
-    setIsShareOpen(false); //모달 닫기
+    vm.handleShareClick();
+    setIsShareOpen(false);
   };
 
   const handleKakaoShare = () => {
-    vm.handleKakaoShare(); //공유 함수 호출
-    setIsShareOpen(false); //모달 닫기
+    vm.handleKakaoShare();
+    setIsShareOpen(false);
   };
 
   const handleChatShare = () => {
-    alert("채팅 공유 기능 추가할 예정 💬");
-    // 여기에 나중에 채팅 로직 연결
+    if (!vm.isLoggedIn) {
+      vm.showToast("로그인이 필요한 서비스입니다.", "error");
+      return;
+    }
+    setIsShareOpen(false);
+    setIsChatSelectOpen(true);
+  };
+
+  //채팅방 선택 완료 후 전송 로직
+  const handleSelectRoom = async (room) => {
+    const ok = await vm.sharePopupToChatRoom(room);
+    if (ok) setIsChatSelectOpen(false);
   };
 
   const actions = vm.popup && (
@@ -60,25 +75,31 @@ export default function PopupDetailPage() {
 
   return (
     <>
-      <PopupDetailTemplate
-        {...vm}
-        actions={actions}
-        bottomSection={bottomSection}
-      />
+      <PopupDetailTemplate {...vm} actions={actions} bottomSection={bottomSection} />
 
-      {/* 토스트 컴포넌트 */}
+      {/* 토스트 컴포넌트 (훅이 단일 관리) */}
       <Toast
         message={vm.toastMessage}
         visible={!!vm.toastMessage}
+        variant={vm.toastVariant}
+        actionLabel={vm.toastActionLabel || undefined}
+        onAction={vm.toastOnAction || undefined}
       />
 
-      {/* 공유 모달 배치 */}
+      {/* 공유 메뉴 모달(링크/카카오/채팅 선택) */}
       <ShareModal
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}
         onCopyLink={handleCopyLink}
         onKakaoShare={handleKakaoShare}
         onChatShare={handleChatShare}
+      />
+
+      {/* 채팅방 선택 모달 */}
+      <ChatRoomSelectModal
+        isOpen={isChatSelectOpen}
+        onClose={() => setIsChatSelectOpen(false)}
+        onSelectRoom={handleSelectRoom}
       />
     </>
   );
