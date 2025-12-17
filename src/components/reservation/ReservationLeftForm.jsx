@@ -42,8 +42,22 @@ export function ReservationLeftForm() {
   const setPeriod = usePopupReservationStore((state) => state.setPeriod);
 
   const handleMaxUserChange = (e) => {
-    const value = Number(e.target.value);
-    setReservationInfo({ maxUserCnt: value });
+    const raw = e.target.value;
+
+    // ✅ 지우는 중(빈 값)에는 0으로 바꾸지 말고 비워두기
+    if (raw === "") {
+      setReservationInfo({ maxUserCnt: null });
+      return;
+    }
+
+    // ✅ 숫자만 반영 + 1 이상 보장
+    const value = parseInt(raw, 10);
+    if (Number.isNaN(value)) {
+      setReservationInfo({ maxUserCnt: null });
+      return;
+    }
+
+    setReservationInfo({ maxUserCnt: Math.max(1, value) });
   };
 
   const handleEntryTimeUnitChange = (e) => {
