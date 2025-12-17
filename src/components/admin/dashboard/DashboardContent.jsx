@@ -1,14 +1,18 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 // import { LineChart, Line, BarChart, Bar, PieChart, Pie, AreaChart, Area, Cell, ... } from "recharts"; 
 
 import useDashboardStats from "@/hooks/admin/useDashboardStats";
 import usePopularHashtags from "@/hooks/admin/usePopularHashtags";
+import { useAIReport } from "@/hooks/admin/useAIReport";
+
 
 // 컴포넌트 Import
 import KpiCard from "@/components/admin/dashboard/KpiCard";
 import ChartCard from "@/components/admin/dashboard/ChartCard";
 import HeatmapChart from "@/components/admin/dashboard/HeatmapChart";
 import WordCloud from "@/components/admin/wordcloud/WordCloud";
+import AIReportCard from "@/components/admin/dashboard/AIReportCard";
+
 
 // 분리된 차트 컴포넌트 Import 
 import UserGrowthLineChart from "@/components/admin/dashboard/charts/UserGrowthLineChart";
@@ -43,6 +47,10 @@ export default function DashboardContent() {
     setAge,
     isFetching: hashtagFetching, 
   } = usePopularHashtags();
+
+  //AI 리포트 hook 추가
+  const { report, loading, error, fetchReport } = useAIReport();
+  const [showReport, setShowReport] = useState(false);
   
   // KPI 데이터 가공 
   const kpiData = useMemo(() => [
@@ -245,6 +253,69 @@ export default function DashboardContent() {
         </ChartCard>
       </section>
       
+          <section>
+        {/* AI 리포트 헤더 */}
+        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg shadow-lg p-6 text-white">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+                <span className="text-3xl">🤖</span>
+                AI 운영 리포트
+              </h2>
+              <p className="text-purple-100 text-sm">
+                대시보드 통계 데이터 기반 자동 분석 및 전략 제안
+              </p>
+            </div>
+            
+            <button
+              onClick={() => {
+                if (!showReport) {
+                  fetchReport();
+                }
+                setShowReport(!showReport);
+              }}
+              disabled={loading}
+              className="px-6 py-3 bg-white text-purple-600 rounded-lg font-semibold 
+                       hover:bg-purple-50 transition-all duration-200 disabled:opacity-50 
+                       disabled:cursor-not-allowed shadow-md hover:shadow-lg whitespace-nowrap"
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" 
+                            stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" 
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  생성 중...
+                </span>
+              ) : showReport ? (
+                '리포트 닫기'
+              ) : (
+                'AI 리포트 생성'
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* 에러 표시 */}
+        {error && (
+          <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+            <span className="text-xl">⚠️</span>
+            <div>
+              <p className="font-semibold text-red-800">오류 발생</p>
+              <p className="text-red-600 text-sm mt-1">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* AI 리포트 카드 */}
+        {showReport && report && (
+          <div className="mt-6">
+            <AIReportCard report={report} />
+          </div>
+        )}
+      </section>
     </div>
   );
 }

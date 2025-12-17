@@ -1,4 +1,7 @@
 export default function HeatmapChart({ data }) {
+  
+  console.log(" Heatmap raw data:", data);
+  
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-[300px] text-gray-500">
@@ -8,7 +11,13 @@ export default function HeatmapChart({ data }) {
   }
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
-  const uniqueDays = [...new Set(data.map((d) => d.day))].slice(-7);
+  const uniqueDays = [
+    ...new Set(
+      data
+        .map((d) => d.dayLabel)
+        .filter((day) => typeof day === "string" && day.length > 0)
+    ),
+  ].slice(-7);
 
   const getColor = (views) => {
     if (views === 0) return "bg-purple-50";
@@ -18,11 +27,14 @@ export default function HeatmapChart({ data }) {
     return "bg-purple-800";
   };
 
-  const getWeekday = (day) => {
-    if (day.includes("토")) return "saturday";
-    if (day.includes("일")) return "sunday";
+  const getWeekday = (dayLabel) => {
+    if (!dayLabel || typeof dayLabel !== "string") return "weekday";
+
+    if (dayLabel.includes("토")) return "saturday";
+    if (dayLabel.includes("일")) return "sunday";
     return "weekday";
   };
+
 
   return (
     <div className="w-full h-full flex flex-col py-2">
@@ -48,6 +60,8 @@ export default function HeatmapChart({ data }) {
           {/* 히트맵 그리드 */}
         <div className="pb-4">
           {uniqueDays.map((day) => {
+            if (!day) return null;
+
             const weekdayType = getWeekday(day);
             const bgColor =
               weekdayType === "saturday"
@@ -69,7 +83,7 @@ export default function HeatmapChart({ data }) {
                 <div className="flex flex-1">
                   {hours.map((hour) => {
                     const cell = data.find(
-                      (d) => d.day === day && d.hour === hour
+                      (d) => d.dayLabel === day && d.hour === hour
                     );
                     const views = cell?.views || 0;
 
