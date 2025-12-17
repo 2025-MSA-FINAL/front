@@ -374,6 +374,11 @@ export default function MessageChatSection() {
       clientMessageKey,
     };
 
+    useChatMessageStore.getState().resetInitialUnreadIndex({
+      roomType,
+      roomId,
+    });
+
     // ⭐ 화면에 즉시 추가
     setMessages((prev) => [...prev, optimisticMessage]);
 
@@ -453,6 +458,7 @@ export default function MessageChatSection() {
         otherLastReadMessageId: otherLastReadMessageId ?? 0, // 상대 실시간 읽음 초기값
         participants: participants ?? [],
         formattedMessages,
+        currentUserId,
       });
 
       // ✅ 스크롤도 딱 1번만
@@ -737,6 +743,12 @@ export default function MessageChatSection() {
                         className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
                         onClick={async () => {
                           await deleteGroupChatRoom(activeRoom.gcrId);
+
+                          useChatMessageStore.getState().clearRoomState({
+                            roomType: "GROUP",
+                            roomId: activeRoom.gcrId,
+                          });
+
                           removeRoom("GROUP", activeRoom.gcrId);
                           setActiveRoom(null);
                           const { fetchPopupRooms, selectedPopup } =
@@ -751,6 +763,11 @@ export default function MessageChatSection() {
                         className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
                         onClick={async () => {
                           await leaveGroupChatRoom(activeRoom.gcrId);
+
+                          useChatMessageStore.getState().clearRoomState({
+                            roomType: "GROUP",
+                            roomId: activeRoom.gcrId,
+                          });
                           removeRoom("GROUP", activeRoom.gcrId);
                           setActiveRoom(null);
                         }}
@@ -764,6 +781,11 @@ export default function MessageChatSection() {
                       className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
                       onClick={async () => {
                         await deletePrivateChatRoom(activeRoom.roomId);
+
+                        useChatMessageStore.getState().clearRoomState({
+                          roomType: "PRIVATE",
+                          roomId: activeRoom.roomId,
+                        });
                         removeRoom("PRIVATE", activeRoom.roomId);
                         setActiveRoom(null);
                       }}
