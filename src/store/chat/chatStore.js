@@ -107,4 +107,13 @@ export const useChatStore = create((set) => ({
         activeChatRoom: room,
       };
     }),
+    updateRoomMeta: ({ roomType, roomId, patch }) =>
+  set((state) => ({
+    rooms: state.rooms.map((r) =>
+      r.roomType === roomType && r.roomId === roomId
+        ? { ...r, ...patch }
+        : r
+    ),
+  })),
 }));
+
