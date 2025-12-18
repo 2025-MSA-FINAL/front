@@ -427,6 +427,17 @@ export default function MessageItem({
     return `image_${index + 1}`;
   };
 
+  // 🔹 SYSTEM 메시지 (중앙 알림)
+  if (msg.messageType === "SYSTEM") {
+    return (
+      <div className="flex items-center justify-center gap-3 my-2 px-6">
+        <span className="text-xs text-white/60 whitespace-nowrap">
+          {msg.content}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* LEFT (상대방 메시지) */}
