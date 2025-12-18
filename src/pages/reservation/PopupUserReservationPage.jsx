@@ -360,7 +360,7 @@ export default function PopupUserReservationPage() {
       if (e?.response?.status === 409) {
         // 정원 초과 → 알림 + 슬롯 다시 로딩
         alert(
-          "해당 시간대가 가득 찼습니다. 다른 시간대를 선택해주세요."
+          "정원이 초과되었습니다. 다른 시간대를 선택해주세요."
         );
 
         try {

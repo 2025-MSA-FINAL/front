@@ -519,10 +519,40 @@ export default function usePopupDetailPage() {
     popup &&
     popup.reservationStatus !== "NONE" &&
     popup.popIsReservation !== false;
+
+  // ✅ [변경 시작] start/end time 기준으로 상태 보정
+  const effectiveReservationStatus = (() => {
+    if (!popup) return "NONE";
+
+    const status = popup.reservationStatus;
+    const startTime = popup.reservationStartTime;
+    const endTime = popup.reservationEndTime; // ✅ 추가: 종료 시간
+
+    const nowMs = Date.now();
+
+    // 1) 종료 시간이 있고, 이미 지났으면 무조건 CLOSED
+    if (endTime) {
+      const endMs = new Date(endTime).getTime();
+      if (!Number.isNaN(endMs) && nowMs >= endMs) return "CLOSED";
+    }
+
+    // 2) 시작 시간이 있고, 아직 UPCOMING인데 시작 시간이 지났으면 OPEN
+    if (status === "UPCOMING" && startTime) {
+      const startMs = new Date(startTime).getTime();
+      if (!Number.isNaN(startMs) && nowMs >= startMs) return "OPEN";
+    }
+
+    return status;
+  })();
+  // ✅ [변경 끝]
+
   const reservationLabel = popup
-    ? formatReservationLabel(popup.reservationStatus, popup.reservationStartTime)
+    ? formatReservationLabel(
+        effectiveReservationStatus,
+        popup.reservationStartTime
+      )
     : "";
-  const reservationDisabled = !popup || popup.reservationStatus !== "OPEN";
+  const reservationDisabled = !popup || effectiveReservationStatus !== "OPEN";
 
   return {
     loading,
