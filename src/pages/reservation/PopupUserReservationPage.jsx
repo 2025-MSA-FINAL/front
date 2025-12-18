@@ -9,7 +9,7 @@ import {
   fetchReservationCalendarApi,
   fetchTimeSlotsByDateApi,
   createReservationHoldApi,
-  completePortOnePaymentApi, // ✅ 추가
+  completePortOnePaymentApi,
 } from "../../api/reservationApi.js";
 
 /**
