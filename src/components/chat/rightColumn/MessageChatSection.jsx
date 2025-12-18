@@ -281,15 +281,10 @@ export default function MessageChatSection() {
 
     // 🔹 PARTICIPANT 이벤트
     if (body.type?.startsWith("PARTICIPANT_")) {
-      // 🔥 현재 보고 있는 방만 처리
-      if (
-        body.roomType !== roomType ||
-        body.roomId !== roomId // 여기서 roomId는 gcrId
-      ) {
-        return;
-      }
+      if (body.roomType !== roomType || body.roomId !== roomId) return;
 
       const store = useChatMessageStore.getState();
+      const { userId, nickname } = body.payload;
 
       switch (body.type) {
         case "PARTICIPANT_JOIN":
@@ -298,21 +293,31 @@ export default function MessageChatSection() {
             roomId,
             participant: body.payload,
           });
+
+          setMessages((prev) => [
+            ...prev,
+            makeSystemMessage(`${nickname}님이 채팅방에 입장했습니다`),
+          ]);
           break;
 
         case "PARTICIPANT_LEAVE":
           store.removeParticipant({
             roomType,
             roomId,
-            userId: body.payload.userId,
+            userId,
           });
+
+          setMessages((prev) => [
+            ...prev,
+            makeSystemMessage(`${nickname}님이 채팅방을 나갔습니다`),
+          ]);
           break;
 
         case "PARTICIPANT_ONLINE":
           store.updateParticipantOnline({
             roomType,
             roomId,
-            userId: body.payload.userId,
+            userId,
             online: true,
           });
           break;
@@ -321,7 +326,7 @@ export default function MessageChatSection() {
           store.updateParticipantOnline({
             roomType,
             roomId,
-            userId: body.payload.userId,
+            userId,
             online: false,
           });
           break;
@@ -403,6 +408,19 @@ export default function MessageChatSection() {
       });
     }
   };
+
+  const makeSystemMessage = (text) => ({
+    cmId: `system-${Date.now()}-${Math.random()}`,
+    roomId,
+    roomType,
+    senderId: null,
+    senderNickname: null,
+    content: text,
+    messageType: "SYSTEM",
+    createdAt: formatTime(new Date()),
+    minuteKey: toMinuteKey(new Date()),
+    dateLabel: formatDateLabel(new Date()),
+  });
 
   /* 메시지 전송 */
   const sendMessage = () => {
