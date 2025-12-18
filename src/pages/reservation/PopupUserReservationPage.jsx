@@ -1,12 +1,15 @@
 // src/pages/reservation/PopupUserReservationPage.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import PortOne from "@portone/browser-sdk/v2";
+
 import PrimaryButton from "../../components/button/PrimaryButton.jsx";
 import { fetchPopupDetailApi } from "../../api/popupApi.js";
 import {
   fetchReservationCalendarApi,
   fetchTimeSlotsByDateApi,
   createReservationHoldApi,
+  completePortOnePaymentApi, // ✅ 추가
 } from "../../api/reservationApi.js";
 
 /**
@@ -32,8 +35,7 @@ function DayCell({ date, isAvailable, isSelected, onClick }) {
   const disabled = "text-secondary-dark/40 cursor-default";
   const available =
     "cursor-pointer text-text-black hover:bg-primary-light hover:text-primary-dark";
-  const selected =
-    "bg-primary text-text-white shadow-card font-semibold";
+  const selected = "bg-primary text-text-white shadow-card font-semibold";
 
   const className = [
     base,
@@ -90,9 +92,7 @@ function UserReservationCalendar({
   const firstWeekday = firstDayOfMonth.getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const monthLabel = `${year}년 ${(month + 1)
-    .toString()
-    .padStart(2, "0")}월`;
+  const monthLabel = `${year}년 ${(month + 1).toString().padStart(2, "0")}월`;
 
   const goPrevMonth = () => setMonthOffset((prev) => prev - 1);
   const goNextMonth = () => setMonthOffset((prev) => prev + 1);
@@ -161,10 +161,8 @@ function UserReservationCalendar({
         {Array.from({ length: daysInMonth }).map((_, idx) => {
           const date = new Date(year, month, idx + 1);
           const key = formatDateKey(date);
-          const isAvailable =
-            isInRange(date) && availableDateKeys?.has(key);
-          const isSelected =
-            selectedDate && key === formatDateKey(selectedDate);
+          const isAvailable = isInRange(date) && availableDateKeys?.has(key);
+          const isSelected = selectedDate && key === formatDateKey(selectedDate);
 
           return (
             <DayCell
@@ -187,19 +185,16 @@ function UserReservationCalendar({
 
 /**
  * ⭐ 타임슬롯 버튼
- * remainingCount <= 0 이면 disabled 처리 이미 되어 있음
  */
 function TimeSlotButton({ slot, selected, onClick }) {
-  const disabled =
-    slot.remainingCount !== undefined && slot.remainingCount <= 0;
+  const disabled = slot.remainingCount !== undefined && slot.remainingCount <= 0;
 
   const base =
     "w-full flex items-center justify-between gap-3 rounded-full px-4 py-2 text-[13px] md:text-[14px] transition-all";
   const active = "bg-primary text-text-white shadow-card";
   const normal =
     "bg-primary-light text-primary-dark hover:bg-primary hover:text-text-white";
-  const disabledCls =
-    "bg-secondary-light text-text-sub cursor-not-allowed";
+  const disabledCls = "bg-secondary-light text-text-sub cursor-not-allowed";
 
   const className = [
     base,
@@ -217,10 +212,7 @@ function TimeSlotButton({ slot, selected, onClick }) {
       className={className}
     >
       <div className="font-semibold flex items-center gap-1">
-        {/* 시작 시간 */}
         <span>{slot.startTime}</span>
-
-        {/* (3명) 형태로 표시 — "잔여" 글자 제거 */}
         {slot.remainingCount != null && (
           <span className="text-[12px]">({slot.remainingCount}명)</span>
         )}
@@ -229,9 +221,6 @@ function TimeSlotButton({ slot, selected, onClick }) {
   );
 }
 
-/**
- * 메인 페이지
- */
 export default function PopupUserReservationPage() {
   const { popupId } = useParams();
   const navigate = useNavigate();
@@ -248,10 +237,8 @@ export default function PopupUserReservationPage() {
   const [holdLoading, setHoldLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // ✅ 추가: 예약 인원 상태
   const [peopleCount, setPeopleCount] = useState(1);
 
-  // 전체 API 호출 로직 그대로 유지
   useEffect(() => {
     let cancelled = false;
 
@@ -313,11 +300,8 @@ export default function PopupUserReservationPage() {
     [timeSlots, selectedSlotId]
   );
 
-  // ✅ 예약 설정 기반 최대 인원 / 금액 계산
   const maxPeoplePerReservation =
-    popup?.maxPeoplePerReservation ??
-    popup?.reservationMaxPeople ??
-    4; // 기본값 4명
+    popup?.maxPeoplePerReservation ?? popup?.reservationMaxPeople ?? 4;
 
   const pricePerPerson = popup?.popPrice ?? 0;
 
@@ -328,8 +312,10 @@ export default function PopupUserReservationPage() {
 
   const totalPrice = pricePerPerson * peopleCount;
 
-  // ✅ 여기만 수정: 성공 시 상세 페이지로 바로 이동
+  // ✅ 결제 성공 후: 서버에 결제검증/예약확정 요청 추가(웹훅 미수신 대비)
   const handleSubmit = async () => {
+    console.log("[PAY] handleSubmit clicked");
+
     if (!selectedSlot) {
       alert("예약할 시간을 먼저 선택해주세요.");
       return;
@@ -345,23 +331,96 @@ export default function PopupUserReservationPage() {
 
       const dateKey = formatDateKey(selectedDate);
 
-      // ✅ 홀드 생성만 호출 (결제 연동 전 단계)
-      await createReservationHoldApi(
+      console.log("[PAY] create hold start", {
+        popupId,
+        slotId: selectedSlot.slotId,
+        dateKey,
+        peopleCount,
+      });
+
+      const holdRes = await createReservationHoldApi(
         Number(popupId),
         selectedSlot.slotId,
         dateKey,
         peopleCount
       );
 
-      // ✅ 지금은: 성공하면 바로 상세 페이지로 이동
-      // (나중에 토스 콜백에서 이 navigate만 호출하면 됨)
+      const holdData = holdRes?.data ?? holdRes;
+
+      console.log("[PAY] create hold done", holdData);
+
+      const paymentId = holdData?.paymentId ?? holdData?.merchantUid;
+      const amount = Number(holdData?.amount ?? totalPrice);
+
+      console.log("[PAY] payment params", { paymentId, amount });
+
+      if (!paymentId) {
+        alert("결제 정보를 생성하지 못했습니다. (paymentId 없음)");
+        return;
+      }
+      if (!Number.isFinite(amount) || amount <= 0) {
+        alert(`결제 금액이 이상합니다. amount=${amount}`);
+        return;
+      }
+
+      const storeId = import.meta.env.VITE_PORTONE_STORE_ID;
+      const channelKey = import.meta.env.VITE_PORTONE_CHANNEL_KEY;
+
+      console.log("[PAY] env", { storeId, channelKey });
+
+      if (!storeId || !channelKey) {
+        alert("결제 설정이 누락되었습니다. (VITE_PORTONE_STORE_ID / VITE_PORTONE_CHANNEL_KEY)");
+        return;
+      }
+
+      // ✅ 팝업 차단/무반응 방지: PC는 POPUP, 모바일은 REDIRECTION
+      const payment = await PortOne.requestPayment({
+        storeId,
+        channelKey,
+
+        paymentId,
+        orderName: popup?.popName ? `${popup.popName} 예약` : "팝업 예약",
+        totalAmount: amount,
+        currency: "KRW",
+
+        payMethod: "EASY_PAY",
+        easyPay: { easyPayProvider: "EASY_PAY_PROVIDER_TOSSPAY" },
+
+        windowType: { pc: "POPUP", mobile: "REDIRECTION" },
+        redirectUrl: `${window.location.origin}/payment/redirect`,
+
+        customData: {
+          popId: Number(popupId),
+          slotId: selectedSlot.slotId,
+          date: dateKey,
+          peopleCount,
+        },
+      });
+
+      console.log("[PAY] PortOne.requestPayment returned", payment);
+
+      // SDK 반환값에 code가 있으면 실패 :contentReference[oaicite:8]{index=8}
+      if (payment?.code !== undefined) {
+        alert(payment.message || "결제에 실패했습니다.");
+        return;
+      }
+
+      // ✅ 여기 핵심: 웹훅 대신 서버에 결제완료 검증/예약확정 요청
+      const completeRes = await completePortOnePaymentApi(paymentId);
+      console.log("[PAY] complete result", completeRes);
+
+      if (completeRes?.status !== "PAID") {
+        alert(`결제가 완료되지 않았습니다. (status=${completeRes?.status ?? "UNKNOWN"})`);
+        return;
+      }
+
+      // ✅ 검증/확정 성공 시 상세로 이동
       navigate(`/popup/${popupId}`);
     } catch (e) {
+      console.error("[PAY] error", e);
+
       if (e?.response?.status === 409) {
-        // 정원 초과 → 알림 + 슬롯 다시 로딩
-        alert(
-          "정원이 초과되었습니다. 다른 시간대를 선택해주세요."
-        );
+        alert("정원이 초과되었습니다. 다른 시간대를 선택해주세요.");
 
         try {
           if (selectedDate && popupId) {
@@ -371,7 +430,7 @@ export default function PopupUserReservationPage() {
             setSelectedSlotId(null);
           }
         } catch {
-          // 재조회 실패는 조용히 무시
+          // 재조회 실패 무시
         }
       } else if (e?.response?.status === 400) {
         alert(
@@ -379,7 +438,11 @@ export default function PopupUserReservationPage() {
             "선택하신 인원 수로는 예약이 불가능합니다."
         );
       } else {
-        alert("예약 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+        alert(
+          e?.response?.data?.message ||
+            e?.message ||
+            "결제/예약 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+        );
       }
     } finally {
       setHoldLoading(false);
@@ -408,22 +471,13 @@ export default function PopupUserReservationPage() {
 
   const dateRangeLabel =
     popup.popStartDate || popup.popEndDate
-      ? `${popup.popStartDate?.slice(0, 10)} ~ ${popup.popEndDate?.slice(
-          0,
-          10
-        )}`
+      ? `${popup.popStartDate?.slice(0, 10)} ~ ${popup.popEndDate?.slice(0, 10)}`
       : "";
 
   const thumbnailUrl =
-    popup.popThumbnailUrl ||
-    popup.popThumbnail ||
-    popup.images?.[0] ||
-    "";
+    popup.popThumbnailUrl || popup.popThumbnail || popup.images?.[0] || "";
 
-  const selectedDateLabel = selectedDate
-    ? formatDateKey(selectedDate)
-    : "-";
-
+  const selectedDateLabel = selectedDate ? formatDateKey(selectedDate) : "-";
   const selectedTimeLabel = selectedSlot?.startTime || "-";
 
   return (
@@ -433,7 +487,6 @@ export default function PopupUserReservationPage() {
           예약 정보 확인
         </h1>
 
-        {/* 4개 영역 — 원본 유지 */}
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-5 md:gap-7">
           <div className="bg-paper rounded-[24px] shadow-card p-4 md:p-5 flex items-center justify-center">
             <div className="w-full aspect-[3/2] rounded-[20px] overflow-hidden bg-secondary-light border border-secondary/40 flex items-center justify-center">
@@ -530,9 +583,7 @@ export default function PopupUserReservationPage() {
           </div>
         </section>
 
-        {/* ✅ 맨 하단 추가 영역: 예약 인원 + 결제수단/요약 */}
         <section className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-7">
-          {/* 왼쪽: 예약 인원 + 총 가격 */}
           <div className="bg-paper rounded-[24px] shadow-card p-6 md:p-7 flex flex-col gap-5">
             <div>
               <h2 className="text-[16px] md:text-[18px] font-semibold text-text-black mb-3">
@@ -558,9 +609,7 @@ export default function PopupUserReservationPage() {
                 총 가격
               </h3>
               <div className="rounded-[18px] border border-primary-light bg-primary-light/20 px-5 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                <div className="text-[13px] text-text-black">
-                  예상 결제 금액
-                </div>
+                <div className="text-[13px] text-text-black">예상 결제 금액</div>
                 <div className="text-[20px] md:text-[22px] font-semibold text-primary-dark">
                   {totalPrice.toLocaleString("ko-KR")}원
                 </div>
@@ -571,14 +620,12 @@ export default function PopupUserReservationPage() {
             </div>
           </div>
 
-          {/* 오른쪽: 결제수단 + 선택한 예약 정보 */}
           <div className="bg-paper rounded-[24px] shadow-card p-6 md:p-7 flex flex-col gap-4">
             <div>
               <h2 className="text-[16px] md:text-[18px] font-semibold text-text-black mb-3">
                 결제수단
               </h2>
 
-              {/* 토스페이 고정 카드 (단일 선택) */}
               <button
                 type="button"
                 className="w-full flex items-center justify-between rounded-[18px] border border-primary bg-primary-light/30 px-4 py-3"
@@ -588,9 +635,7 @@ export default function PopupUserReservationPage() {
                     TOSS
                   </div>
                   <div className="text-left">
-                    <div className="text-[14px] font-semibold text-text-black">
-                      토스페이
-                    </div>
+                    <div className="text-[14px] font-semibold text-text-black">토스페이</div>
                     <div className="text-[11px] text-text-black">
                       간편결제 · 카드 등록 시 한 번에 결제
                     </div>
@@ -628,13 +673,12 @@ export default function PopupUserReservationPage() {
           </div>
         </section>
 
-        {/* 하단 버튼 */}
         <div className="mt-6 mb-10 flex justify-end">
           <PrimaryButton
             size="lg"
             onClick={handleSubmit}
             loading={holdLoading}
-            disabled={!selectedSlot || holdLoading}
+            disabled={holdLoading}
             className="rounded-full px-8 shadow-card text-[15px]"
           >
             결제하러가기
