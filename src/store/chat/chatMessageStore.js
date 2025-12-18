@@ -180,4 +180,68 @@ export const useChatMessageStore = create((set, get) => ({
       },
     }));
   },
+
+  addParticipant: ({ roomType, roomId, participant }) => {
+  const key = `${roomType}-${roomId}`;
+  const prev = get().roomState[key];
+  if (!prev) return;
+
+  // 중복 방지
+  const exists = prev.participants.some(
+    (p) => Number(p.userId) === Number(participant.userId)
+  );
+  if (exists) return;
+
+  set(state => ({
+    roomState: {
+      ...state.roomState,
+      [key]: {
+        ...prev,
+        participants: [...prev.participants, participant],
+      },
+    },
+  }));
+},
+
+updateParticipantOnline: ({ roomType, roomId, userId, online }) => {
+  const key = `${roomType}-${roomId}`;
+  const prev = get().roomState[key];
+  if (!prev) return;
+
+  set(state => ({
+    roomState: {
+      ...state.roomState,
+      [key]: {
+        ...prev,
+        participants: prev.participants.map(p =>
+          Number(p.userId) === Number(userId)
+            ? { ...p, online }
+            : p
+        ),
+      },
+    },
+  }));
+},
+
+removeParticipant: ({ roomType, roomId, userId }) => {
+  const key = `${roomType}-${roomId}`;
+  const prev = get().roomState[key];
+  if (!prev) return;
+
+  set(state => ({
+    roomState: {
+      ...state.roomState,
+      [key]: {
+        ...prev,
+        participants: prev.participants.filter(
+          p => Number(p.userId) !== Number(userId)
+        ),
+      },
+    },
+  }));
+},
+
+
 }));
+
+

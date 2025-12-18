@@ -516,7 +516,7 @@ export default function MessageItem({
 
                 {/* 시간 (기존 위치 유지) */}
                 {showTime && (
-                  <span className="text-white/50 text-xs mb-1 shrink-0">
+                  <span className="text-white/50 text-xs shrink-0">
                     {msg.createdAt}
                   </span>
                 )}
@@ -540,7 +540,7 @@ export default function MessageItem({
                 )}
                 {/* 시간 (기존 위치 유지) */}
                 {showTime && (
-                  <span className="text-white/50 text-xs mb-1 shrink-0">
+                  <span className="text-white/50 text-xs shrink-0">
                     {msg.createdAt}
                   </span>
                 )}
