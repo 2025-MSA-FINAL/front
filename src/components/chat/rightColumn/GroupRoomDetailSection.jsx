@@ -9,6 +9,7 @@ export default function GroupRoomDetailSection({ room }) {
   if (!room) return null;
 
   const handleJoin = async () => {
+    console.log("JOIN gcrId =", room.gcrId, typeof room.gcrId);
     try {
       await joinRoom(room.gcrId);
     } catch (e) {

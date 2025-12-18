@@ -20,15 +20,29 @@ export const useChatMessageStore = create((set, get) => ({
     otherLastReadMessageId,
     participants,
     formattedMessages,
+    currentUserId, 
   }) => {
     const key = `${roomType}-${roomId}`;
 
-    let initialUnreadIndex = null;
+    let initialUnreadMessageId = null;
+
     if (entryReadMessageId > 0) {
-      const idx = formattedMessages.findIndex(
-        (m) => typeof m.cmId === "number" && m.cmId > entryReadMessageId
+      const entryMsg = formattedMessages.find(
+        (m) => typeof m.cmId === "number" && m.cmId === entryReadMessageId
       );
-      initialUnreadIndex = idx !== -1 ? idx : null;
+
+      const entryIsMine = entryMsg?.senderId === currentUserId;
+
+      if (!entryIsMine) {
+        const firstUnread = formattedMessages.find(
+          (m) =>
+            typeof m.cmId === "number" &&
+            m.cmId > entryReadMessageId &&
+            m.senderId !== currentUserId   
+        );
+
+        initialUnreadMessageId = firstUnread?.cmId ?? null;
+      }
     }
 
     set((state) => ({
@@ -39,13 +53,13 @@ export const useChatMessageStore = create((set, get) => ({
           myLastReadMessageId: myLastReadMessageId ?? entryReadMessageId ?? 0,
           otherLastReadMessageId: otherLastReadMessageId ?? 0,
           participants: participants ?? [],
-          initialUnreadIndex,
+          initialUnreadMessageId,
           didInit: true,
         },
       },
     }));
 
-    return initialUnreadIndex;
+    return initialUnreadMessageId;
   },
 
   /* ---------------------------
@@ -59,10 +73,27 @@ export const useChatMessageStore = create((set, get) => ({
 
     const rid = Number(readerUserId);
     const lr = Number(lastReadMessageId);
+    
 
     set((state) => {
       const cur = state.roomState[key];
       if (!cur) return state;
+
+      if (rid === Number(currentUserId)) {
+      // 내가 마지막까지 읽었으면 divider 제거
+      if (lr >= cur.entryReadMessageId) {
+        return {
+          roomState: {
+            ...state.roomState,
+            [key]: {
+              ...cur,
+              myLastReadMessageId: lr,
+              initialUnreadIndex: null,
+            },
+          },
+        };
+      }
+    }
 
       // PRIVATE: 내/상대 lastRead만 갱신
       if (roomType === "PRIVATE") {
@@ -134,16 +165,19 @@ export const useChatMessageStore = create((set, get) => ({
 
 
 
-  resetInitialUnreadIndex: ({ roomType, roomId }) => {
-  const key = `${roomType}-${roomId}`;
-  const prev = get().roomState[key];
-  if (!prev) return;
+  resetInitialUnreadMessageId: ({ roomType, roomId }) => {
+    const key = `${roomType}-${roomId}`;
+    const prev = get().roomState[key];
+    if (!prev) return;
 
-  set(state => ({
-    roomState: {
-      ...state.roomState,
-      [key]: { ...prev, initialUnreadIndex: null },
-    },
-  }));
-},
+    set(state => ({
+      roomState: {
+        ...state.roomState,
+        [key]: {
+          ...prev,
+          initialUnreadMessageId: null,
+        },
+      },
+    }));
+  },
 }));

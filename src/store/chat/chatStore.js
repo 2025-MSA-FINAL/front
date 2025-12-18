@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { getMyChatRooms } from "../../api/chatApi";
 import { useChatPopupStore } from "./chatPopupStore";
+import { useChatMessageStore } from "./chatMessageStore";
 
 export const useChatStore = create((set) => ({
   rooms: [],
@@ -22,12 +23,38 @@ export const useChatStore = create((set) => ({
 
   selectRoom: (room) => {
     const { closeCreateForm } = useChatPopupStore.getState();
+    const { activeChatRoom } = useChatStore.getState();
+    const { clearRoomState } = useChatMessageStore.getState();
+
+    // 🔥 이전 방 roomState 정리
+    if (activeChatRoom) {
+      clearRoomState({
+        roomType: activeChatRoom.roomType,
+        roomId:
+          activeChatRoom.roomType === "GROUP"
+            ? activeChatRoom.gcrId
+            : activeChatRoom.roomId,
+      });
+    }
+
     closeCreateForm();
     set({ activeChatRoom: room });
   },
   
 
-  exitRoom: () => set({ activeChatRoom: null }),
+  exitRoom: () => {
+    const { activeChatRoom } = useChatStore.getState();
+    if (activeChatRoom) {
+      useChatMessageStore.getState().clearRoomState({
+        roomType: activeChatRoom.roomType,
+        roomId:
+          activeChatRoom.roomType === "GROUP"
+            ? activeChatRoom.gcrId
+            : activeChatRoom.roomId,
+      });
+    }
+    set({ activeChatRoom: null });
+  },
 
   removeRoom: (roomType, roomId) =>
     set((state) => ({
