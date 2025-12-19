@@ -67,7 +67,7 @@ export default function AdminLayout() {
           `}
         >
           {/* Logo */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-[#DDDFE2]">
+          <div className="flex items-center justify-between px-6 h-[88px] border-b border-[#DDDFE2]">
             <div>
               <h1 className="text-2xl font-extrabold text-[#C33DFF] cursor-pointer" onClick={() => navigate("/admin")}>
                 PopSpot Admin
@@ -144,31 +144,27 @@ export default function AdminLayout() {
           >
 
           {/* Top bar */}
-          <header className="sticky top-0 z-20 bg-[#F8F8F9]/80 backdrop-blur border-b border-[#DDDFE2] px-4 md:px-8 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                className="md:hidden p-2 rounded-lg bg-white shadow-sm text-[#424242]"
-                onClick={toggleSidebar}
-                aria-label="메뉴 열기"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-              <div>
-                <h2 className="text-xl md:text-2xl font-bold text-[#242424]">
-                  Dashboard Overview
-                </h2>
-                <p className="text-xs md:text-sm text-[#70757A]">
-                  전체 통계 및 현황을 확인하세요
-                </p>
-              </div>
-            </div>
+          <header className="sticky top-0 z-20 md:bg-transparent bg-[#F8F8F9]/90 backdrop-blur-sm md:border-none border-b border-[#DDDFE2] py-3 px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button
+                  className="md:hidden p-2 rounded-lg bg-white border border-[#DDDFE2] shadow-sm text-[#424242]"
+                  onClick={toggleSidebar}
+                  aria-label="메뉴 열기"
+                >
+                  <Menu className="w-5 h-5" />
+                </button>
 
-            <div className="flex items-center gap-4">
-            </div>
+                <div className="md:hidden flex items-center gap-2">
+                <div className="w-7 h-7 bg-gradient-to-tr from-[#C33DFF] to-[#7E00CC] rounded-lg shadow-sm" />
+                <span className="text-lg font-bold text-[#242424]">PopSpot</span> 
+                </div> 
+              </div> 
+            </div>     
           </header>
 
           {/* Content */}
-          <main className="flex-1 px-4 md:px-8 py-6 md:py-8 w-full max-w-full overflow-x-hidden">
+          <main className="flex-1 px-4 md:px-10 pt-6 md:pt-0 pb-10 w-full max-w-full">
             <Outlet />
           </main>
         </div>
