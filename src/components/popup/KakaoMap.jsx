@@ -38,7 +38,6 @@ export default function KakaoMap({
   const mapRef = useRef(null);
 
   // 좌표 모드용
-  // [{ idStr, idRaw, title, thumbnail, marker }]
   const popupMarkersRef = useRef([]);
   const myMarkerRef = useRef(null);
   const circleRef = useRef(null);
@@ -122,7 +121,52 @@ export default function KakaoMap({
     return !!window.kakao?.maps;
   });
 
-  // ===== 유틸: 팝업 마커 이미지 만들기 (토큰 기반) =====
+  // ===== 뷰포트 계산/발행 =====
+  const emitViewport = useCallback(() => {
+    const kakao = window.kakao;
+    const map = mapRef.current;
+    const cb = onViewportChangeRef.current;
+    if (!kakao?.maps || !map || !cb) return false;
+
+    const b = map.getBounds();
+    if (!b) return false;
+
+    const c = map.getCenter();
+    const ne = b.getNorthEast();
+    const poly = new kakao.maps.Polyline({ path: [c, ne] });
+
+    let distKm = (poly.getLength() / 1000) * 0.75;
+    if (distKm < 0.1) distKm = 0.1;
+    if (distKm > 50) distKm = 50;
+
+    cb({
+      center: { lat: c.getLat(), lng: c.getLng() },
+      radiusKm: distKm,
+    });
+
+    return true;
+  }, []);
+
+  const emitViewportSoon = useCallback(() => {
+    // bounds가 아직 준비 안 된 경우가 있어 여러 번 시도
+    if (emitViewport()) return;
+
+    if (typeof requestAnimationFrame !== "undefined") {
+      requestAnimationFrame(() => {
+        if (emitViewport()) return;
+        requestAnimationFrame(() => {
+          emitViewport();
+        });
+      });
+    }
+
+    // 모바일/초기 렌더에서 idle이 안 떨어지는 케이스 대비
+    setTimeout(() => {
+      emitViewport();
+    }, 120);
+  }, [emitViewport]);
+
+  // ===== 유틸: 팝업 마커 이미지 만들기 =====
   const getPopupMarkerImage = useCallback(
     (isSelected) => {
       const kakao = window.kakao;
@@ -133,7 +177,7 @@ export default function KakaoMap({
         return popupMarkerImagesRef.current[key];
 
       const fill = isSelected ? ui.primary : ui.accentPink;
-      const stroke = ui.paperDark; // 어떤 테마든 바깥선은 '진한' 색으로 고정
+      const stroke = ui.paperDark;
 
       const svg = `
         <svg width="38" height="44" viewBox="0 0 38 44" xmlns="http://www.w3.org/2000/svg">
@@ -156,7 +200,7 @@ export default function KakaoMap({
     [ui.primary, ui.accentPink, ui.paper, ui.paperDark]
   );
 
-  // ===== 유틸: 카드형 인포윈도우 열기(썸네일+제목+버튼) =====
+  // ===== 유틸: 카드형 인포윈도우 열기 =====
   const openPopupCard = useCallback(
     ({ title, thumbnail, idRaw }, marker) => {
       const map = mapRef.current;
@@ -168,7 +212,6 @@ export default function KakaoMap({
         "animate-kakao-pop flex gap-2 items-center p-3 rounded-[16px] bg-paper border border-secondary-light shadow-card " +
         "shadow-[var(--shadow-dropdown)] min-w-[280px] max-w-[340px] cursor-pointer select-none";
 
-      // 좌측 썸네일
       const thumbWrap = document.createElement("div");
       thumbWrap.className =
         "w-14 h-14 rounded-[12px] overflow-hidden flex-none bg-secondary-light";
@@ -196,7 +239,6 @@ export default function KakaoMap({
         thumbWrap.appendChild(ph);
       }
 
-      // 우측 텍스트 + 버튼
       const right = document.createElement("div");
       right.className = "flex flex-col gap-2 min-w-0 flex-1";
 
@@ -221,18 +263,15 @@ export default function KakaoMap({
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60";
       btn.textContent = "자세히 보기";
 
-      // 버튼은 테마별 대비가 중요해서 토큰값을 직접 읽어 컬러 지정
       btn.style.backgroundColor = ui.primary;
       btn.style.color = ui.isHighContrast ? ui.paper : ui.textWhite;
 
-      // 버튼 클릭 → 상세로 이동
       btn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
         if (idRaw != null) onOpenDetailRef.current?.(idRaw);
       };
 
-      // 카드 클릭 → 선택 상태 유지(하이라이트/목록 동기화)
       card.onclick = () => {
         if (idRaw != null) onMarkerClickRef.current?.(idRaw);
       };
@@ -301,35 +340,20 @@ export default function KakaoMap({
     });
     mapRef.current = map;
 
-    // 공용 InfoWindow 1개 생성 + 지도 클릭 시 닫기
     popupInfoWindowRef.current = new kakao.maps.InfoWindow({ zIndex: 10 });
     kakao.maps.event.addListener(map, "click", () => {
       popupInfoWindowRef.current?.close();
     });
 
-    // 뷰포트 변경 이벤트 (idle)
+    // idle 시에도 발행 (정상 케이스)
     kakao.maps.event.addListener(map, "idle", () => {
-      const cb = onViewportChangeRef.current;
-      if (!cb) return;
-
-      const c = map.getCenter();
-      const b = map.getBounds();
-      const ne = b.getNorthEast();
-
-      const poly = new kakao.maps.Polyline({ path: [c, ne] });
-
-      let distKm = (poly.getLength() / 1000) * 0.75;
-      if (distKm < 0.1) distKm = 0.1;
-      if (distKm > 50) distKm = 50;
-
-      cb({
-        center: { lat: c.getLat(), lng: c.getLng() },
-        radiusKm: distKm,
-      });
+      emitViewport();
     });
-  }, [isKakaoLoaded, centerLat, centerLng]);
 
-  // 2.5) 지도 컨테이너 사이즈/레이아웃 변경 시 relayout (하단 잘림 방지)
+    emitViewportSoon();
+  }, [isKakaoLoaded, centerLat, centerLng, emitViewport, emitViewportSoon]);
+
+  // 2.5) 지도 컨테이너 사이즈/레이아웃 변경 시 relayout
   useEffect(() => {
     if (!isKakaoLoaded) return;
     if (!mapRef.current) return;
@@ -345,6 +369,8 @@ export default function KakaoMap({
         if (c) map.setCenter(c);
       } catch {
         // ignore
+      } finally {
+        emitViewportSoon();
       }
     };
 
@@ -365,7 +391,7 @@ export default function KakaoMap({
       window.removeEventListener("resize", relayout);
       if (ro) ro.disconnect();
     };
-  }, [isKakaoLoaded]);
+  }, [isKakaoLoaded, emitViewportSoon]);
 
   // 3) 주소 기반 모드
   useEffect(() => {
@@ -418,8 +444,9 @@ export default function KakaoMap({
       }
 
       map.setCenter(coords);
+      emitViewportSoon();
     });
-  }, [address, placeName, isKakaoLoaded, ui.paper, ui.border]);
+  }, [address, placeName, isKakaoLoaded, ui.paper, ui.border, emitViewportSoon]);
 
   // 4) 좌표 기반 모드: center 변경 시 지도 중심 이동
   useEffect(() => {
@@ -431,10 +458,13 @@ export default function KakaoMap({
     const map = mapRef.current;
     const kakao = window.kakao;
     const newCenter = new kakao.maps.LatLng(center.lat, center.lng);
-    map.panTo(newCenter);
-  }, [center, address]);
 
-  // 5) 팝업 마커 표시(커스텀) + 클릭 시 카드 즉시 표시
+    map.panTo(newCenter);
+
+    emitViewportSoon();
+  }, [center, address, emitViewportSoon]);
+
+  // 5) 팝업 마커 표시 + 클릭 시 카드
   useEffect(() => {
     if (!isKakaoLoaded) return;
     if (!mapRef.current) return;
@@ -446,7 +476,6 @@ export default function KakaoMap({
 
     popupInfoWindowRef.current?.close();
 
-    // 기존 팝업 마커 제거
     popupMarkersRef.current.forEach((item) => item.marker?.setMap(null));
     popupMarkersRef.current = [];
 
@@ -480,7 +509,7 @@ export default function KakaoMap({
     });
   }, [markers, address, isKakaoLoaded, getPopupMarkerImage, openPopupCard]);
 
-  // 6) 내 위치 마커 표시 (토큰 기반)
+  // 6) 내 위치 마커
   useEffect(() => {
     if (!isKakaoLoaded) return;
     if (!mapRef.current) return;
@@ -518,7 +547,7 @@ export default function KakaoMap({
     myMarkerRef.current = marker;
   }, [myLocation, isKakaoLoaded, ui.accentAqua, ui.paper]);
 
-  // 7) 검색 원(반경) 표시 (토큰 기반)
+  // 7) 검색 원(반경)
   useEffect(() => {
     if (!isKakaoLoaded) return;
     if (!mapRef.current) return;
@@ -535,10 +564,7 @@ export default function KakaoMap({
     }
 
     const circle = new kakao.maps.Circle({
-      center: new kakao.maps.LatLng(
-        searchCircleCenter.lat,
-        searchCircleCenter.lng
-      ),
+      center: new kakao.maps.LatLng(searchCircleCenter.lat, searchCircleCenter.lng),
       radius: searchCircleRadiusKm * 1000,
       strokeWeight: 2,
       strokeColor: ui.primary,
@@ -575,8 +601,7 @@ export default function KakaoMap({
     if (address) return;
 
     const map = mapRef.current;
-    const selectedIdStr =
-      selectedPopupId == null ? null : String(selectedPopupId);
+    const selectedIdStr = selectedPopupId == null ? null : String(selectedPopupId);
 
     const normalImg = getPopupMarkerImage(false);
     const selectedImg = getPopupMarkerImage(true);
@@ -589,9 +614,7 @@ export default function KakaoMap({
 
     if (!selectedIdStr) return;
 
-    const target = popupMarkersRef.current.find(
-      (x) => x.idStr === selectedIdStr
-    );
+    const target = popupMarkersRef.current.find((x) => x.idStr === selectedIdStr);
     if (!target) return;
 
     map.panTo(target.marker.getPosition());

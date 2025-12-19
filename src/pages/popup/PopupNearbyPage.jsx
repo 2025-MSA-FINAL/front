@@ -61,15 +61,9 @@ function PopupNearbyPage() {
     requestLocation();
   }, []);
 
-  // 위치 얻으면 최초 검색 조건 세팅
   useEffect(() => {
     if (!myLocation) return;
-
-    setSearchCenter((prev) =>
-      prev ?? { lat: myLocation.lat, lng: myLocation.lng }
-    );
-    setSearchRadiusKm((prev) => prev ?? 0.7);
-    setHasInitializedViewport(true);
+    setSearchCenter({ lat: myLocation.lat, lng: myLocation.lng });
   }, [myLocation]);
 
   // 근처 팝업 호출
@@ -134,19 +128,22 @@ function PopupNearbyPage() {
     }
   };
 
-  // 지도 뷰포트 변경(센터/줌) -> 후보로 저장
   const handleViewportChange = useCallback(
     (viewport) => {
       setPendingViewport(viewport);
 
-      // (위치 못 얻었거나 초기값 없는 경우) 최초 1회는 뷰포트로 검색 조건 세팅
-      if (!hasInitializedViewport) {
-        setSearchCenter(viewport.center);
-        setSearchRadiusKm(viewport.radiusKm);
-        setHasInitializedViewport(true);
-      }
+      if (hasInitializedViewport) return;
+
+      const canInit =
+        !!myLocation || (!!locationError && !isLocationLoading) || !!searchCenter;
+
+      if (!canInit) return;
+
+      setSearchCenter((prev) => prev ?? viewport.center);
+      setSearchRadiusKm(viewport.radiusKm);
+      setHasInitializedViewport(true);
     },
-    [hasInitializedViewport]
+    [hasInitializedViewport, myLocation, locationError, isLocationLoading, searchCenter]
   );
 
   // 내 위치 기준으로 보기: "현재 뷰포트(줌) 반경" 유지 + 중심만 내 위치로
@@ -175,6 +172,8 @@ function PopupNearbyPage() {
   const showRecenterButton =
     hasInitializedViewport && pendingViewport && (centerMoved || radiusChanged);
 
+  const displayRadiusKm = searchRadiusKm ?? pendingViewport?.radiusKm;
+
   return (
     <main className="h-[calc(100dvh-88px)] md:h-[calc(100vh-88px)] px-3 py-4 md:px-4 md:py-6 overflow-hidden">
       <div className="max-w-6xl mx-auto flex flex-col gap-4 h-full">
@@ -182,8 +181,9 @@ function PopupNearbyPage() {
           <div>
             <h1 className="text-[22px] font-bold text-text-black">내 주변 팝업</h1>
             <p className="text-[13px] text-text-sub mt-1">
-              지금 보고 있는 지도 중심 기준 약 {(searchRadiusKm ?? 0.7).toFixed(1)}
-              km 반경 안의 팝업을 보여드려요.
+              지금 보고 있는 지도 중심 기준 약{" "}
+              {displayRadiusKm ? displayRadiusKm.toFixed(1) : "…"}km 반경 안의
+              팝업을 보여드려요.
             </p>
 
             {locationError && (
