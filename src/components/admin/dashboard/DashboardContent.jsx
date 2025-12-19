@@ -266,21 +266,26 @@ export default function DashboardContent() {
                 <h4 className="text-sm font-semibold text-gray-700 mb-3 border-l-4 border-purple-500 pl-2">
                   TOP 5 해시태그
                 </h4>
-                <div className="flex-1 border border-gray-100 rounded-xl bg-white shadow-sm overflow-hidden">
-                  <table className="w-full h-full border-collapse">
+                <div className="flex-1 border border-gray-100 rounded-xl bg-white shadow-sm overflow-hidden flex flex-col">
+                  <table className="w-full h-full table-fixed border-collapse">
                     <thead className="bg-gray-50 text-gray-400 border-b">
-                      <tr className="text-[11px] uppercase tracking-wide">
-                        <th className="py-3 px-2 font-bold text-center">순위</th>
-                        <th className="py-3 px-2 font-bold text-left">해시태그</th>
-                        <th className="py-3 px-2 font-bold text-center">인기도</th>
+                      <tr className="text-[10px] uppercase tracking-wide">
+                        <th className="py-2 px-1 font-bold text-center w-[50px]">순위</th>
+                        <th className="py-2 px-1 font-bold text-center">해시태그</th>
+                        <th className="py-2 px-1 font-bold text-center w-[70px]">인기도</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {topHashtags.map((tag, idx) => (
                         <tr key={tag.name} className="hover:bg-purple-50/30 transition-colors">
-                          <td className="py-4 text-center text-xs font-bold text-gray-400">{idx + 1}</td>
-                          <td className="py-4 text-left text-sm font-semibold text-gray-800"><div className="text-purple-400 mr-1">#{tag.name}</div></td>
-                          <td className="py-4 text-center text-xs text-purple-600 font-black">
+                          <td className="py-2.5 text-center text-xs font-bold text-gray-400">{idx + 1}</td>
+                          <td className="py-2.5 text-center">
+                            <div className="flex items-center justify-center text-xs font-semibold text-gray-800">
+                              <span className="text-purple-400 mr-0.5">#</span>
+                              <span className="truncate">{tag.name}</span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 text-center text-xs text-purple-600 font-black">
                             {tag.value.toLocaleString()}
                           </td>
                         </tr>
