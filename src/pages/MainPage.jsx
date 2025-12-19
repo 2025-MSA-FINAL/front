@@ -793,7 +793,7 @@ function MainPage() {
           title="따끈따끈 팝업"
           items={latestPopups}
           onAllClick={() => {
-            // 예: navigate("/popup/list?sort=latest")
+            goTopAndNavigate("/pop-up")
           }}
         />
 
@@ -801,7 +801,7 @@ function MainPage() {
           title="팝업 마감 임박"
           items={endingSoonPopups}
           onAllClick={() => {
-            // 예: navigate("/popup/list?sort=endingSoon")
+            goTopAndNavigate("/pop-up")
           }}
         />
 
