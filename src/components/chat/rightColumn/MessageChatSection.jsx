@@ -284,21 +284,25 @@ export default function MessageChatSection() {
       if (body.roomType !== roomType || body.roomId !== roomId) return;
 
       const store = useChatMessageStore.getState();
-      const { userId, nickname } = body.payload;
+      const { userId } = body.payload;
 
       switch (body.type) {
-        case "PARTICIPANT_JOIN":
-          store.addParticipant({
-            roomType,
-            roomId,
-            participant: body.payload,
-          });
+        case "PARTICIPANT_JOIN": {
+          const p = body.payload;
 
-          setMessages((prev) => [
-            ...prev,
-            makeSystemMessage(`${nickname}님이 채팅방에 입장했습니다`),
-          ]);
+          const normalized = {
+            userId: p.userId,
+            nickName: p.nickName ?? p.nickname ?? "",
+            photoUrl: p.photoUrl ?? p.photo ?? "",
+            lastReadMessageId: p.lastReadMessageId ?? 0,
+            isOwner: Number(p.userId) === Number(activeRoom?.ownerId),
+            online: p.online ?? true,
+            isMe: Number(p.userId) === Number(currentUserId),
+          };
+
+          store.addParticipant({ roomType, roomId, participant: normalized });
           break;
+        }
 
         case "PARTICIPANT_LEAVE":
           store.removeParticipant({
@@ -306,11 +310,6 @@ export default function MessageChatSection() {
             roomId,
             userId,
           });
-
-          setMessages((prev) => [
-            ...prev,
-            makeSystemMessage(`${nickname}님이 채팅방을 나갔습니다`),
-          ]);
           break;
 
         case "PARTICIPANT_ONLINE":
@@ -408,19 +407,6 @@ export default function MessageChatSection() {
       });
     }
   };
-
-  const makeSystemMessage = (text) => ({
-    cmId: `system-${Date.now()}-${Math.random()}`,
-    roomId,
-    roomType,
-    senderId: null,
-    senderNickname: null,
-    content: text,
-    messageType: "SYSTEM",
-    createdAt: formatTime(new Date()),
-    minuteKey: toMinuteKey(new Date()),
-    dateLabel: formatDateLabel(new Date()),
-  });
 
   /* 메시지 전송 */
   const sendMessage = () => {
@@ -530,6 +516,12 @@ export default function MessageChatSection() {
 
       setMessages(formattedMessages);
 
+      const normalizedParticipants = (participants ?? []).map((p) => ({
+        ...p,
+        isMe: Number(p.userId) === Number(currentUserId),
+        isOwner: Number(p.userId) === Number(activeRoom?.ownerId),
+      }));
+
       // 여기까지읽음 위치 계산 (입장 시 1회)
       // ✅ 입장 기준 읽음 고정 + divider index 계산은 store가 함
       const idx = initRoomReadState({
@@ -538,7 +530,7 @@ export default function MessageChatSection() {
         entryReadMessageId: lastReadMessageId ?? 0, // 🔒 여기까지읽음 기준
         myLastReadMessageId: lastReadMessageId ?? 0, // 내 실시간 읽음 초기값
         otherLastReadMessageId: otherLastReadMessageId ?? 0, // 상대 실시간 읽음 초기값
-        participants: participants ?? [],
+        participants: normalizedParticipants,
         formattedMessages,
         currentUserId,
       });
