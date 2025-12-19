@@ -127,6 +127,10 @@ const CardGridSection = memo(function CardGridSection({
   const startScrollLeftRef = useRef(0);
   const movedRef = useRef(false); // 드래그 중 클릭 방지용
 
+  // ✅ (수정) 클릭을 살리기 위해 "드래그로 판단될 때만" 포인터 캡처
+  const capturedRef = useRef(false);
+  const pointerIdRef = useRef(null);
+
   const onPointerDown = useCallback((e) => {
     const el = trackRef.current;
     if (!el) return;
@@ -134,10 +138,9 @@ const CardGridSection = memo(function CardGridSection({
     isDownRef.current = true;
     movedRef.current = false;
 
-    // 포인터 캡처(드래그 안정화)
-    try {
-      el.setPointerCapture?.(e.pointerId);
-    } catch {}
+    // ✅ (수정) 여기서 바로 setPointerCapture 하지 않음 (클릭이 먹통되는 원인)
+    capturedRef.current = false;
+    pointerIdRef.current = e.pointerId;
 
     startXRef.current = e.clientX;
     startScrollLeftRef.current = el.scrollLeft;
@@ -150,7 +153,17 @@ const CardGridSection = memo(function CardGridSection({
     const dx = e.clientX - startXRef.current;
 
     // 약간 움직였으면 드래그로 간주 → 클릭 방지
-    if (Math.abs(dx) > 6) movedRef.current = true;
+    if (Math.abs(dx) > 6) {
+      movedRef.current = true;
+
+      // ✅ (수정) 드래그로 확정된 순간에만 포인터 캡처(드래그 안정화)
+      if (!capturedRef.current) {
+        try {
+          el.setPointerCapture?.(pointerIdRef.current ?? e.pointerId);
+          capturedRef.current = true;
+        } catch {}
+      }
+    }
 
     el.scrollLeft = startScrollLeftRef.current - dx;
   }, []);
@@ -160,9 +173,14 @@ const CardGridSection = memo(function CardGridSection({
     if (!el) return;
 
     isDownRef.current = false;
-    try {
-      el.releasePointerCapture?.(e.pointerId);
-    } catch {}
+
+    // ✅ (수정) 캡처한 경우에만 해제
+    if (capturedRef.current) {
+      try {
+        el.releasePointerCapture?.(pointerIdRef.current ?? e.pointerId);
+      } catch {}
+      capturedRef.current = false;
+    }
   }, []);
 
   return (
@@ -199,7 +217,6 @@ const CardGridSection = memo(function CardGridSection({
               hide-scrollbar
               flex gap-5 sm:gap-6
               overflow-x-auto
-              overflow-y-hidden
               select-none
               cursor-grab
               active:cursor-grabbing
@@ -208,7 +225,11 @@ const CardGridSection = memo(function CardGridSection({
               WebkitOverflowScrolling: "touch",
               scrollbarWidth: "none",
               touchAction: "pan-y",
-              overflowY: "hidden", // ✅ 세로 스크롤바 방지(안전망)
+
+              // ✅ (수정) hover scale이 잘리는 문제 해결: 세로는 visible로
+              overflowY: "visible",
+              paddingTop: "10px",
+              paddingBottom: "14px",
             }}
             onWheelCapture={(e) => {
               e.preventDefault();
@@ -222,7 +243,6 @@ const CardGridSection = memo(function CardGridSection({
               if (isDownRef.current) endDrag(e);
             }}
           >
-
             {(items || []).map((p) => {
               const badge = priceLabel(p?.popPriceType);
 
@@ -328,8 +348,6 @@ const CardGridSection = memo(function CardGridSection({
   );
 });
 
-
-
 const MenuItem = memo(function MenuItem({ label }) {
   return (
     <div className="flex flex-col items-center gap-2 group cursor-pointer">
@@ -382,7 +400,7 @@ const MenuItem = memo(function MenuItem({ label }) {
             />
             <path
               className="cls-1"
-              d="M15,22a1,1,0,0,1-1-1V18a1,1,0,0,1,2,0v3A1,1,0,0,1,15,22Z"
+              d="M15,22a.93.93,0,0,1-.45-.11l-4-2a1,1,0,1,1,.9-1.78l4,2a1,1,0,0,1,.44,1.34A1,1,0,0,1,15,22Z"
             />
             <path
               className="cls-1"
@@ -443,11 +461,7 @@ const MenuItem = memo(function MenuItem({ label }) {
 // ✅ HERO만 상태를 갖도록 분리 (핵심)
 // -> active 변화가 MainPage(하단) 리렌더를 유발하지 않음
 // =========================
-const HeroCarousel = memo(function HeroCarousel({
-  posters,
-  cfg,
-  navigate,
-}) {
+const HeroCarousel = memo(function HeroCarousel({ posters, cfg, navigate }) {
   const [active, setActive] = useState(0);
   const [isHeroCenterHovered, setIsHeroCenterHovered] = useState(false);
 
@@ -491,8 +505,7 @@ const HeroCarousel = memo(function HeroCarousel({
   );
 
   // ✅ 카드 세로 중심 보정
-  const baseCardY =
-    -Math.round(cfg.indicatorSafeSpace / 2) + cfg.centerNudge;
+  const baseCardY = -Math.round(cfg.indicatorSafeSpace / 2) + cfg.centerNudge;
 
   return (
     <section className="relative w-full">
