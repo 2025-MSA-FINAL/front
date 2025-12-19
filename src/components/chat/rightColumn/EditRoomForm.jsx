@@ -20,7 +20,7 @@ export default function EditRoomForm({ room, onSubmit }) {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5 lg:gap-6">
       <h2 className="text-title-lg font-semibold text-primary-dark flex items-center gap-2">
         <EditIcon className="w-5 h-5" stroke="#C33DFF" />
         채팅방 수정
@@ -43,8 +43,11 @@ export default function EditRoomForm({ room, onSubmit }) {
         <input
           type="number"
           min={currentUserCnt}
-          className="mt-2 w-full p-3 rounded-card bg-secondary-light border border-secondary 
-                     focus:outline-none focus:border-primary no-number-spin"
+          className="
+          mt-2 w-full p-2.5 lg:p-3
+          rounded-card bg-secondary-light
+          border border-secondary
+          focus:outline-none focus:border-primary"
           value={maxUserCnt}
           onChange={(e) => setMaxUserCnt(Number(e.target.value))}
         />
@@ -57,8 +60,12 @@ export default function EditRoomForm({ room, onSubmit }) {
       <div>
         <label className="text-text-sub text-sm">설명</label>
         <textarea
-          className="mt-2 w-full p-3 rounded-card bg-secondary-light border border-secondary h-28
-                     resize-none chat-textarea-scroll focus:outline-none focus:border-primary"
+          className="    mt-2 w-full p-2.5 lg:p-3
+    rounded-card bg-secondary-light
+    border border-secondary
+    h-24 lg:h-28
+    resize-none chat-textarea-scroll
+    focus:outline-none focus:border-primary"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />

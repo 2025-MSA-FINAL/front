@@ -17,14 +17,13 @@ export default function PopupRoomItem({ name, popup }) {
   return (
     <div
       className="
-    group relative w-full h-19
-    rounded-2xl px-4 py-4
+    group relative w-full
+    rounded-2xl px-3 lg:px-4 py-3 lg:py-4
     flex items-center gap-3
     cursor-pointer flex-shrink-0
     transition-all duration-200 ease-out
 
-    /* Glass 스타일 (stacking context 제거됨) */
-    bg-white/95       /* opacity 제거 */
+    bg-white/95
     border border-primary-soft2/80
     shadow-[0_4px_12px_rgba(180,140,255,0.18)]
     hover:shadow-[0_10px_24px_rgba(180,140,255,0.26)]
@@ -52,10 +51,12 @@ export default function PopupRoomItem({ name, popup }) {
       <p
         ref={textRef}
         className="
-      text-text-black text-[16px] font-semibold
-      whitespace-nowrap overflow-hidden text-ellipsis
-      max-w-full relative z-10
-    "
+    text-text-black
+    text-[14px] lg:text-[16px]
+    font-semibold
+    whitespace-nowrap overflow-hidden text-ellipsis
+    max-w-full relative z-10
+  "
       >
         {name}
       </p>

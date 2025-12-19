@@ -52,10 +52,22 @@ export default function MyChatRoomSection() {
   };
 
   return (
-    <section className="w-full flex-1 min-h-0 rounded-[40px] flex flex-col items-center">
+    <section
+      className="
+        hidden lg:flex
+        w-full flex-1 min-h-0
+        flex-col items-center
+      "
+    >
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 w-full overflow-y-auto scrollbar-hide flex flex-col items-center gap-3 p-4"
+        className="
+          flex-1 min-h-0 w-full
+          overflow-y-auto scrollbar-hide
+          flex flex-col items-center
+          gap-3 xl:gap-4
+          px-2 xl:px-3 py-4
+        "
       >
         {rooms.map((room) => (
           <div
@@ -72,9 +84,9 @@ export default function MyChatRoomSection() {
         ))}
 
         {!needsScroll && (
-          <div className="w-[100px] h-[40px] flex items-center justify-center pointer-events-none mt-2">
+          <div className="mt-2 pointer-events-none">
             <ExpandDownDouble
-              size={28}
+              size={26}
               className="text-secondary-dark animate-float-down"
             />
           </div>
@@ -82,9 +94,9 @@ export default function MyChatRoomSection() {
       </div>
 
       {needsScroll && (
-        <div className="w-[100px] h-[40px] flex items-center justify-center mt-2 pointer-events-none shrink-0">
+        <div className="mt-2 pointer-events-none shrink-0">
           <ExpandDownDouble
-            size={28}
+            size={26}
             className="text-secondary-light animate-float-down"
           />
         </div>

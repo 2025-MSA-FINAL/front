@@ -75,23 +75,24 @@ export default function ChatUserInfo() {
 
   return (
     <div
-      className="relative w-full flex justify-end items-center pr-2 gap-3"
+      className="relative w-full flex justify-end items-center pr-2 gap-2 lg:gap-3"
       ref={dropdownRef}
     >
       {/* ⭐ POPBOT 시작 버튼 */}
       <button
         onClick={handleStartAiChat}
         className="
-          px-4 py-2 rounded-full
-          bg-primary-soft2/40 backdrop-blur-md
-          text-white font-semibold
-          shadow hover:bg-primary-soft2/60
-          transition text-sm
-        "
+    px-3 py-1.5 lg:px-4 lg:py-2
+    rounded-full
+    bg-primary-soft2/40 backdrop-blur-md
+    text-white font-semibold
+    shadow hover:bg-primary-soft2/60
+    transition
+    text-xs lg:text-sm
+  "
       >
         🤖 POPBOT
       </button>
-
       {/* 프로필 버튼 */}
       <div
         onClick={toggleOpen}
@@ -104,7 +105,7 @@ export default function ChatUserInfo() {
           src={profileImageUrl}
           className="w-9 h-9 rounded-full object-cover shadow-sm bg-white"
         />
-        <span className="text-sm font-medium text-text-main truncate max-w-[120px]">
+        <span className="text-sm font-medium text-text-main truncate max-w-[90px] lg:max-w-[120px]">
           {username}
         </span>
       </div>

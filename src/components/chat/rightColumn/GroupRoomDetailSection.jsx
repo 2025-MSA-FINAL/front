@@ -18,7 +18,10 @@ export default function GroupRoomDetailSection({ room }) {
   };
 
   return (
-    <div className="w-full h-full flex flex-col justify-center items-center text-center overflow-y-auto px-10 gap-3">
+    <div
+      className="w-full h-full flex flex-col justify-center items-center text-center overflow-y-auto px-4 lg:px-10
+  gap-3"
+    >
       {/* 타이틀 */}
       <h1 className="text-[36px] font-extrabold text-white drop-shadow-xl mb-5 tracking-tight">
         {room.title}

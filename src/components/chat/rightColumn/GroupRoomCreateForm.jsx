@@ -72,14 +72,29 @@ export default function GroupRoomCreateForm() {
   };
 
   return (
-    <div className="w-full h-full gap-3 flex flex-col justify-center items-center p-6">
+    <div
+      className="  w-full h-full
+      flex flex-col items-center
+      gap-3
+      px-4 py-6
+      lg:justify-center lg:px-6
+      overflow-y-auto custom-scroll lg:overflow-hidden"
+    >
       {/* HEADER */}
-      <h2 className="text-[26px] font-bold text-white tracking-tight mt-4 drop-shadow-lg">
+      <h2
+        className="
+        text-[22px] lg:text-[26px]
+        font-bold text-white
+        tracking-tight
+        mt-2 lg:mt-4
+        drop-shadow-lg
+      "
+      >
         {selectedPopup?.popName ?? ""}
       </h2>
 
       {/* TOP CARDS */}
-      <div className="grid grid-cols-2 gap-10 w-full max-w-[900px] mt-10">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 w-full max-w-[900px] mt-8 lg:mt-10 p-4 lg:p-6">
         {/* LEFT CARD */}
         <div className="p-6 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/30 shadow-lg">
           <h3 className="font-bold text-sm text-white mb-3">기본 정보</h3>
@@ -163,11 +178,13 @@ export default function GroupRoomCreateForm() {
       </div>
 
       {/* ENTRY LIMIT */}
-      <div className="w-full max-w-[900px] mt-10 p-6 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/30 shadow-lg">
+      <div
+        className="w-full max-w-[900px]   mt-8 lg:mt-10
+  p-4 lg:p-6 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/30 shadow-lg"
+      >
         <h3 className="font-bold text-sm text-white mb-3">입장 제한</h3>
 
-        <div className="grid grid-cols-2 gap-10">
-          {/* GENDER */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10">
           {/* GENDER */}
           <div className="relative z-[50]">
             <label className="text-xs text-white/80">성별 제한</label>
@@ -296,15 +313,17 @@ export default function GroupRoomCreateForm() {
       <button
         onClick={handleSubmit}
         className="
-          mt-10 w-[180px] py-3 rounded-full font-semibold
-          bg-white/20 text-white border border-white/40
-          backdrop-blur-xl
-          hover:bg-accent-lemon-soft hover:text-[#363636]
-    hover:shadow-[0_10px_32px_rgba(255,241,200,0.45)]
-    hover:-translate-y-0.5
-          shadow-lg
-          transition-all duration-200
-          active:scale-95
+        mt-6 lg:mt-10
+        w-full max-w-[180px]
+        py-3
+        rounded-full font-semibold
+        bg-white/20 text-white
+        border border-white/40
+        backdrop-blur-xl
+        shadow-lg
+        transition-all duration-200
+        active:scale-95
+        hover:bg-accent-lemon-soft hover:text-[#363636]
         "
       >
         생성하기
