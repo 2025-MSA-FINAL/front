@@ -118,6 +118,9 @@ const CardGridSection = memo(function CardGridSection({
   onAllClick,
   mainLoading,
 }) {
+  // ✅ (변경) 하단 카드 클릭 시 상세 이동 복구용
+  const navigate = useNavigate();
+
   return (
     <div className="mt-8 md:mt-10 flex justify-center">
       <div className="w-full max-w-[1400px] px-4 sm:px-6">
@@ -129,11 +132,7 @@ const CardGridSection = memo(function CardGridSection({
           }}
         >
           <div className="flex justify-between items-center mb-5 sm:mb-6">
-            <h2
-              className="text-[24px] font-bold text-primary"
-            >
-              {title}
-            </h2>
+            <h2 className="text-[24px] font-bold text-primary">{title}</h2>
             <span
               className="text-[13px] transition-colors cursor-pointer font-medium"
               style={{ color: PURPLE.neon }}
@@ -152,8 +151,8 @@ const CardGridSection = memo(function CardGridSection({
                   key={p.popId}
                   className="group cursor-pointer transition-transform hover:scale-105"
                   onClick={() => {
-                    // ✅ 상세 라우팅은 프로젝트 라우트에 맞게 수정
-                    // 예: navigate(`/popup/${p.popId}`);
+                    // ✅ (변경) 하단 카드 클릭 시 팝업 상세로 이동
+                    navigate(`/popup/${p.popId}`);
                   }}
                 >
                   <div
