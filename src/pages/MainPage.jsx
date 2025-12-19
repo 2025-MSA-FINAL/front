@@ -1,4 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  memo,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import ghost1 from "../assets/ghost2.png";
 import { apiClient } from "../api/authApi";
@@ -94,132 +101,24 @@ function priceLabel(priceType) {
   return "유료";
 }
 
-function MainPage() {
-  const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const role = user?.role; // USER | MANAGER | ADMIN
+// ✅ 강한 퍼플 팔레트(이 파일 내부에서만 사용)
+const PURPLE = {
+  neon: "#9B2CFF",
+  deep: "#5A00B8",
+  glowSoft: "rgba(155,44,255,0.35)",
+  glowMid: "rgba(155,44,255,0.55)",
+};
 
-  const { cfg } = useHeroLayout();
-  const [active, setActive] = useState(0);
-
-  // ✅ HERO를 화면 중앙으로 스크롤하기 위한 ref
-  const heroScrollRef = useRef(null);
-
-  const go = (idx) => setActive(idx);
-
-  // ✅ 중앙 HERO hover 시 자동 슬라이드 멈춤
-  const [isHeroCenterHovered, setIsHeroCenterHovered] = useState(false);
-
-  // ✅ 강한 퍼플 팔레트(이 파일 내부에서만 사용)
-  const PURPLE = {
-    neon: "#9B2CFF",
-    deep: "#5A00B8",
-    glowSoft: "rgba(155,44,255,0.35)",
-    glowMid: "rgba(155,44,255,0.55)",
-  };
-
-  // =========================
-  // ✅ 메인 섹션 데이터 (apiClient)
-  // =========================
-  const [heroPopups, setHeroPopups] = useState([]);
-  const [latestPopups, setLatestPopups] = useState([]);
-  const [endingSoonPopups, setEndingSoonPopups] = useState([]);
-  const [mainLoading, setMainLoading] = useState(false);
-
-  const MAIN_CARD_LIMIT = 4; // ✅ 프론트에서 원하는 만큼 조절
-
-  // ✅ HERO에서 기존 posters 형태 유지하기 위한 변환 (JSX/스타일 건드리지 않기)
-  const posters = useMemo(() => {
-    const list = Array.isArray(heroPopups) ? heroPopups : [];
-    return list.map((p) => ({
-      id: p?.popId,
-      img:
-        p?.popThumbnail ||
-        "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&h=800&fit=crop",
-      title: p?.popName || "팝업",
-      date: formatDateRange(p?.popStartDate, p?.popEndDate),
-      place: p?.popLocation || "",
-    }));
-  }, [heroPopups]);
-
-  useEffect(() => {
-    let alive = true;
-
-    const load = async () => {
-      try {
-        setMainLoading(true);
-
-        const mainRes = await apiClient.get("/api/main/popups", {
-          params: { limit: MAIN_CARD_LIMIT },
-          headers: { "Content-Type": "application/json" },
-        });
-
-        const mainData = mainRes?.data;
-
-        if (!alive) return;
-
-        setHeroPopups(Array.isArray(mainData?.hero) ? mainData.hero : []);
-        setLatestPopups(Array.isArray(mainData?.latest) ? mainData.latest : []);
-        setEndingSoonPopups(
-          Array.isArray(mainData?.endingSoon) ? mainData.endingSoon : []
-        );
-      } catch (e) {
-        if (!alive) return;
-        setHeroPopups([]);
-        setLatestPopups([]);
-        setEndingSoonPopups([]);
-      } finally {
-        if (!alive) return;
-        setMainLoading(false);
-      }
-    };
-
-    load();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  // ✅ HERO 자동 슬라이드 (1초 간격) - 데이터 없을 때 가드 + 중앙 hover 시 멈춤
-  useEffect(() => {
-    if (!posters || posters.length <= 1) return;
-    if (isHeroCenterHovered) return;
-
-    const id = setInterval(() => {
-      setActive((prev) => (prev + 1) % posters.length);
-    }, 1000);
-
-    return () => clearInterval(id);
-  }, [posters.length, isHeroCenterHovered]);
-
-  // ✅ 데이터 변경으로 active가 범위를 벗어나면 보정
-  useEffect(() => {
-    if (!posters || posters.length === 0) {
-      if (active !== 0) setActive(0);
-      return;
-    }
-    if (active >= posters.length) setActive(0);
-  }, [posters.length]);
-
-  const getOffset = (index) => {
-    const n = posters.length;
-    if (n === 0) return 0;
-    let diff = index - active;
-    if (diff > n / 2) diff -= n;
-    if (diff < -n / 2) diff += n;
-    return diff;
-  };
-
-  const heroHeightStyle = {
-    height: `${cfg.heroVH}vh`,
-    minHeight: `${cfg.heroMin}px`,
-    maxHeight: `${cfg.heroMax}px`,
-  };
-
-  // ✅ 카드 세로 중심 보정
-  const baseCardY = -Math.round(cfg.indicatorSafeSpace / 2) + cfg.centerNudge;
-
-  const CardGridSection = ({ title, items, onAllClick }) => (
+// =========================
+// ✅ 분리 + memo: 하단 리렌더 차단용
+// =========================
+const CardGridSection = memo(function CardGridSection({
+  title,
+  items,
+  onAllClick,
+  mainLoading,
+}) {
+  return (
     <div className="mt-8 md:mt-10 flex justify-center">
       <div className="w-full max-w-[1400px] px-4 sm:px-6">
         <div
@@ -231,7 +130,7 @@ function MainPage() {
         >
           <div className="flex justify-between items-center mb-5 sm:mb-6">
             <h2
-              className="text-[16px] font-bold"
+              className="text-[px] font-bold"
               style={{ color: PURPLE.deep }}
             >
               {title}
@@ -338,480 +237,9 @@ function MainPage() {
       </div>
     </div>
   );
+});
 
-  // =========================
-  // ✅ 퀵슬롯 navigate + role 체크
-  // =========================
-  const canAccessUserArea =
-    role === "USER" || role === "MANAGER" || role === "ADMIN";
-
-  const goTopAndNavigate = (path) => {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-    navigate(path);
-  };
-
-  const onQuickSlotClick = (label) => {
-    if (label === "팝업리스트") {
-      goTopAndNavigate("/pop-up");
-      return;
-    }
-
-    if (label === "마이페이지") {
-      if (!canAccessUserArea) {
-        alert("마이페이지 권한이 없습니다");
-        return;
-      }
-      goTopAndNavigate("/mypage");
-      return;
-    }
-
-    if (label === "AI 챗봇") {
-      if (!canAccessUserArea) {
-        alert("AI 챗봇 권한이 없습니다");
-        return;
-      }
-
-      (async () => {
-        const AI_USER_ID = 20251212;
-
-        const store = useChatStore.getState();
-
-        // 1) rooms 없으면 먼저 로딩
-        if (!store.rooms || store.rooms.length === 0) {
-          await store.fetchRooms();
-        }
-
-        // 2) 챗봇 PRIVATE 방 찾기 (실제 roomId 있는 방)
-        const { rooms } = useChatStore.getState();
-        const botRoom = (rooms || []).find(
-          (r) => r.roomType === "PRIVATE" && r.otherUserId === AI_USER_ID
-        );
-
-        if (!botRoom) {
-          alert("챗봇 채팅방을 찾을 수 없습니다.");
-          return;
-        }
-
-        // 3) ChatMainPage가 이해하는 실제 방으로 선택
-        useChatStore.getState().selectRoom(botRoom);
-
-        // 4) 이동
-        goTopAndNavigate("/chat");
-      })();
-
-      return;
-    }
-
-    if (label === "팝업등록") {
-      if (role !== "MANAGER") {
-        alert("팝업등록 권한이 없습니다");
-        return;
-      }
-      goTopAndNavigate("/popup/register");
-      return;
-    }
-  };
-
-  // =========================
-  // ✅ 메인 검색 → 팝업리스트 검색결과로 이동
-  // =========================
-  const [mainKeyword, setMainKeyword] = useState("");
-
-  const goPopupSearch = () => {
-    const q = (mainKeyword || "").trim();
-    if (!q) {
-      goTopAndNavigate("/pop-up");
-      return;
-    }
-    goTopAndNavigate(`/pop-up?search=${encodeURIComponent(q)}`);
-  };
-
-  return (
-    <main className="min-h-[calc(100vh-88px)] bg-secondary-light pb-16">
-      {/* =========================
-          HERO (PURPLE SHOWROOM THEME)
-         ========================= */}
-      <section className="relative w-full">
-        <div
-          className="w-full relative overflow-hidden"
-          style={{
-            background: `linear-gradient(180deg, #1a0628 0%, #2b0a3d 38%, #12031d 100%)`,
-          }}
-        >
-          <div className="absolute inset-0">
-            <img
-              src={posters[active]?.img}
-              alt=""
-              className="w-full h-full object-cover scale-110 blur-3xl opacity-[0.14]"
-              draggable={false}
-            />
-
-            <div
-              className="absolute inset-0 opacity-[0.40]"
-              style={{
-                backgroundImage: `
-                  radial-gradient(circle at 15% 20%, rgba(155,44,255,0.10) 0.6px, transparent 0.6px),
-                  radial-gradient(circle at 70% 35%, rgba(155,44,255,0.08) 0.7px, transparent 0.7px),
-                  radial-gradient(circle at 40% 75%, rgba(255,255,255,0.06) 0.6px, transparent 0.6px)
-                `,
-                backgroundSize: "180px 180px, 220px 220px, 200px 200px",
-                backgroundPosition: "0 0, 40px 60px, 90px 30px",
-              }}
-            />
-
-            <div
-              className="absolute inset-0"
-              style={{
-                background: `
-                  radial-gradient(1200px 560px at 50% 12%, rgba(155,44,255,0.28) 0%, rgba(155,44,255,0.12) 40%, rgba(0,0,0,0.15) 72%, transparent 100%)
-                `,
-              }}
-            />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0)_0%,rgba(0,0,0,0.22)_55%,rgba(0,0,0,0.46)_100%)]" />
-          </div>
-
-          <div className="absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-black/[0.25] to-transparent" />
-
-          <div
-            className={`relative mx-auto w-full max-w-[1200px] px-4 sm:px-6 ${cfg.padY}`}
-          >
-            <div
-              ref={heroScrollRef}
-              className="relative touch-pan-y"
-              style={{
-                height: `${cfg.heroVH}vh`,
-                minHeight: `${cfg.heroMin}px`,
-                maxHeight: `${cfg.heroMax}px`,
-                paddingBottom: `${cfg.indicatorSafeSpace}px`,
-              }}
-            >
-              {posters.map((p, idx) => {
-                const d = getOffset(idx);
-                const absD = Math.abs(d);
-                const isVisible = absD <= 3;
-                const isActive = d === 0;
-
-                const translateX =
-                  d === 0
-                    ? 0
-                    : d === -1
-                    ? -cfg.step1
-                    : d === 1
-                    ? cfg.step1
-                    : d === -2
-                    ? -cfg.step2
-                    : d === 2
-                    ? cfg.step2
-                    : d === -3
-                    ? -cfg.step3
-                    : cfg.step3;
-
-                const scale =
-                  d === 0 ? 1.1 : absD === 1 ? 0.92 : absD === 2 ? 0.78 : 0.68;
-                const z = d === 0 ? 40 : absD === 1 ? 30 : absD === 2 ? 20 : 10;
-                const darkAlpha = absD === 1 ? 0.58 : absD === 2 ? 0.74 : 0.86;
-
-                return (
-                  <div
-                    key={p.id}
-                    className={`absolute transition-all duration-700 ease-in-out ${
-                      isVisible ? "block" : "hidden"
-                    } cursor-pointer`}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") go(idx);
-                    }}
-                    onMouseEnter={() => {
-                      if (isActive) setIsHeroCenterHovered(true);
-                    }}
-                    onMouseLeave={() => {
-                      if (isActive) setIsHeroCenterHovered(false);
-                    }}
-                    onClick={() => {
-                      // ✅ 중앙(활성) 카드 클릭 시 상세 이동
-                      if (isActive) {
-                        navigate(`/popup/${p.id}`);
-                        return;
-                      }
-
-                      // ✅ 그 외는 기존처럼 중앙으로 가져오기
-                      heroScrollRef.current?.scrollIntoView({
-                        behavior: "smooth",
-                        block: "center",
-                        inline: "nearest",
-                      });
-                      go(idx);
-                    }}
-                    style={{
-                      top: "50%",
-                      left: "50%",
-                      transform: `translate(-50%, -50%) translateX(${translateX}px) translateY(${baseCardY}px) scale(${scale})`,
-                      opacity: 1,
-                      zIndex: z,
-                    }}
-                  >
-                    {isActive && (
-                      <>
-                        <div
-                          className="pointer-events-none absolute left-1/2 -translate-x-1/2"
-                          style={{
-                            top: -210,
-                            width: `${Math.round(cfg.cardW * 1.4)}px`,
-                            height: "360px",
-                            background:
-                              "radial-gradient(ellipse at 50% 0%, rgba(155,44,255,0.45) 0%, rgba(155,44,255,0.22) 34%, rgba(155,44,255,0.10) 56%, transparent 78%)",
-                            filter: "blur(2px)",
-                            opacity: 0.95,
-                          }}
-                        />
-
-                        <div
-                          className="pointer-events-none absolute left-1/2 -translate-x-1/2"
-                          style={{
-                            bottom: -30,
-                            width: `${Math.round(cfg.cardW * 1.32)}px`,
-                            height: "86px",
-                            background: `radial-gradient(ellipse at center, ${PURPLE.glowMid} 0%, rgba(155,44,255,0.20) 35%, rgba(0,0,0,0.10) 52%, transparent 72%)`,
-                            filter: "blur(14px)",
-                            opacity: 0.62,
-                          }}
-                        />
-                      </>
-                    )}
-
-                    <div
-                      className="relative aspect-[3/4] rounded-[22px] overflow-hidden transition-all duration-300 ease-out hover:scale-[1.02] hover:-translate-y-1"
-                      style={{
-                        width: `${cfg.cardW}px`,
-                        background: "#ffffff",
-                        boxShadow: isActive
-                          ? `0 26px 90px rgba(0,0,0,0.34),
-     0 0 30px rgba(155,44,255,0.8),
-     0 0 0 1px rgba(255,255,255,0.22),
-     0 0 0 2px rgba(155,44,255,0.22)`
-                          : `0 16px 54px rgba(0,0,0,0.26),
-     0 0 22px rgba(155,44,255,0.26),
-     0 0 0 1px rgba(255,255,255,0.16)`,
-                      }}
-                    >
-                      {!isActive && (
-                        <div
-                          className="absolute inset-0 pointer-events-none"
-                          style={{
-                            background: `rgba(0,0,0,${darkAlpha})`,
-                            borderRadius: "22px",
-                            zIndex: 30,
-                          }}
-                        />
-                      )}
-
-                      <div
-                        className="absolute inset-0"
-                        style={{
-                          padding: isActive ? "10px" : "9px",
-                          zIndex: 10,
-                        }}
-                      >
-                        <div className="w-full h-full rounded-[16px] overflow-hidden relative">
-                          <img
-                            src={p.img}
-                            alt={p.title}
-                            className="w-full h-full object-cover"
-                            draggable={false}
-                            style={{
-                              filter: "none",
-                              transform: isActive ? "none" : "scale(1.02)",
-                            }}
-                          />
-
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/12 to-transparent" />
-
-                          {isActive && (
-                            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_12%,rgba(255,255,255,0.16)_0%,transparent_55%)]" />
-                          )}
-
-                          <div className="absolute left-5 right-5 bottom-5">
-                            <p className="text-white text-[15px] sm:text-[16px] font-bold drop-shadow-lg">
-                              {p.title}
-                            </p>
-                            <p className="text-white/90 text-[12px] sm:text-[13px] mt-1.5 font-medium">
-                              {p.date}
-                            </p>
-                            <p className="text-white/85 text-[12px] sm:text-[13px] mt-1">
-                              {p.place}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* ✅ 인디케이터 */}
-              <div
-                className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 z-50 px-4 py-2.5 rounded-full border"
-                style={{
-                  bottom: `${cfg.indicatorBottom}px`,
-                  background: "rgba(255,255,255,0.12)",
-                  borderColor: "rgba(255,255,255,0.20)",
-                  backdropFilter: "blur(14px)",
-                  boxShadow: "0 12px 40px rgba(0,0,0,0.22)",
-                }}
-              >
-                {posters.map((_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    aria-label={`slide-${i}`}
-                    onClick={() => go(i)}
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      i === active ? "w-7" : "w-2"
-                    }`}
-                    style={{
-                      background:
-                        i === active ? PURPLE.neon : "rgba(255,255,255,0.32)",
-                      boxShadow:
-                        i === active ? `0 0 10px ${PURPLE.glowSoft}` : "none",
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 퀵슬롯 */}
-        <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-[62%] md:translate-y-[76%] w-full px-4 sm:px-6 z-50">
-          <div
-            className="mx-auto w-full max-w-[1400px] md:max-w-[1100px] bg-paper rounded-card ring-2"
-            style={{
-              boxShadow:
-                "0 22px 60px rgba(0,0,0,0.16), 0 6px 16px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.95)",
-              borderColor: "rgba(0,0,0,0.08)",
-              ringColor: "rgba(0,0,0,0.06)",
-            }}
-          >
-            <div className="flex flex-col md:flex-row md:items-center px-5 sm:px-8 md:px-12 py-4 sm:py-6 md:py-6 gap-5 md:gap-0">
-              <div className="flex items-center gap-4 min-w-0 md:min-w-[200px] md:ml-8">
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shrink-0 overflow-visible">
-                  <img
-                    src={ghost1}
-                    alt="ghost"
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-
-                <div className="leading-tight">
-                  <p className="text-[15px] sm:text-[16px] font-semibold text-text-black">
-                    팝업스토어 안내
-                  </p>
-                  <p className="text-[13px] sm:text-[14px] text-text-sub">
-                    팝스팟 도우미
-                  </p>
-                </div>
-              </div>
-
-              <div className="hidden md:block h-12 w-[1px] bg-gradient-to-b from-transparent via-secondary to-transparent mx-5" />
-
-              <div className="flex-1">
-                <div className="grid grid-cols-2 gap-6 sm:gap-8 md:flex md:justify-center md:gap-30">
-                  <div onClick={() => onQuickSlotClick("팝업리스트")}>
-                    <MenuItem label="팝업리스트" />
-                  </div>
-                  <div onClick={() => onQuickSlotClick("AI 챗봇")}>
-                    <MenuItem label="AI 챗봇" />
-                  </div>
-                  <div onClick={() => onQuickSlotClick("팝업등록")}>
-                    <MenuItem label="팝업등록" />
-                  </div>
-                  <div onClick={() => onQuickSlotClick("마이페이지")}>
-                    <MenuItem label="마이페이지" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================
-          SEARCH BAR
-         ========================= */}
-      <section className="pt-24 md:pt-30 pb-10">
-        <div className="flex justify-center mt-6 md:mt-8">
-          <div className="w-full max-w-[980px] px-4 sm:px-6 flex flex-col sm:flex-row gap-3">
-            <input
-              type="text"
-              value={mainKeyword}
-              onChange={(e) => setMainKeyword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && goPopupSearch()}
-              placeholder="팝업스토어를 검색해보세요."
-              className="flex-1 h-[48px] bg-paper rounded-full px-6 text-[14px] text-text-black placeholder:text-text-sub outline-none ring-2 ring-secondary-light focus:ring-2 focus:ring-primary transition-all"
-              style={{
-                boxShadow: `0 10px 30px rgba(155,44,255,0.08)`,
-              }}
-            />
-
-            <button
-              type="button"
-              aria-label="search"
-              onClick={goPopupSearch}
-              className="
-                w-full sm:w-[48px] h-[48px]
-                rounded-full
-                flex items-center justify-center
-                transition-all duration-200
-                hover:scale-105
-                active:scale-95
-              "
-              style={{
-                background: `linear-gradient(135deg, ${PURPLE.neon} 0%, ${PURPLE.deep} 100%)`,
-                boxShadow: `0 10px 34px rgba(155,44,255,0.40)`,
-              }}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-5 h-5"
-              >
-                <path
-                  d="M16.6725 16.6412L21 21M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z"
-                  stroke="#ffffff"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <CardGridSection
-          title="따끈따끈 팝업"
-          items={latestPopups}
-          onAllClick={() => {
-            goTopAndNavigate("/pop-up")
-          }}
-        />
-
-        <CardGridSection
-          title="팝업 마감 임박"
-          items={endingSoonPopups}
-          onAllClick={() => {
-            goTopAndNavigate("/pop-up")
-          }}
-        />
-
-        <div className="h-10 md:h-0" />
-      </section>
-    </main>
-  );
-}
-
-function MenuItem({ label }) {
+const MenuItem = memo(function MenuItem({ label }) {
   return (
     <div className="flex flex-col items-center gap-2 group cursor-pointer">
       <div className="w-12 h-12 flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:scale-110 group-hover:drop-shadow-lg">
@@ -917,6 +345,660 @@ function MenuItem({ label }) {
         {label}
       </span>
     </div>
+  );
+});
+
+// =========================
+// ✅ HERO만 상태를 갖도록 분리 (핵심)
+// -> active 변화가 MainPage(하단) 리렌더를 유발하지 않음
+// =========================
+const HeroCarousel = memo(function HeroCarousel({
+  posters,
+  cfg,
+  navigate,
+}) {
+  const [active, setActive] = useState(0);
+  const [isHeroCenterHovered, setIsHeroCenterHovered] = useState(false);
+
+  // ✅ HERO를 화면 중앙으로 스크롤하기 위한 ref
+  const heroScrollRef = useRef(null);
+
+  const go = useCallback((idx) => setActive(idx), []);
+
+  // ✅ 데이터 변경으로 active가 범위를 벗어나면 보정
+  useEffect(() => {
+    if (!posters || posters.length === 0) {
+      if (active !== 0) setActive(0);
+      return;
+    }
+    if (active >= posters.length) setActive(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posters?.length]);
+
+  // ✅ HERO 자동 슬라이드 (1초 간격) - 데이터 없을 때 가드 + 중앙 hover 시 멈춤
+  useEffect(() => {
+    if (!posters || posters.length <= 1) return;
+    if (isHeroCenterHovered) return;
+
+    const id = setInterval(() => {
+      setActive((prev) => (prev + 1) % posters.length);
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, [posters?.length, isHeroCenterHovered, posters]);
+
+  const getOffset = useCallback(
+    (index) => {
+      const n = posters.length;
+      if (n === 0) return 0;
+      let diff = index - active;
+      if (diff > n / 2) diff -= n;
+      if (diff < -n / 2) diff += n;
+      return diff;
+    },
+    [active, posters.length]
+  );
+
+  // ✅ 카드 세로 중심 보정
+  const baseCardY =
+    -Math.round(cfg.indicatorSafeSpace / 2) + cfg.centerNudge;
+
+  return (
+    <section className="relative w-full">
+      <div
+        className="w-full relative overflow-hidden"
+        style={{
+          background: `linear-gradient(180deg, #1a0628 0%, #2b0a3d 38%, #12031d 100%)`,
+        }}
+      >
+        <div className="absolute inset-0">
+          <img
+            src={posters[active]?.img}
+            alt=""
+            className="w-full h-full object-cover scale-110 blur-3xl opacity-[0.14]"
+            draggable={false}
+          />
+
+          <div
+            className="absolute inset-0 opacity-[0.40]"
+            style={{
+              backgroundImage: `
+                radial-gradient(circle at 15% 20%, rgba(155,44,255,0.10) 0.6px, transparent 0.6px),
+                radial-gradient(circle at 70% 35%, rgba(155,44,255,0.08) 0.7px, transparent 0.7px),
+                radial-gradient(circle at 40% 75%, rgba(255,255,255,0.06) 0.6px, transparent 0.6px)
+              `,
+              backgroundSize: "180px 180px, 220px 220px, 200px 200px",
+              backgroundPosition: "0 0, 40px 60px, 90px 30px",
+            }}
+          />
+
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `
+                radial-gradient(1200px 560px at 50% 12%, rgba(155,44,255,0.28) 0%, rgba(155,44,255,0.12) 40%, rgba(0,0,0,0.15) 72%, transparent 100%)
+              `,
+            }}
+          />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0)_0%,rgba(0,0,0,0.22)_55%,rgba(0,0,0,0.46)_100%)]" />
+        </div>
+
+        <div className="absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-black/[0.25] to-transparent" />
+
+        <div
+          className={`relative mx-auto w-full max-w-[1200px] px-4 sm:px-6 ${cfg.padY}`}
+        >
+          <div
+            ref={heroScrollRef}
+            className="relative touch-pan-y"
+            style={{
+              height: `${cfg.heroVH}vh`,
+              minHeight: `${cfg.heroMin}px`,
+              maxHeight: `${cfg.heroMax}px`,
+              paddingBottom: `${cfg.indicatorSafeSpace}px`,
+            }}
+          >
+            {posters.map((p, idx) => {
+              const d = getOffset(idx);
+              const absD = Math.abs(d);
+              const isVisible = absD <= 3;
+              const isActive = d === 0;
+
+              const translateX =
+                d === 0
+                  ? 0
+                  : d === -1
+                  ? -cfg.step1
+                  : d === 1
+                  ? cfg.step1
+                  : d === -2
+                  ? -cfg.step2
+                  : d === 2
+                  ? cfg.step2
+                  : d === -3
+                  ? -cfg.step3
+                  : cfg.step3;
+
+              const scale =
+                d === 0 ? 1.1 : absD === 1 ? 0.92 : absD === 2 ? 0.78 : 0.68;
+              const z = d === 0 ? 40 : absD === 1 ? 30 : absD === 2 ? 20 : 10;
+              const darkAlpha = absD === 1 ? 0.58 : absD === 2 ? 0.74 : 0.86;
+
+              return (
+                <div
+                  key={p.id}
+                  className={`absolute transition-all duration-700 ease-in-out ${
+                    isVisible ? "block" : "hidden"
+                  } cursor-pointer`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") go(idx);
+                  }}
+                  onMouseEnter={() => {
+                    if (isActive) setIsHeroCenterHovered(true);
+                  }}
+                  onMouseLeave={() => {
+                    if (isActive) setIsHeroCenterHovered(false);
+                  }}
+                  onClick={() => {
+                    // ✅ 중앙(활성) 카드 클릭 시 상세 이동
+                    if (isActive) {
+                      navigate(`/popup/${p.id}`);
+                      return;
+                    }
+
+                    // ✅ 그 외는 기존처럼 중앙으로 가져오기
+                    heroScrollRef.current?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "center",
+                      inline: "nearest",
+                    });
+                    go(idx);
+                  }}
+                  style={{
+                    top: "50%",
+                    left: "50%",
+                    transform: `translate(-50%, -50%) translateX(${translateX}px) translateY(${baseCardY}px) scale(${scale})`,
+                    opacity: 1,
+                    zIndex: z,
+                  }}
+                >
+                  {isActive && (
+                    <>
+                      <div
+                        className="pointer-events-none absolute left-1/2 -translate-x-1/2"
+                        style={{
+                          top: -210,
+                          width: `${Math.round(cfg.cardW * 1.4)}px`,
+                          height: "360px",
+                          background:
+                            "radial-gradient(ellipse at 50% 0%, rgba(155,44,255,0.45) 0%, rgba(155,44,255,0.22) 34%, rgba(155,44,255,0.10) 56%, transparent 78%)",
+                          filter: "blur(2px)",
+                          opacity: 0.95,
+                        }}
+                      />
+
+                      <div
+                        className="pointer-events-none absolute left-1/2 -translate-x-1/2"
+                        style={{
+                          bottom: -30,
+                          width: `${Math.round(cfg.cardW * 1.32)}px`,
+                          height: "86px",
+                          background: `radial-gradient(ellipse at center, ${PURPLE.glowMid} 0%, rgba(155,44,255,0.20) 35%, rgba(0,0,0,0.10) 52%, transparent 72%)`,
+                          filter: "blur(14px)",
+                          opacity: 0.62,
+                        }}
+                      />
+                    </>
+                  )}
+
+                  <div
+                    className="relative aspect-[3/4] rounded-[22px] overflow-hidden transition-all duration-300 ease-out hover:scale-[1.02] hover:-translate-y-1"
+                    style={{
+                      width: `${cfg.cardW}px`,
+                      background: "#ffffff",
+                      boxShadow: isActive
+                        ? `0 26px 90px rgba(0,0,0,0.34),
+     0 0 30px rgba(155,44,255,0.8),
+     0 0 0 1px rgba(255,255,255,0.22),
+     0 0 0 2px rgba(155,44,255,0.22)`
+                        : `0 16px 54px rgba(0,0,0,0.26),
+     0 0 22px rgba(155,44,255,0.26),
+     0 0 0 1px rgba(255,255,255,0.16)`,
+                    }}
+                  >
+                    {!isActive && (
+                      <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                          background: `rgba(0,0,0,${darkAlpha})`,
+                          borderRadius: "22px",
+                          zIndex: 30,
+                        }}
+                      />
+                    )}
+
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        padding: isActive ? "10px" : "9px",
+                        zIndex: 10,
+                      }}
+                    >
+                      <div className="w-full h-full rounded-[16px] overflow-hidden relative">
+                        <img
+                          src={p.img}
+                          alt={p.title}
+                          className="w-full h-full object-cover"
+                          draggable={false}
+                          style={{
+                            filter: "none",
+                            transform: isActive ? "none" : "scale(1.02)",
+                          }}
+                        />
+
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/12 to-transparent" />
+
+                        {isActive && (
+                          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_12%,rgba(255,255,255,0.16)_0%,transparent_55%)]" />
+                        )}
+
+                        <div className="absolute left-5 right-5 bottom-5">
+                          <p className="text-white text-[15px] sm:text-[16px] font-bold drop-shadow-lg">
+                            {p.title}
+                          </p>
+                          <p className="text-white/90 text-[12px] sm:text-[13px] mt-1.5 font-medium">
+                            {p.date}
+                          </p>
+                          <p className="text-white/85 text-[12px] sm:text-[13px] mt-1">
+                            {p.place}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* ✅ 인디케이터 */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 z-50 px-4 py-2.5 rounded-full border"
+              style={{
+                bottom: `${cfg.indicatorBottom}px`,
+                background: "rgba(255,255,255,0.12)",
+                borderColor: "rgba(255,255,255,0.20)",
+                backdropFilter: "blur(14px)",
+                boxShadow: "0 12px 40px rgba(0,0,0,0.22)",
+              }}
+            >
+              {posters.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  aria-label={`slide-${i}`}
+                  onClick={() => go(i)}
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    i === active ? "w-7" : "w-2"
+                  }`}
+                  style={{
+                    background:
+                      i === active ? PURPLE.neon : "rgba(255,255,255,0.32)",
+                    boxShadow:
+                      i === active ? `0 0 10px ${PURPLE.glowSoft}` : "none",
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 퀵슬롯 (HERO 아래 그대로 유지) */}
+        <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-[62%] md:translate-y-[76%] w-full px-4 sm:px-6 z-50">
+          <div
+            className="mx-auto w-full max-w-[1400px] md:max-w-[1100px] bg-paper rounded-card ring-2"
+            style={{
+              boxShadow:
+                "0 22px 60px rgba(0,0,0,0.16), 0 6px 16px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.95)",
+              borderColor: "rgba(0,0,0,0.08)",
+              ringColor: "rgba(0,0,0,0.06)",
+            }}
+          >
+            {/* 실제 클릭 로직은 MainPage에서 주입해야 해서 여기서는 빈 슬롯 */}
+            {/* 퀵슬롯 자체는 MainPage에서 그대로 렌더링할 거라, 여기선 보관만 하고 사용 안 함 */}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+});
+
+// =========================
+// ✅ 하단 섹션 memo: HERO active로 리렌더 안 되게
+// =========================
+const MainBottom = memo(function MainBottom({
+  mainKeyword,
+  setMainKeyword,
+  goPopupSearch,
+  latestPopups,
+  endingSoonPopups,
+  onAllClick,
+  mainLoading,
+}) {
+  return (
+    <section className="pt-24 md:pt-30 pb-10">
+      <div className="flex justify-center mt-6 md:mt-8">
+        <div className="w-full max-w-[980px] px-4 sm:px-6 flex flex-col sm:flex-row gap-3">
+          <input
+            type="text"
+            value={mainKeyword}
+            onChange={(e) => setMainKeyword(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && goPopupSearch()}
+            placeholder="팝업스토어를 검색해보세요."
+            className="flex-1 h-[48px] bg-paper rounded-full px-6 text-[14px] text-text-black placeholder:text-text-sub outline-none ring-2 ring-secondary-light focus:ring-2 focus:ring-primary transition-all"
+            style={{
+              boxShadow: `0 10px 30px rgba(155,44,255,0.08)`,
+            }}
+          />
+
+          <button
+            type="button"
+            aria-label="search"
+            onClick={goPopupSearch}
+            className="
+              w-full sm:w-[48px] h-[48px]
+              rounded-full
+              flex items-center justify-center
+              transition-all duration-200
+              hover:scale-105
+              active:scale-95
+            "
+            style={{
+              background: `linear-gradient(135deg, ${PURPLE.neon} 0%, ${PURPLE.deep} 100%)`,
+              boxShadow: `0 10px 34px rgba(155,44,255,0.40)`,
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-5 h-5"
+            >
+              <path
+                d="M16.6725 16.6412L21 21M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z"
+                stroke="#ffffff"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <CardGridSection
+        title="따끈따끈 팝업"
+        items={latestPopups}
+        onAllClick={onAllClick}
+        mainLoading={mainLoading}
+      />
+
+      <CardGridSection
+        title="팝업 마감 임박"
+        items={endingSoonPopups}
+        onAllClick={onAllClick}
+        mainLoading={mainLoading}
+      />
+
+      <div className="h-10 md:h-0" />
+    </section>
+  );
+});
+
+function MainPage() {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const role = user?.role; // USER | MANAGER | ADMIN
+
+  const { cfg } = useHeroLayout();
+
+  // =========================
+  // ✅ 메인 섹션 데이터 (apiClient)
+  // =========================
+  const [heroPopups, setHeroPopups] = useState([]);
+  const [latestPopups, setLatestPopups] = useState([]);
+  const [endingSoonPopups, setEndingSoonPopups] = useState([]);
+  const [mainLoading, setMainLoading] = useState(false);
+
+  const MAIN_CARD_LIMIT = 4; // ✅ 프론트에서 원하는 만큼 조절
+
+  // ✅ HERO에서 기존 posters 형태 유지하기 위한 변환 (JSX/스타일 건드리지 않기)
+  const posters = useMemo(() => {
+    const list = Array.isArray(heroPopups) ? heroPopups : [];
+    return list.map((p) => ({
+      id: p?.popId,
+      img:
+        p?.popThumbnail ||
+        "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&h=800&fit=crop",
+      title: p?.popName || "팝업",
+      date: formatDateRange(p?.popStartDate, p?.popEndDate),
+      place: p?.popLocation || "",
+    }));
+  }, [heroPopups]);
+
+  useEffect(() => {
+    let alive = true;
+
+    const load = async () => {
+      try {
+        setMainLoading(true);
+
+        const mainRes = await apiClient.get("/api/main/popups", {
+          params: { limit: MAIN_CARD_LIMIT },
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const mainData = mainRes?.data;
+
+        if (!alive) return;
+
+        setHeroPopups(Array.isArray(mainData?.hero) ? mainData.hero : []);
+        setLatestPopups(Array.isArray(mainData?.latest) ? mainData.latest : []);
+        setEndingSoonPopups(
+          Array.isArray(mainData?.endingSoon) ? mainData.endingSoon : []
+        );
+      } catch (e) {
+        if (!alive) return;
+        setHeroPopups([]);
+        setLatestPopups([]);
+        setEndingSoonPopups([]);
+      } finally {
+        if (!alive) return;
+        setMainLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // =========================
+  // ✅ 퀵슬롯 navigate + role 체크
+  // =========================
+  const canAccessUserArea =
+    role === "USER" || role === "MANAGER" || role === "ADMIN";
+
+  const goTopAndNavigate = useCallback(
+    (path) => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      navigate(path);
+    },
+    [navigate]
+  );
+
+  const onQuickSlotClick = useCallback(
+    (label) => {
+      if (label === "팝업리스트") {
+        goTopAndNavigate("/pop-up");
+        return;
+      }
+
+      if (label === "마이페이지") {
+        if (!canAccessUserArea) {
+          alert("마이페이지 권한이 없습니다");
+          return;
+        }
+        goTopAndNavigate("/mypage");
+        return;
+      }
+
+      if (label === "AI 챗봇") {
+        if (!canAccessUserArea) {
+          alert("AI 챗봇 권한이 없습니다");
+          return;
+        }
+
+        (async () => {
+          const AI_USER_ID = 20251212;
+
+          const store = useChatStore.getState();
+
+          // 1) rooms 없으면 먼저 로딩
+          if (!store.rooms || store.rooms.length === 0) {
+            await store.fetchRooms();
+          }
+
+          // 2) 챗봇 PRIVATE 방 찾기 (실제 roomId 있는 방)
+          const { rooms } = useChatStore.getState();
+          const botRoom = (rooms || []).find(
+            (r) => r.roomType === "PRIVATE" && r.otherUserId === AI_USER_ID
+          );
+
+          if (!botRoom) {
+            alert("챗봇 채팅방을 찾을 수 없습니다.");
+            return;
+          }
+
+          // 3) ChatMainPage가 이해하는 실제 방으로 선택
+          useChatStore.getState().selectRoom(botRoom);
+
+          // 4) 이동
+          goTopAndNavigate("/chat");
+        })();
+
+        return;
+      }
+
+      if (label === "팝업등록") {
+        if (role !== "MANAGER") {
+          alert("팝업등록 권한이 없습니다");
+          return;
+        }
+        goTopAndNavigate("/popup/register");
+        return;
+      }
+    },
+    [canAccessUserArea, goTopAndNavigate, role]
+  );
+
+  // =========================
+  // ✅ 메인 검색 → 팝업리스트 검색결과로 이동
+  // =========================
+  const [mainKeyword, setMainKeyword] = useState("");
+
+  const goPopupSearch = useCallback(() => {
+    const q = (mainKeyword || "").trim();
+    if (!q) {
+      goTopAndNavigate("/pop-up");
+      return;
+    }
+    goTopAndNavigate(`/pop-up?search=${encodeURIComponent(q)}`);
+  }, [goTopAndNavigate, mainKeyword]);
+
+  const onAllClick = useCallback(() => {
+    goTopAndNavigate("/pop-up");
+  }, [goTopAndNavigate]);
+
+  return (
+    <main className="min-h-[calc(100vh-88px)] bg-secondary-light pb-16">
+      {/* =========================
+          HERO (분리됨) + 퀵슬롯(기존 위치 유지)
+         ========================= */}
+      <section className="relative w-full">
+        {/* HERO만 별도 컴포넌트: active 변화가 하단을 흔들지 않음 */}
+        <HeroCarousel posters={posters} cfg={cfg} navigate={navigate} />
+
+        {/* ✅ 퀵슬롯 (기존 그대로 MainPage에서 렌더) */}
+        <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-[62%] md:translate-y-[76%] w-full px-4 sm:px-6 z-50">
+          <div
+            className="mx-auto w-full max-w-[1400px] md:max-w-[1100px] bg-paper rounded-card ring-2"
+            style={{
+              boxShadow:
+                "0 22px 60px rgba(0,0,0,0.16), 0 6px 16px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.95)",
+              borderColor: "rgba(0,0,0,0.08)",
+              ringColor: "rgba(0,0,0,0.06)",
+            }}
+          >
+            <div className="flex flex-col md:flex-row md:items-center px-5 sm:px-8 md:px-12 py-4 sm:py-6 md:py-6 gap-5 md:gap-0">
+              <div className="flex items-center gap-4 min-w-0 md:min-w-[200px] md:ml-8">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shrink-0 overflow-visible">
+                  <img
+                    src={ghost1}
+                    alt="ghost"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+
+                <div className="leading-tight">
+                  <p className="text-[15px] sm:text-[16px] font-semibold text-text-black">
+                    팝업스토어 안내
+                  </p>
+                  <p className="text-[13px] sm:text-[14px] text-text-sub">
+                    팝스팟 도우미
+                  </p>
+                </div>
+              </div>
+
+              <div className="hidden md:block h-12 w-[1px] bg-gradient-to-b from-transparent via-secondary to-transparent mx-5" />
+
+              <div className="flex-1">
+                <div className="grid grid-cols-2 gap-6 sm:gap-8 md:flex md:justify-center md:gap-30">
+                  <div onClick={() => onQuickSlotClick("팝업리스트")}>
+                    <MenuItem label="팝업리스트" />
+                  </div>
+                  <div onClick={() => onQuickSlotClick("AI 챗봇")}>
+                    <MenuItem label="AI 챗봇" />
+                  </div>
+                  <div onClick={() => onQuickSlotClick("팝업등록")}>
+                    <MenuItem label="팝업등록" />
+                  </div>
+                  <div onClick={() => onQuickSlotClick("마이페이지")}>
+                    <MenuItem label="마이페이지" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================
+          SEARCH BAR + 하단 리스트 (memo)
+         ========================= */}
+      <MainBottom
+        mainKeyword={mainKeyword}
+        setMainKeyword={setMainKeyword}
+        goPopupSearch={goPopupSearch}
+        latestPopups={latestPopups}
+        endingSoonPopups={endingSoonPopups}
+        onAllClick={onAllClick}
+        mainLoading={mainLoading}
+      />
+    </main>
   );
 }
 
