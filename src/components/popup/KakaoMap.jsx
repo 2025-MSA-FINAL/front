@@ -44,10 +44,10 @@ export default function KakaoMap({
 
   // 주소 모드용
   const addressMarkerRef = useRef(null);
-  const addressInfoRef = useRef(null);
 
-  // 공용 인포윈도우(카드 표시용) 1개
-  const popupInfoWindowRef = useRef(null);
+  const popupOverlayRef = useRef(null);
+
+  const placeLabelOverlayRef = useRef(null);
 
   // 팝업 마커 이미지 캐시(기본/선택)
   const popupMarkerImagesRef = useRef({ normal: null, selected: null });
@@ -94,6 +94,7 @@ export default function KakaoMap({
     const textSub = readCssVar("--color-text-sub", "#70757A");
     const textWhite = readCssVar("--color-text-white", "#FFFFFF");
     const border = readCssVar("--color-secondary-light", "rgba(0,0,0,0.08)");
+    const textBlack = readCssVar("--color-text-black", "#111827");
 
     return {
       theme,
@@ -106,13 +107,16 @@ export default function KakaoMap({
       textSub,
       textWhite,
       border,
+      textBlack,
     };
   }, [theme]);
 
-  // 테마가 바뀌면: 마커 이미지 캐시/인포윈도우 정리 (새 토큰 반영)
+  // 테마가 바뀌면: 마커 이미지 캐시/오버레이 정리 (새 토큰 반영)
   useEffect(() => {
     popupMarkerImagesRef.current = { normal: null, selected: null };
-    popupInfoWindowRef.current?.close();
+
+    popupOverlayRef.current?.setMap(null);
+    placeLabelOverlayRef.current?.setMap(null);
   }, [ui.primary, ui.accentPink, ui.paper, ui.paperDark, ui.border]);
 
   // 스크립트 로드 상태
@@ -148,7 +152,6 @@ export default function KakaoMap({
   }, []);
 
   const emitViewportSoon = useCallback(() => {
-    // bounds가 아직 준비 안 된 경우가 있어 여러 번 시도
     if (emitViewport()) return;
 
     if (typeof requestAnimationFrame !== "undefined") {
@@ -160,7 +163,6 @@ export default function KakaoMap({
       });
     }
 
-    // 모바일/초기 렌더에서 idle이 안 떨어지는 케이스 대비
     setTimeout(() => {
       emitViewport();
     }, 120);
@@ -200,12 +202,15 @@ export default function KakaoMap({
     [ui.primary, ui.accentPink, ui.paper, ui.paperDark]
   );
 
-  // ===== 유틸: 카드형 인포윈도우 열기 =====
+  // ===== 유틸: 카드형 커스텀 오버레이 열기 =====
   const openPopupCard = useCallback(
     ({ title, thumbnail, idRaw }, marker) => {
       const map = mapRef.current;
-      const iw = popupInfoWindowRef.current;
-      if (!map || !iw || !marker) return;
+      const overlay = popupOverlayRef.current;
+      if (!map || !overlay || !marker) return;
+
+      // 주소 모드 라벨이 떠있으면 카드랑 같이 뜨지 않게 닫아줌
+      placeLabelOverlayRef.current?.setMap(null);
 
       const card = document.createElement("div");
       card.className =
@@ -285,10 +290,38 @@ export default function KakaoMap({
       card.appendChild(thumbWrap);
       card.appendChild(right);
 
-      iw.setContent(card);
-      iw.open(map, marker);
+      overlay.setContent(card);
+      overlay.setPosition(marker.getPosition());
+      overlay.setMap(map);
     },
     [ui.primary, ui.paper, ui.isHighContrast, ui.textWhite]
+  );
+
+  // ===== 유틸: 주소 모드 라벨 오버레이 열기 =====
+  const openPlaceLabel = useCallback(
+    (coords, name) => {
+      const map = mapRef.current;
+      const kakao = window.kakao;
+      const overlay = placeLabelOverlayRef.current;
+      if (!map || !kakao?.maps || !overlay || !coords || !name) return;
+
+      const wrap = document.createElement("div");
+      // 마커 위로 살짝 띄우기 (anchor만으로는 브라우저별 편차가 있어 transform로 보정)
+      wrap.style.transform = "translateY(-45px)";
+
+      const label = document.createElement("div");
+      label.className =
+        "px-3 py-2 text-[12px] font-bold rounded-[12px] bg-paper border border-secondary-light shadow-card";
+      label.style.color = ui.textBlack;
+      label.textContent = name;
+
+      wrap.appendChild(label);
+
+      overlay.setContent(wrap);
+      overlay.setPosition(coords);
+      overlay.setMap(map);
+    },
+    [ui.textBlack]
   );
 
   // 1) 카카오 스크립트 로드
@@ -340,9 +373,29 @@ export default function KakaoMap({
     });
     mapRef.current = map;
 
-    popupInfoWindowRef.current = new kakao.maps.InfoWindow({ zIndex: 10 });
+    popupOverlayRef.current = new kakao.maps.CustomOverlay({
+      clickable: true,
+      content: document.createElement("div"),
+      position: initialCenter,
+      xAnchor: 0.5,
+      yAnchor: 1.15,
+      zIndex: 10,
+    });
+    popupOverlayRef.current.setMap(null);
+
+    placeLabelOverlayRef.current = new kakao.maps.CustomOverlay({
+      clickable: false,
+      content: document.createElement("div"),
+      position: initialCenter,
+      xAnchor: 0.5,
+      yAnchor: 1.0,
+      zIndex: 9,
+    });
+    placeLabelOverlayRef.current.setMap(null);
+
+    // 지도 클릭 시 카드만 닫기 (라벨은 유지)
     kakao.maps.event.addListener(map, "click", () => {
-      popupInfoWindowRef.current?.close();
+      popupOverlayRef.current?.setMap(null);
     });
 
     // idle 시에도 발행 (정상 케이스)
@@ -398,17 +451,21 @@ export default function KakaoMap({
     if (!isKakaoLoaded) return;
     if (!mapRef.current) return;
     if (!window.kakao?.maps) return;
-    if (!address) return;
+
+    // address 모드가 아니면, 라벨 오버레이 닫아두기
+    if (!address) {
+      placeLabelOverlayRef.current?.setMap(null);
+      return;
+    }
 
     const map = mapRef.current;
     const kakao = window.kakao;
 
-    popupInfoWindowRef.current?.close();
+    // 주소 모드에서는 카드 오버레이 닫기
+    popupOverlayRef.current?.setMap(null);
+    // 기존 라벨도 닫고 재오픈(테마/내용 갱신)
+    placeLabelOverlayRef.current?.setMap(null);
 
-    if (addressInfoRef.current) {
-      addressInfoRef.current.close();
-      addressInfoRef.current = null;
-    }
     if (addressMarkerRef.current) {
       addressMarkerRef.current.setMap(null);
       addressMarkerRef.current = null;
@@ -423,30 +480,15 @@ export default function KakaoMap({
       const marker = new kakao.maps.Marker({ map, position: coords });
       addressMarkerRef.current = marker;
 
+      // ✅ InfoWindow 대신 CustomOverlay로 라벨 표시 (겹침 제거)
       if (placeName) {
-        const content = `
-          <div style="
-            padding:6px 8px;
-            font-size:12px;
-            line-height:1.2;
-            border-radius:10px;
-            background:${ui.paper};
-            color:${readCssVar("--color-text-black", "#111827")};
-            border:1px solid ${ui.border};
-            box-shadow:${readCssVar("--shadow-card", "0 2px 8px rgba(0,0,0,0.05)")};
-          ">
-            <b>${placeName}</b>
-          </div>
-        `;
-        const infoWindow = new kakao.maps.InfoWindow({ content });
-        infoWindow.open(map, marker);
-        addressInfoRef.current = infoWindow;
+        openPlaceLabel(coords, placeName);
       }
 
       map.setCenter(coords);
       emitViewportSoon();
     });
-  }, [address, placeName, isKakaoLoaded, ui.paper, ui.border, emitViewportSoon]);
+  }, [address, placeName, isKakaoLoaded, emitViewportSoon, openPlaceLabel]);
 
   // 4) 좌표 기반 모드: center 변경 시 지도 중심 이동
   useEffect(() => {
@@ -454,6 +496,9 @@ export default function KakaoMap({
     if (!mapRef.current) return;
     if (!window.kakao?.maps) return;
     if (address) return;
+
+    // 좌표 모드에서는 placeName 라벨 닫기
+    placeLabelOverlayRef.current?.setMap(null);
 
     const map = mapRef.current;
     const kakao = window.kakao;
@@ -474,7 +519,10 @@ export default function KakaoMap({
     const kakao = window.kakao;
     const map = mapRef.current;
 
-    popupInfoWindowRef.current?.close();
+    // 좌표 모드에서는 placeName 라벨 닫기
+    placeLabelOverlayRef.current?.setMap(null);
+
+    popupOverlayRef.current?.setMap(null);
 
     popupMarkersRef.current.forEach((item) => item.marker?.setMap(null));
     popupMarkersRef.current = [];
@@ -564,7 +612,10 @@ export default function KakaoMap({
     }
 
     const circle = new kakao.maps.Circle({
-      center: new kakao.maps.LatLng(searchCircleCenter.lat, searchCircleCenter.lng),
+      center: new kakao.maps.LatLng(
+        searchCircleCenter.lat,
+        searchCircleCenter.lng
+      ),
       radius: searchCircleRadiusKm * 1000,
       strokeWeight: 2,
       strokeColor: ui.primary,
@@ -601,7 +652,8 @@ export default function KakaoMap({
     if (address) return;
 
     const map = mapRef.current;
-    const selectedIdStr = selectedPopupId == null ? null : String(selectedPopupId);
+    const selectedIdStr =
+      selectedPopupId == null ? null : String(selectedPopupId);
 
     const normalImg = getPopupMarkerImage(false);
     const selectedImg = getPopupMarkerImage(true);
