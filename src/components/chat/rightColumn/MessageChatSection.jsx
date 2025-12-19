@@ -126,6 +126,7 @@ export default function MessageChatSection() {
   const bottomRef = useRef(null);
   const pendingUploadMapRef = useRef(new Map());
   const emojiRef = useRef(null);
+  const swipeStartXRef = useRef(null);
 
   const currentUserId = useAuthStore((s) => s.user?.userId);
   const activeRoom = useChatStore((s) => s.activeChatRoom);
@@ -135,6 +136,9 @@ export default function MessageChatSection() {
   const showParticipants = useChatUIStore((s) => s.showParticipants);
   const toggleParticipants = useChatUIStore((s) => s.toggleParticipants);
   const closeParticipants = useChatUIStore((s) => s.closeParticipants);
+  const clearSelectedGroupRoom = useChatPopupStore(
+    (s) => s.clearSelectedGroupRoom
+  );
 
   const roomId = activeRoom?.gcrId ?? activeRoom?.roomId;
   const roomType = activeRoom?.roomType;
@@ -166,10 +170,10 @@ export default function MessageChatSection() {
 
   const iconSize =
     roomType === "GROUP"
-      ? "w-11 h-9"
+      ? "w-9 h-7 md:w-11 md:h-9"
       : otherUserId === AI_USER_ID
-      ? "w-8.5 h-10"
-      : "w-9 h-9";
+      ? "w-7 h-9 md:w-8.5 md:h-10"
+      : "w-8 h-8 md:w-9 md:h-9";
 
   const roomIcon =
     roomType === "GROUP"
@@ -871,6 +875,36 @@ export default function MessageChatSection() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const onTouchStart = (e) => {
+      swipeStartXRef.current = e.touches[0].clientX;
+    };
+
+    const onTouchEnd = (e) => {
+      if (swipeStartXRef.current == null) return;
+
+      const diff = e.changedTouches[0].clientX - swipeStartXRef.current;
+
+      if (diff > 80) {
+        // ✅ CHAT → ROOM_LIST
+        setActiveRoom(null);
+        clearSelectedGroupRoom(); // ⭐ 이게 없어서 DETAIL로 간 거임
+      }
+
+      swipeStartXRef.current = null;
+    };
+
+    window.addEventListener("touchstart", onTouchStart);
+    window.addEventListener("touchend", onTouchEnd);
+
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [isMobile, setActiveRoom, clearSelectedGroupRoom]);
+
   /* =======================================================================
         📌 RENDER
   ======================================================================= */
@@ -881,16 +915,16 @@ export default function MessageChatSection() {
       )}
 
       {/* LEFT */}
-      <div className="w-full h-full flex min-h-0">
+      <div className="w-full h-full flex min-h-0 ">
         {/* LEFT: 채팅 영역 */}
         <div
           className={`
-          h-full min-h-0 flex flex-col
+          h-full min-h-0 flex flex-col 
           transition-all duration-300 ease-in-out
           ${showParticipants ? "w-[calc(100%-320px)]" : "w-full"}
         `}
         >
-          <div className="w-full h-full flex flex-col px-8 py-5 relative z-[1]">
+          <div className="w-full h-full flex flex-col px-4 py-4 md:px-8 md:py-5 relative z-[1]">
             {/* HEADER */}
             <div className="flex items-center justify-between mb-2 px-1">
               <div className="flex items-center gap-3">
@@ -906,19 +940,19 @@ export default function MessageChatSection() {
                     <div className="flex flex-row items-end gap-3">
                       <button
                         onClick={toggleRoomInfo}
-                        className="text-white font-semibold text-lg hover:text-white/80 transition"
+                        className="text-white font-semibold text-base md:text-lg hover:text-white/80 transition"
                       >
                         {activeRoom?.title}
                       </button>
                       <span
-                        className="text-white/60 text-[11px] cursor-pointer hover:text-white transition"
+                        className="text-white/60 text-[10px] md:text-[11px] cursor-pointer hover:text-white transition"
                         onClick={toggleParticipants}
                       >
                         인원 {participants.length} / {activeRoom?.maxUserCnt}
                       </span>
                     </div>
                   ) : (
-                    <span className="text-white font-semibold text-lg">
+                    <span className="text-white font-semibold text-base md:text-lg">
                       {activeRoom?.roomName}
                     </span>
                   )}
@@ -1273,7 +1307,7 @@ export default function MessageChatSection() {
                     setShowEmojiPicker(true);
                   }}
                 >
-                  <EmojiIcon className="w-6 h-6" fill="#fff" />
+                  <EmojiIcon className="w-5 h-5 md:w-6 md:h-6" fill="#fff" />
                 </button>
 
                 {/* 📱 Mobile Emoji Bottom Sheet */}
@@ -1342,7 +1376,7 @@ export default function MessageChatSection() {
                 maxLength={3000}
                 disabled={isAiTyping && roomType === "PRIVATE"}
                 placeholder={inputPlaceholder}
-                className="flex-1  rounded-xl px-2 py-2 
+                className="flex-1  rounded-xl px-2 py-2 text-sm md:text-base
                     text-white placeholder:text-white/60
                     resize-none overflow-y-auto focus:outline-none max-h-[120px]
                     chat-textarea-scroll"
@@ -1428,11 +1462,14 @@ export default function MessageChatSection() {
                   if (!isSendingImageRef.current) fileInputRef.current?.click();
                 }}
               >
-                <ImageUploadIcon className="w-6 h-6" fill="#fff" />
+                <ImageUploadIcon
+                  className="w-5 h-5 md:w-6 md:h-6"
+                  fill="#fff"
+                />
               </button>
 
               <button className="p-2 hover:bg-white/10 rounded-full">
-                <ScheduleIcon className="w-6 h-6" fill="#fff" />
+                <ScheduleIcon className="w-5 h-5 md:w-6 md:h-6" fill="#fff" />
               </button>
 
               <button

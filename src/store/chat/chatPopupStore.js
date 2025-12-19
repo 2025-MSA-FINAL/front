@@ -114,6 +114,9 @@ joinRoom: async (gcrId) => {
       room.gcrId === gcrId ? { ...room, joined } : room
     ),
   })),
+
+  clearSelectedGroupRoom: () => set({ selectedGroupRoom: null }),
+
 }));
 
 
