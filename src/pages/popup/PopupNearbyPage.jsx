@@ -176,7 +176,7 @@ function PopupNearbyPage() {
     hasInitializedViewport && pendingViewport && (centerMoved || radiusChanged);
 
   return (
-    <main className="h-[calc(100vh-88px)] px-4 py-6 overflow-hidden">
+    <main className="h-[calc(100dvh-88px)] md:h-[calc(100vh-88px)] px-3 py-4 md:px-4 md:py-6 overflow-hidden">
       <div className="max-w-6xl mx-auto flex flex-col gap-4 h-full">
         <header className="flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div>
@@ -201,35 +201,9 @@ function PopupNearbyPage() {
           </div>
         </header>
 
-        <section className="flex gap-4 flex-1 min-h-0">
-          <aside className="bg-paper rounded-card shadow-card border border-secondary-light overflow-hidden flex flex-col w-[360px] shrink-0">
-            <div className="px-4 py-2 border-b border-secondary-light font-semibold text-[13px]">
-              목록
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
-              {!isNearbyLoading && nearbyPopups.length === 0 && (
-                <p className="text-[13px] text-text-sub">
-                  이 지역에는 아직 등록된 팝업이 없어요.
-                </p>
-              )}
-
-              {nearbyPopups.map((popup) => (
-                <MapPopupListItem
-                  key={popup.popId}
-                  popup={popup}
-                  isSelected={popup.popId === selectedPopupId}
-                  onFocusOnMap={() => setSelectedPopupId(popup.popId)}
-                  onOpenDetail={(id) => navigate(`/popup/${id}`)}
-                  onToggleWishlist={handleToggleWishlist}
-                  isWishlistLoading={wishlistLoadingId === popup.popId}
-                  userRole={user?.role}
-                />
-              ))}
-            </div>
-          </aside>
-
-          <div className="relative flex-1 min-h-0">
+        <section className="flex flex-col md:flex-row gap-3 md:gap-4 flex-1 min-h-0">
+          {/* 지도 영역 */}
+          <div className="order-1 md:order-2 relative w-full flex-none h-[42vh] min-h-[240px] md:h-auto md:flex-1 min-h-0">
             <div className="w-full h-full rounded-card overflow-hidden border border-secondary-light">
               <KakaoMap
                 center={searchCenter || myLocation || undefined}
@@ -266,6 +240,34 @@ function PopupNearbyPage() {
               </button>
             )}
           </div>
+
+          {/* 목록 영역 */}
+          <aside className="order-2 md:order-1 bg-paper rounded-card shadow-card border border-secondary-light overflow-hidden flex flex-col flex-1 min-h-0 w-full md:w-[360px] md:flex-none md:shrink-0">
+            <div className="px-4 py-2 border-b border-secondary-light font-semibold text-[13px]">
+              목록
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              {!isNearbyLoading && nearbyPopups.length === 0 && (
+                <p className="text-[13px] text-text-sub">
+                  이 지역에는 아직 등록된 팝업이 없어요.
+                </p>
+              )}
+
+              {nearbyPopups.map((popup) => (
+                <MapPopupListItem
+                  key={popup.popId}
+                  popup={popup}
+                  isSelected={popup.popId === selectedPopupId}
+                  onFocusOnMap={() => setSelectedPopupId(popup.popId)}
+                  onOpenDetail={(id) => navigate(`/popup/${id}`)}
+                  onToggleWishlist={handleToggleWishlist}
+                  isWishlistLoading={wishlistLoadingId === popup.popId}
+                  userRole={user?.role}
+                />
+              ))}
+            </div>
+          </aside>
         </section>
       </div>
     </main>
