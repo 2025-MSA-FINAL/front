@@ -118,8 +118,70 @@ const CardGridSection = memo(function CardGridSection({
   onAllClick,
   mainLoading,
 }) {
-  // ✅ (변경) 하단 카드 클릭 시 상세 이동 복구용
   const navigate = useNavigate();
+
+  // ✅ 드래그 슬라이드용
+  const trackRef = useRef(null);
+  const isDownRef = useRef(false);
+  const startXRef = useRef(0);
+  const startScrollLeftRef = useRef(0);
+  const movedRef = useRef(false); // 드래그 중 클릭 방지용
+
+  // ✅ (수정) 클릭을 살리기 위해 "드래그로 판단될 때만" 포인터 캡처
+  const capturedRef = useRef(false);
+  const pointerIdRef = useRef(null);
+
+  const onPointerDown = useCallback((e) => {
+    const el = trackRef.current;
+    if (!el) return;
+
+    isDownRef.current = true;
+    movedRef.current = false;
+
+    // ✅ (수정) 여기서 바로 setPointerCapture 하지 않음 (클릭이 먹통되는 원인)
+    capturedRef.current = false;
+    pointerIdRef.current = e.pointerId;
+
+    startXRef.current = e.clientX;
+    startScrollLeftRef.current = el.scrollLeft;
+  }, []);
+
+  const onPointerMove = useCallback((e) => {
+    const el = trackRef.current;
+    if (!el || !isDownRef.current) return;
+
+    const dx = e.clientX - startXRef.current;
+
+    // 약간 움직였으면 드래그로 간주 → 클릭 방지
+    if (Math.abs(dx) > 6) {
+      movedRef.current = true;
+
+      // ✅ (수정) 드래그로 확정된 순간에만 포인터 캡처(드래그 안정화)
+      if (!capturedRef.current) {
+        try {
+          el.setPointerCapture?.(pointerIdRef.current ?? e.pointerId);
+          capturedRef.current = true;
+        } catch {}
+      }
+    }
+
+    el.scrollLeft = startScrollLeftRef.current - dx;
+  }, []);
+
+  const endDrag = useCallback((e) => {
+    const el = trackRef.current;
+    if (!el) return;
+
+    isDownRef.current = false;
+
+    // ✅ (수정) 캡처한 경우에만 해제
+    if (capturedRef.current) {
+      try {
+        el.releasePointerCapture?.(pointerIdRef.current ?? e.pointerId);
+      } catch {}
+      capturedRef.current = false;
+    }
+  }, []);
 
   return (
     <div className="mt-8 md:mt-10 flex justify-center">
@@ -142,16 +204,62 @@ const CardGridSection = memo(function CardGridSection({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+          {/* ✅ 드래그 전용 트랙 (휠 스크롤 막음 + 스크롤바 숨김) */}
+          <style>
+            {`
+              .hide-scrollbar::-webkit-scrollbar { display: none; }
+            `}
+          </style>
+
+          <div
+            ref={trackRef}
+            className="
+              hide-scrollbar
+              flex gap-5 sm:gap-6
+              overflow-x-auto
+              select-none
+              cursor-grab
+              active:cursor-grabbing
+            "
+            style={{
+              WebkitOverflowScrolling: "touch",
+              scrollbarWidth: "none",
+              touchAction: "pan-y",
+
+              // ✅ (수정) hover scale이 잘리는 문제 해결: 세로는 visible로
+              overflowY: "visible",
+              paddingTop: "10px",
+              paddingBottom: "14px",
+            }}
+            onWheelCapture={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            onPointerLeave={(e) => {
+              if (isDownRef.current) endDrag(e);
+            }}
+          >
             {(items || []).map((p) => {
               const badge = priceLabel(p?.popPriceType);
 
               return (
                 <div
                   key={p.popId}
-                  className="group cursor-pointer transition-transform hover:scale-105"
+                  className="
+                    shrink-0
+                    w-[240px] sm:w-[260px] lg:w-[280px]
+                    group
+                    cursor-pointer
+                    transition-transform
+                    hover:scale-105
+                  "
                   onClick={() => {
-                    // ✅ (변경) 하단 카드 클릭 시 팝업 상세로 이동
+                    // ✅ 드래그로 움직인 경우 클릭(상세이동) 방지
+                    if (movedRef.current) return;
                     navigate(`/popup/${p.popId}`);
                   }}
                 >
@@ -211,7 +319,10 @@ const CardGridSection = memo(function CardGridSection({
             {mainLoading &&
               (!items || items.length === 0) &&
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={`skeleton-${i}`} className="animate-pulse">
+                <div
+                  key={`skeleton-${i}`}
+                  className="shrink-0 w-[240px] sm:w-[260px] lg:w-[280px] animate-pulse"
+                >
                   <div
                     className="w-full aspect-[3/4] rounded-[18px]"
                     style={{ background: "rgba(0,0,0,0.06)" }}
@@ -289,7 +400,7 @@ const MenuItem = memo(function MenuItem({ label }) {
             />
             <path
               className="cls-1"
-              d="M15,22a1,1,0,0,1-1-1V18a1,1,0,0,1,2,0v3A1,1,0,0,1,15,22Z"
+              d="M15,22a.93.93,0,0,1-.45-.11l-4-2a1,1,0,1,1,.9-1.78l4,2a1,1,0,0,1,.44,1.34A1,1,0,0,1,15,22Z"
             />
             <path
               className="cls-1"
@@ -350,11 +461,7 @@ const MenuItem = memo(function MenuItem({ label }) {
 // ✅ HERO만 상태를 갖도록 분리 (핵심)
 // -> active 변화가 MainPage(하단) 리렌더를 유발하지 않음
 // =========================
-const HeroCarousel = memo(function HeroCarousel({
-  posters,
-  cfg,
-  navigate,
-}) {
+const HeroCarousel = memo(function HeroCarousel({ posters, cfg, navigate }) {
   const [active, setActive] = useState(0);
   const [isHeroCenterHovered, setIsHeroCenterHovered] = useState(false);
 
@@ -398,8 +505,7 @@ const HeroCarousel = memo(function HeroCarousel({
   );
 
   // ✅ 카드 세로 중심 보정
-  const baseCardY =
-    -Math.round(cfg.indicatorSafeSpace / 2) + cfg.centerNudge;
+  const baseCardY = -Math.round(cfg.indicatorSafeSpace / 2) + cfg.centerNudge;
 
   return (
     <section className="relative w-full">
@@ -769,7 +875,7 @@ function MainPage() {
   const [endingSoonPopups, setEndingSoonPopups] = useState([]);
   const [mainLoading, setMainLoading] = useState(false);
 
-  const MAIN_CARD_LIMIT = 4; // ✅ 프론트에서 원하는 만큼 조절
+  const MAIN_CARD_LIMIT = 10; // ✅ 프론트에서 원하는 만큼 조절
 
   // ✅ HERO에서 기존 posters 형태 유지하기 위한 변환 (JSX/스타일 건드리지 않기)
   const posters = useMemo(() => {

@@ -1,4 +1,5 @@
 // src/App.jsx
+import { useEffect, useRef, useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import DefaultLayout from "./layouts/DefaultLayout.jsx";
 import NoNavLayout from "./layouts/NoNavLayout.jsx";
@@ -18,7 +19,7 @@ import PopupNearbyPage from "./pages/popup/PopupNearbyPage";
 import PopupEdit from "./pages/manager/PopupEdit.jsx";
 import PopupReservationSettingPage from "./pages/reservation/PopupReservationSettingPage.jsx";
 
-//관리자 페이지
+// 관리자 페이지
 import AdminLayout from "./pages/admin/AdminLayout.jsx";
 import Dashboard from "./pages/admin/Dashboard.jsx";
 import Users from "./pages/admin/Users.jsx";
@@ -29,72 +30,75 @@ import UserReportPage from "./pages/user/UserReportPage.jsx";
 import PopupUserReservationPage from "./pages/reservation/PopupUserReservationPage.jsx";
 
 function App() {
+  const [alertMessage, setAlertMessage] = useState(null);
+  const [confirmState, setConfirmState] = useState(null);
+  const confirmResolverRef = useRef(null);
+
+  /* ===============================
+     window.alert / confirm override
+     =============================== */
+  useEffect(() => {
+    // alert
+    window.alert = (message) => {
+      setAlertMessage(String(message));
+    };
+
+    // confirm (Promise 기반)
+    window.confirm = (message) => {
+      setConfirmState(String(message));
+      return new Promise((resolve) => {
+        confirmResolverRef.current = resolve;
+      });
+    };
+  }, []);
+
+  /* ===============================
+     confirm 버튼 핸들러
+     =============================== */
+  const handleConfirm = (result) => {
+    if (confirmResolverRef.current) {
+      confirmResolverRef.current(result);
+      confirmResolverRef.current = null;
+    }
+    setConfirmState(null);
+  };
+
   return (
-    <div className="min-h-screen  text-text-black">
+    <div className="min-h-screen text-text-black">
       <Routes>
         {/* NavBar 사용하는 일반 페이지 */}
         <Route element={<DefaultLayout />}>
-          {/* 임시 메인 페이지 */}
           <Route path="/" element={<MainPage />} />
-
-          {/* 로그인 페이지 */}
           <Route path="/login" element={<LoginPage />} />
-
-          {/* 네이버 소셜 인증 후 회원가입 페이지 */}
           <Route path="/signup/social" element={<SignupPage />} />
-
-          {/* 임시 마이페이지 */}
           <Route path="/mypage" element={<MyPage />} />
-
-          {/* 팝업스토어 등록 페이지 */}
           <Route path="/popup/register" element={<PopupCreatePage />} />
-
-          {/* 팝업스토어 목록 페이지 */}
           <Route path="/pop-up" element={<PopupListPage />} />
-
-          {/* 팝업스토어 상세 페이지 */}
           <Route path="/popup/:popupId" element={<PopupDetailPage />} />
-
-          {/* 내 주변 팝업 페이지 */}
           <Route path="/popup/nearby" element={<PopupNearbyPage />} />
-
-          {/* 매니저 페이지 */}
           <Route path="/manager" element={<ManagerMyPage />} />
-
           <Route
             path="/manager/popup/:popupId"
             element={<ManagerPopupDetailPage />}
           />
-
-          {/* 팝업 수정 페이지 */}
           <Route path="/manager/popup/:popupId/edit" element={<PopupEdit />} />
-
           <Route
             path="/manager/popup/:popupId"
             element={<ManagerPopupDetailPage />}
           />
-
-          {/* ✅ 팝업 예약 설정 페이지 */}
           <Route
             path="/manager/popup/:popupId/reservation"
             element={<PopupReservationSettingPage />}
           />
-          <Route
-            path="/manager/popup/:popupId"
-            element={<ManagerPopupDetailPage />}
-          />
           <Route path="/me/report" element={<UserReportPage />} />
-
           <Route
             path="/popup/:popupId/reserve"
             element={<PopupUserReservationPage />}
           />
-
-          {/* 매니저 계정 문의 페이지 */}
           <Route path="/manager-inquiry" element={<ManagerInquiryPage />} />
         </Route>
 
-        {/* NavBar 없는 페이지 (채팅 + 관리자 등) */}
+        {/* NavBar 없는 페이지 */}
         <Route element={<NoNavLayout />}>
           <Route path="/chat" element={<ChatMainPage />} />
         </Route>
@@ -108,6 +112,53 @@ function App() {
           <Route path="chatrooms" element={<ChatRooms />} />
         </Route>
       </Routes>
+
+      {/* ===============================
+          Alert 모달
+         =============================== */}
+      {alertMessage && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
+          <div className="w-[320px] rounded-xl bg-white p-6 shadow-xl">
+            <p className="text-center text-sm text-gray-800 whitespace-pre-wrap">
+              {alertMessage}
+            </p>
+            <button
+              onClick={() => setAlertMessage(null)}
+              className="mx-auto mt-5 block rounded-md bg-purple-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-700"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===============================
+          Confirm 모달
+         =============================== */}
+      {confirmState && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
+          <div className="w-[320px] rounded-xl bg-white p-6 shadow-xl">
+            <p className="text-center text-sm text-gray-800 whitespace-pre-wrap">
+              {confirmState}
+            </p>
+
+            <div className="mt-5 flex justify-center gap-3">
+              <button
+                onClick={() => handleConfirm(false)}
+                className="rounded-md bg-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-300"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => handleConfirm(true)}
+                className="rounded-md bg-purple-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-700"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

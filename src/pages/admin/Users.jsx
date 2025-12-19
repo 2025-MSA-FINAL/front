@@ -10,6 +10,8 @@ export default function Users() {
   const [managerList, setManagerList] = useState([]);
   const [filterStatus, setFilterStatus] = useState("ACTIVE");
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [debouncedKeyword, setDebouncedKeyword] = useState("");
+
   const [loading, setLoading] = useState(true);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -20,13 +22,22 @@ export default function Users() {
   const currentList = mode === "user" ? userList : managerList;
 
   useEffect(() => {
-    const fetchData = async () => {
+  const timer = setTimeout(() => {
+    setDebouncedKeyword(searchKeyword);
+    setCurrentPage(1);
+  }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchKeyword]);
+
+  useEffect(() => {
+        const fetchData = async () => {
       try {
         setLoading(true);
 
         const params = { 
           status: filterStatus,
-          keyword: searchKeyword,
+          keyword: debouncedKeyword,
           page: currentPage - 1,
           size: pageSize,
         };
@@ -58,7 +69,7 @@ export default function Users() {
     };
 
     fetchData();
-  }, [mode, filterStatus, currentPage, searchKeyword]);
+  }, [mode, filterStatus, currentPage, debouncedKeyword]);
 
   // 페이지 변경
   const handlePageChange = (page) => {
@@ -113,15 +124,7 @@ export default function Users() {
   };
 
   // 로딩 UI
-  if (loading) {
-    return (
-      <div className="p-8">
-        <div className="flex items-center justify-center h-[70vh] text-gray-500">
-          로딩 중...
-        </div>
-      </div>
-    );
-  }
+  
 
   return (
     <div className="space-y-8">
@@ -210,29 +213,38 @@ export default function Users() {
             </thead>
 
             <tbody className="divide-y divide-gray-100">
-  {currentList.length === 0 ? (
-    <tr>
-      <td
-        colSpan={filterStatus === "DELETED" ? 7 : 6}
-        className="px-4 py-12 text-center text-gray-500"
-      >
-        조회된 목록이 없습니다.
-      </td>
-    </tr>
-  ) : (
-    currentList.map((item) => (
-      <tr key={item.userId} className="hover:bg-gray-50 transition-colors">
+              {loading ? (
+              <tr>
+                <td
+                  colSpan={filterStatus === "DELETED" ? 7 : 6}
+                  className="px-4 py-12 text-center text-gray-400"
+                >
+                  불러오는 중...
+                </td>
+              </tr>
+            ) : currentList.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={filterStatus === "DELETED" ? 7 : 6}
+                  className="px-4 py-12 text-center text-gray-500"
+                >
+                  조회된 목록이 없습니다.
+                </td>
+              </tr>
+            ) : (
+              currentList.map((item) => (
+                <tr key={item.userId} className="hover:bg-gray-50 transition-colors">
 
-        {/* ID 원형 뱃지 */}
-        <td className="px-4 py-3">
-          <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center 
-                            bg-gradient-to-br from-purple-600 to-purple-800 text-white 
-                            text-sm font-bold shadow-sm">
-              {item.userId}
-            </div>
-          </div>
-        </td>
+                  {/* ID 원형 뱃지 */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center 
+                                      bg-gradient-to-br from-purple-600 to-purple-800 text-white 
+                                      text-sm font-bold shadow-sm">
+                        {item.userId}
+                      </div>
+                    </div>
+                  </td>
 
         {/* 이름 */}
         <td className="px-4 py-3 text-sm whitespace-nowrap max-w-[120px] truncate">

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { logoutApi } from "@/api/authApi";
 import { AdminToastProvider } from "@/components/admin/ui/AdminToastProvider";
+import { Link } from "react-router-dom";
+import yellowCharacter from "@/assets/ghost3.png";
 
 import {
   Home,
@@ -68,21 +70,35 @@ export default function AdminLayout() {
         >
           {/* Logo */}
           <div className="flex items-center justify-between px-6 h-[88px] border-b border-[#DDDFE2]">
-            <div>
-              <h1 className="text-2xl font-extrabold text-[#C33DFF] cursor-pointer" onClick={() => navigate("/admin")}>
-                PopSpot Admin
-              </h1>
-              <p className="text-xs text-[#70757A] mt-1">관리자 대시보드</p>
+            <div className="flex items-center gap-3">
+              <div>
+                <h1 className="text-2xl font-extrabold text-[#C33DFF] cursor-pointer" onClick={() => navigate("/admin")}>
+                  PopSpot Admin
+                </h1>
+                <p className="text-xs text-[#70757A] mt-1">관리자 대시보드</p>
             </div>
-            <button
-              className="md:hidden text-[#70757A]"
-              onClick={toggleSidebar}
-              aria-label="닫기"
+            <Link to="/" className="group relative flex items-center justify-center p-1 rounded-full hover:bg-yellow-50 transition-colors"
+              title="메인 서비스로 돌아가기"
             >
-              <X className="w-6 h-6" />
-            </button>
+              <img 
+                src={yellowCharacter} 
+                alt="Main Home" 
+                className="w-10 h-10 object-contain group-hover:scale-110 transition-transform duration-200"
+              />
+              {/* 툴팁 효과 (선택사항) */}
+              <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity">
+                메인으로 가기
+              </span>
+            </Link>
           </div>
-
+              <button
+                className="md:hidden text-[#70757A]"
+                onClick={toggleSidebar}
+                aria-label="닫기"
+              >
+              <X className="w-6 h-6" />
+              </button>
+            </div>
           {/* Nav */}
           <nav className="mt-4 px-3">
             {menuItems.map((item) => (
