@@ -130,7 +130,7 @@ const CardGridSection = memo(function CardGridSection({
         >
           <div className="flex justify-between items-center mb-5 sm:mb-6">
             <h2
-              className="text-[px] font-bold"
+              className="text-[24px] font-bold"
               style={{ color: PURPLE.deep }}
             >
               {title}
