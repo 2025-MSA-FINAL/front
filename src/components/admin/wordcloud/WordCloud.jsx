@@ -42,7 +42,7 @@ export default function WordCloud({ data }) {
   const option = {
     tooltip: {
       show: true,
-      formatter: (item) => `${item.name} : ${item.value}`,
+      formatter: (item) => `${item.name} <br/>인기도: ${item.value}`,
     },
     series: [
       {

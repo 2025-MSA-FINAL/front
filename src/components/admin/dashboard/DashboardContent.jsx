@@ -48,6 +48,14 @@ export default function DashboardContent() {
     isFetching: hashtagFetching, 
   } = usePopularHashtags();
 
+
+  //wordCloud 테이블
+  const topHashtags = useMemo(() => {
+  return [...hashtags]
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
+  }, [hashtags]);
+
   //AI 리포트 hook 추가
   const { report, loading, error, fetchReport } = useAIReport();
   const [showReport, setShowReport] = useState(false);
@@ -97,28 +105,33 @@ export default function DashboardContent() {
 
   
   return (
-    <div className="space-y-10">
+    <div className="flex flex-col gap-y-4 pb-10">
       {/* Header (생략) */}
-      <header className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+      <header className="flex items-center justify-between flex-wrap gap-2 border-b border-gray-100 pb-4">
+        <div className="mt-[-6px]">
+          <h1 className="text-xl md:text-2xl font-extrabold text-gray-900 tracking-tight">
             대시보드
           </h1>
-          <p className="text-sm text-gray-600">
+          <p className="text-xs text-gray-500 mt-1">
             PopSpot 서비스의 전체 현황을 한 눈에 확인하세요.
           </p>
         </div>
+
+        <div className="hidden md:block text-right">
+        <span className="text-xs font-medium text-gray-400 block">Last Updated</span>
+        <span className="text-sm font-semibold text-gray-700">{currentDate}</span>
+      </div>
       </header>
 
       {/* KPI Cards Section */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6">
+      <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-8">
         {kpiData.map((data, i) => (
           <KpiCard key={i} {...data} />
         ))}
       </section>
 
       {/* Line, Area, Pie Charts Section (차트 컴포넌트 분리 적용) */}
-      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
         {/* 월별 신규 유저 추이 */}
         <ChartCard title="월별 신규 유저 추이" metadata="최근 4개월 데이터" height="320px">
           <UserGrowthLineChart data={monthlyUserGrowth} />
@@ -144,7 +157,7 @@ export default function DashboardContent() {
       </section>
 
       {/* Bar Charts Section (차트 컴포넌트 분리 적용) */}
-      <section className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <section className="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-8">
         {/* 이번 주 인기 팝업 TOP 5 */}
         <ChartCard title="이번 주 인기 팝업 TOP 5" height="450px">
           <PopularPopupBarChart 
@@ -164,98 +177,126 @@ export default function DashboardContent() {
 
 
       {/* Heatmap/WordCloud Section (필터 클래스 상수화 적용) */}
-      <section className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <section className="flex flex-col space-y-6">
         {/* 조회수 히트맵 (원본과 동일) */}
         <ChartCard title="최근 7일 조회수 히트맵" height="520px">
-          <div className="w-full overflow-auto h-full">
+          <div className="w-full h-full bg-white overflow-hidden rounded-b-lg">
             <HeatmapChart data={stats.viewHeatmap} />
           </div>
         </ChartCard>
         
+        
         {/* 인기 해시태그 */}
         <ChartCard
           title="인기 해시태그"
-          metadata={`성별/연령대 기준 인기 해시태그 (${currentDate})`}
+          metadata={`성별/연령대 기준 ·인기도 순 (${currentDate})`}
           height="520px"
           isLoading={hashtagFetching}
         >
-          {/* 필터 UI - 2줄 분리 구조 (시작점 일치 및 새로고침 버튼 이동) */}
-          <div className="flex flex-col mb-4 gap-4"></div>
-           
-           {/* 1행 연령 필터 */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-600 whitespace-nowrap w-[50px]">연령대</span>
-              
-              <div className="flex items-center gap-2 overflow-x-auto p-0">
-                {["전체", "10대", "20대", "30대", "40대", "50대"].map((a) => (
-                  <button
-                    key={a}
-                    onClick={() => setAge(a)}
-                    className={`${HASHTAG_BUTTON_BASE_CLASS} ${
-                      age === a ? HASHTAG_AGE_ACTIVE_CLASS : HASHTAG_AGE_INACTIVE_CLASS
-                    } whitespace-nowrap`}
-                  >
-                    {a}
-                  </button>
-                ))}
-            </div>
-           </div>
-
-            {/* 2행 성별 필터 & 초기화 */}
-            <div className="flex items-center gap-2 ">
-              <div className="flex items-center gap-2 overflow-x-auto p-0">
-                <span className="text-xs text-gray-600 whitespace-nowrap w-[50px]">성별</span>
-             
-              <div className="flex items-center gap-2 overflow-x-auto p-0">
-                {["all", "male", "female"].map((key) => (
-                  <button
-                    key={key}
-                    onClick={() => setGender(key)}
-                    className={`${HASHTAG_BUTTON_BASE_CLASS} ${
-                      gender === key ? HASHTAG_GENDER_ACTIVE_CLASS : HASHTAG_GENDER_INACTIVE_CLASS
-                    } text-sm`}
-                  >
-                    {key === "all" ? "전체" : key === "male" ? "남성" : "여성"}
-                  </button>
-                ))}
+          <div className="flex flex-col h-full">
             
-            {/* 초기화 버튼 */}
-            <button
-              onClick={() => {
-                setGender("all");
-                setAge("전체");
-              }}
-              className={`
-                ${HASHTAG_BUTTON_BASE_CLASS} 
-                bg-white text-gray-700 border-gray-300 hover:bg-gray-100 
-                self-start 
-                !p-1.5
-             `} aria-label="필터 초기화"
-              >
-                <RotateCcw className="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-     </div>
+            {/* --- [유지/수정] 필터 영역: 2줄 구조 및 시작점 정렬 --- */}
+            <div className="flex flex-col gap-3 mb-6 shrink-0">
+              {/* 1행 연령 필터 */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-600 whitespace-nowrap w-[50px]">연령대</span>
+                <div className="flex items-center gap-3 overflow-x-auto pb-1 scrollbar-hide">
+                  {["전체", "10대", "20대", "30대", "40대", "50대"].map((a) => (
+                    <button
+                      key={a}
+                      onClick={() => setAge(a)}
+                      className={`${HASHTAG_BUTTON_BASE_CLASS} ${
+                        age === a ? HASHTAG_AGE_ACTIVE_CLASS : HASHTAG_AGE_INACTIVE_CLASS
+                      }`}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* WordCloud 영역 */}
-          <div className="flex-grow min-h-0 mt-4">
-            {!hashtagFetching && hashtags.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                선택한 필터 조건에 해당하는 해시태그가 없습니다.
+              {/* 2행 성별 필터 & 초기화 */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-600 whitespace-nowrap w-[50px]">성별</span>
+                <div className="flex items-center gap-2">
+                  {["all", "male", "female"].map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => setGender(key)}
+                      className={`${HASHTAG_BUTTON_BASE_CLASS} ${
+                        gender === key ? HASHTAG_GENDER_ACTIVE_CLASS : HASHTAG_GENDER_INACTIVE_CLASS
+                      }`}
+                    >
+                      {key === "all" ? "전체" : key === "male" ? "남성" : "여성"}
+                    </button>
+                  ))}
+                  
+                  <button
+                    onClick={() => { setGender("all"); setAge("전체"); }}
+                    className={`${HASHTAG_BUTTON_BASE_CLASS} bg-white text-gray-700 border-gray-300 hover:bg-gray-100 !p-1.5 ml-1`}
+                    aria-label="필터 초기화"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
-            ) : (
-              <div className="h-full">
-                <WordCloud data={hashtags} />
-              </div>
-            )}
-          </div>
+            </div>
+
+            {/* --- 하단 컨텐츠 영역 --- */}
+            <div className="flex flex-col lg:flex-row gap-8 flex-1 min-h-0">
+              
+              {/* WordCloud 영역 (좌측 2칸 차지) */}
+              <div className="flex-[3] relative bg-gray-50/50 rounded-xl border border-dashed border-gray-200 flex items-center justify-center overflow-hidden">
+                {!hashtagFetching && hashtags.length === 0 ? (
+                  <div className="text-gray-400 text-sm">
+                    선택한 필터 조건에 해당하는 해시태그가 없습니다.
+                  </div>
+                ) : (
+                  <div className="w-full h-full -mt-10 flex items-center justify-center p-2">
+                    <div className="w-full h-full flex items-center justify-center p-4">
+                    <WordCloud data={hashtags} />
+                  </div>
+                </div>
+              )}
+            </div>
+           
+
+              {/* Top 5 Table 영역 (우측 1칸 차지) */}
+              <div className="flex-1 min-w-[300px] flex flex-col">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3 border-l-4 border-purple-500 pl-2">
+                  TOP 5 해시태그
+                </h4>
+                <div className="flex-1 border border-gray-100 rounded-xl bg-white shadow-sm overflow-hidden">
+                  <table className="w-full h-full border-collapse">
+                    <thead className="bg-gray-50 text-gray-400 border-b">
+                      <tr className="text-[11px] uppercase tracking-wide">
+                        <th className="py-3 px-2 font-bold text-center">순위</th>
+                        <th className="py-3 px-2 font-bold text-left">해시태그</th>
+                        <th className="py-3 px-2 font-bold text-center">인기도</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {topHashtags.map((tag, idx) => (
+                        <tr key={tag.name} className="hover:bg-purple-50/30 transition-colors">
+                          <td className="py-4 text-center text-xs font-bold text-gray-400">{idx + 1}</td>
+                          <td className="py-4 text-left text-sm font-semibold text-gray-800"><div className="text-purple-400 mr-1">#{tag.name}</div></td>
+                          <td className="py-4 text-center text-xs text-purple-600 font-black">
+                            {tag.value.toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div> 
+              
+            </div> {/* Grid End */}
+          </div> {/* Flex Col End */}
         </ChartCard>
       </section>
-      
-          <section>
+      <section>
         {/* AI 리포트 헤더 */}
-        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg shadow-lg p-6 text-white">
+        <div className="bg-gradient-to-r from-[#C33DFF] to-[#7E00CC] rounded-lg shadow-lg p-6 text-white">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex-1">
               <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
