@@ -118,8 +118,52 @@ const CardGridSection = memo(function CardGridSection({
   onAllClick,
   mainLoading,
 }) {
-  // ✅ (변경) 하단 카드 클릭 시 상세 이동 복구용
   const navigate = useNavigate();
+
+  // ✅ 드래그 슬라이드용
+  const trackRef = useRef(null);
+  const isDownRef = useRef(false);
+  const startXRef = useRef(0);
+  const startScrollLeftRef = useRef(0);
+  const movedRef = useRef(false); // 드래그 중 클릭 방지용
+
+  const onPointerDown = useCallback((e) => {
+    const el = trackRef.current;
+    if (!el) return;
+
+    isDownRef.current = true;
+    movedRef.current = false;
+
+    // 포인터 캡처(드래그 안정화)
+    try {
+      el.setPointerCapture?.(e.pointerId);
+    } catch {}
+
+    startXRef.current = e.clientX;
+    startScrollLeftRef.current = el.scrollLeft;
+  }, []);
+
+  const onPointerMove = useCallback((e) => {
+    const el = trackRef.current;
+    if (!el || !isDownRef.current) return;
+
+    const dx = e.clientX - startXRef.current;
+
+    // 약간 움직였으면 드래그로 간주 → 클릭 방지
+    if (Math.abs(dx) > 6) movedRef.current = true;
+
+    el.scrollLeft = startScrollLeftRef.current - dx;
+  }, []);
+
+  const endDrag = useCallback((e) => {
+    const el = trackRef.current;
+    if (!el) return;
+
+    isDownRef.current = false;
+    try {
+      el.releasePointerCapture?.(e.pointerId);
+    } catch {}
+  }, []);
 
   return (
     <div className="mt-8 md:mt-10 flex justify-center">
@@ -142,16 +186,60 @@ const CardGridSection = memo(function CardGridSection({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+          {/* ✅ 드래그 전용 트랙 (휠 스크롤 막음 + 스크롤바 숨김) */}
+          <style>
+            {`
+              .hide-scrollbar::-webkit-scrollbar { display: none; }
+            `}
+          </style>
+
+          <div
+            ref={trackRef}
+            className="
+              hide-scrollbar
+              flex gap-5 sm:gap-6
+              overflow-x-auto
+              overflow-y-hidden
+              select-none
+              cursor-grab
+              active:cursor-grabbing
+            "
+            style={{
+              WebkitOverflowScrolling: "touch",
+              scrollbarWidth: "none",
+              touchAction: "pan-y",
+              overflowY: "hidden", // ✅ 세로 스크롤바 방지(안전망)
+            }}
+            onWheelCapture={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            onPointerLeave={(e) => {
+              if (isDownRef.current) endDrag(e);
+            }}
+          >
+
             {(items || []).map((p) => {
               const badge = priceLabel(p?.popPriceType);
 
               return (
                 <div
                   key={p.popId}
-                  className="group cursor-pointer transition-transform hover:scale-105"
+                  className="
+                    shrink-0
+                    w-[240px] sm:w-[260px] lg:w-[280px]
+                    group
+                    cursor-pointer
+                    transition-transform
+                    hover:scale-105
+                  "
                   onClick={() => {
-                    // ✅ (변경) 하단 카드 클릭 시 팝업 상세로 이동
+                    // ✅ 드래그로 움직인 경우 클릭(상세이동) 방지
+                    if (movedRef.current) return;
                     navigate(`/popup/${p.popId}`);
                   }}
                 >
@@ -211,7 +299,10 @@ const CardGridSection = memo(function CardGridSection({
             {mainLoading &&
               (!items || items.length === 0) &&
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={`skeleton-${i}`} className="animate-pulse">
+                <div
+                  key={`skeleton-${i}`}
+                  className="shrink-0 w-[240px] sm:w-[260px] lg:w-[280px] animate-pulse"
+                >
                   <div
                     className="w-full aspect-[3/4] rounded-[18px]"
                     style={{ background: "rgba(0,0,0,0.06)" }}
@@ -236,6 +327,8 @@ const CardGridSection = memo(function CardGridSection({
     </div>
   );
 });
+
+
 
 const MenuItem = memo(function MenuItem({ label }) {
   return (
@@ -769,7 +862,7 @@ function MainPage() {
   const [endingSoonPopups, setEndingSoonPopups] = useState([]);
   const [mainLoading, setMainLoading] = useState(false);
 
-  const MAIN_CARD_LIMIT = 4; // ✅ 프론트에서 원하는 만큼 조절
+  const MAIN_CARD_LIMIT = 10; // ✅ 프론트에서 원하는 만큼 조절
 
   // ✅ HERO에서 기존 posters 형태 유지하기 위한 변환 (JSX/스타일 건드리지 않기)
   const posters = useMemo(() => {
