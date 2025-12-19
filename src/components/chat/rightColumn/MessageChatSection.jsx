@@ -21,6 +21,7 @@ import { useChatPopupStore } from "../../../store/chat/chatPopupStore";
 import { useChatMessageStore } from "../../../store/chat/chatMessageStore";
 import { useChatStore } from "../../../store/chat/chatStore";
 import { useAuthStore } from "../../../store/authStore";
+import { useChatUIStore } from "../../../store/chat/chatUIStore";
 import axios from "axios";
 
 /* IMG */
@@ -33,6 +34,8 @@ import ImageUploadIcon from "../../chat/icons/imageIcon";
 import ScheduleIcon from "../../chat/icons/scheduleIcon";
 import MoreIcon from "../../chat/icons/MoreIcon";
 import { API_BASE } from "../../../utils/env";
+import ParticipantSection from "./ParticipantSection";
+import { ParticipantBottomSheet } from "./ParticipantBottomSheet";
 
 /* ------------------------------------------------------------------
  📌 날짜 / 시간 변환 함수 — 안전한 Date 객체 기반
@@ -129,6 +132,9 @@ export default function MessageChatSection() {
   const setActiveRoom = useChatStore((s) => s.setActiveChatRoom);
   const removeRoom = useChatStore((s) => s.removeRoom);
   const updateRoomOrder = useChatStore((s) => s.updateRoomOrder);
+  const showParticipants = useChatUIStore((s) => s.showParticipants);
+  const toggleParticipants = useChatUIStore((s) => s.toggleParticipants);
+  const closeParticipants = useChatUIStore((s) => s.closeParticipants);
 
   const roomId = activeRoom?.gcrId ?? activeRoom?.roomId;
   const roomType = activeRoom?.roomType;
@@ -273,6 +279,62 @@ export default function MessageChatSection() {
       return;
     }
 
+    // 🔹 PARTICIPANT 이벤트
+    if (body.type?.startsWith("PARTICIPANT_")) {
+      if (body.roomType !== roomType || body.roomId !== roomId) return;
+
+      const store = useChatMessageStore.getState();
+      const { userId, nickname } = body.payload;
+
+      switch (body.type) {
+        case "PARTICIPANT_JOIN":
+          store.addParticipant({
+            roomType,
+            roomId,
+            participant: body.payload,
+          });
+
+          setMessages((prev) => [
+            ...prev,
+            makeSystemMessage(`${nickname}님이 채팅방에 입장했습니다`),
+          ]);
+          break;
+
+        case "PARTICIPANT_LEAVE":
+          store.removeParticipant({
+            roomType,
+            roomId,
+            userId,
+          });
+
+          setMessages((prev) => [
+            ...prev,
+            makeSystemMessage(`${nickname}님이 채팅방을 나갔습니다`),
+          ]);
+          break;
+
+        case "PARTICIPANT_ONLINE":
+          store.updateParticipantOnline({
+            roomType,
+            roomId,
+            userId,
+            online: true,
+          });
+          break;
+
+        case "PARTICIPANT_OFFLINE":
+          store.updateParticipantOnline({
+            roomType,
+            roomId,
+            userId,
+            online: false,
+          });
+          break;
+      }
+
+      return;
+    }
+
     if (body.type === "TYPING_STOP") {
       setTypingUsers((prev) => {
         const next = new Map(prev);
@@ -346,6 +408,19 @@ export default function MessageChatSection() {
       });
     }
   };
+
+  const makeSystemMessage = (text) => ({
+    cmId: `system-${Date.now()}-${Math.random()}`,
+    roomId,
+    roomType,
+    senderId: null,
+    senderNickname: null,
+    content: text,
+    messageType: "SYSTEM",
+    createdAt: formatTime(new Date()),
+    minuteKey: toMinuteKey(new Date()),
+    dateLabel: formatDateLabel(new Date()),
+  });
 
   /* 메시지 전송 */
   const sendMessage = () => {
@@ -791,7 +866,18 @@ export default function MessageChatSection() {
     // 방 전환 시 무조건 초기화
     setMessages([]);
     setUnreadCount(0);
+    useChatUIStore.getState().resetChatUI();
   }, [activeRoom]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        useChatUIStore.getState().closeParticipants();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   /* =======================================================================
         📌 RENDER
@@ -799,53 +885,66 @@ export default function MessageChatSection() {
   return (
     <>
       {(showEditModal || showReportModal) && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[998]"></div>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[998]" />
       )}
 
-      <div className="w-full h-full flex flex-col justify-start px-8 py-5 relative z-[1]">
-        {/* HEADER */}
-        <div className="flex items-center justify-between mb-2 px-1">
-          <div className="flex items-center gap-3">
-            <div className="w-12 flex items-center justify-center">
-              <img src={roomIcon} className={iconSize} />
-            </div>
-
-            <div
-              className="flex flex-col justify-center h-[48px]"
-              ref={roomInfoRef}
-            >
-              {roomType === "GROUP" ? (
-                <div className="flex flex-row items-end gap-3">
-                  <button
-                    onClick={toggleRoomInfo}
-                    className="text-white font-semibold text-lg hover:text-white/80 transition"
-                  >
-                    {activeRoom?.title}
-                  </button>
-                  <span className="text-white/60 text-[11px]">
-                    인원 {activeRoom?.currentUserCnt} / {activeRoom?.maxUserCnt}
-                  </span>
+      {/* LEFT */}
+      <div className="w-full h-full flex min-h-0">
+        {/* LEFT: 채팅 영역 */}
+        <div
+          className={`
+          h-full min-h-0 flex flex-col
+          transition-all duration-300 ease-in-out
+          ${showParticipants ? "w-[calc(100%-320px)]" : "w-full"}
+        `}
+        >
+          <div className="w-full h-full flex flex-col px-8 py-5 relative z-[1]">
+            {/* HEADER */}
+            <div className="flex items-center justify-between mb-2 px-1">
+              <div className="flex items-center gap-3">
+                <div className="w-12 flex items-center justify-center">
+                  <img src={roomIcon} className={iconSize} />
                 </div>
-              ) : (
-                <span className="text-white font-semibold text-lg">
-                  {activeRoom?.roomName}
-                </span>
-              )}
-            </div>
-          </div>
 
-          {/* More 메뉴 */}
-          <div className="relative" ref={menuRef}>
-            <button
-              onClick={toggleMenu}
-              className="p-2 hover:bg-white/10 rounded-full"
-            >
-              <MoreIcon className="w-6 h-6 text-white" />
-            </button>
+                <div
+                  className="flex flex-col justify-center h-[48px]"
+                  ref={roomInfoRef}
+                >
+                  {roomType === "GROUP" ? (
+                    <div className="flex flex-row items-end gap-3">
+                      <button
+                        onClick={toggleRoomInfo}
+                        className="text-white font-semibold text-lg hover:text-white/80 transition"
+                      >
+                        {activeRoom?.title}
+                      </button>
+                      <span
+                        className="text-white/60 text-[11px] cursor-pointer hover:text-white transition"
+                        onClick={toggleParticipants}
+                      >
+                        인원 {participants.length} / {activeRoom?.maxUserCnt}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-white font-semibold text-lg">
+                      {activeRoom?.roomName}
+                    </span>
+                  )}
+                </div>
+              </div>
 
-            {menuVisible && (
-              <div
-                className={`
+              {/* More 메뉴 */}
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={toggleMenu}
+                  className="p-2 hover:bg-white/10 rounded-full"
+                >
+                  <MoreIcon className="w-6 h-6 text-white" />
+                </button>
+
+                {menuVisible && (
+                  <div
+                    className={`
                   absolute right-0 top-10 w-[200px]
                   rounded-2xl py-5 px-6 z-50
                   bg-white/40 backdrop-blur-xl
@@ -857,224 +956,234 @@ export default function MessageChatSection() {
                       : "opacity-0 -translate-y-2"
                   }
                 `}
-              >
-                <div className="flex flex-col gap-4">
-                  {/* 수정하기 - GROUP & Owner */}
-                  {roomType === "GROUP" &&
-                    activeRoom?.ownerId === currentUserId && (
-                      <>
+                  >
+                    <div className="flex flex-col gap-4">
+                      {/* 수정하기 - GROUP & Owner */}
+                      {roomType === "GROUP" &&
+                        activeRoom?.ownerId === currentUserId && (
+                          <>
+                            <button
+                              className="mx-2 text-[14px] font-semibold text-left text-text-main hover:text-text-sub transition"
+                              onClick={() => {
+                                setShowEditModal(true);
+                                toggleMenu();
+                              }}
+                            >
+                              수정하기
+                            </button>
+
+                            <div className="w-full h-px bg-white/60"></div>
+                          </>
+                        )}
+
+                      {/* GROUP → Owner는 삭제, 참여자는 나가기 */}
+                      {roomType === "GROUP" ? (
+                        activeRoom?.ownerId === currentUserId ? (
+                          <button
+                            className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
+                            onClick={async () => {
+                              await deleteGroupChatRoom(activeRoom.gcrId);
+
+                              useChatMessageStore.getState().clearRoomState({
+                                roomType: "GROUP",
+                                roomId: activeRoom.gcrId,
+                              });
+
+                              removeRoom("GROUP", activeRoom.gcrId);
+                              setActiveRoom(null);
+                              const { fetchPopupRooms, selectedPopup } =
+                                useChatPopupStore.getState();
+                              await fetchPopupRooms(selectedPopup.popId);
+                            }}
+                          >
+                            채팅방 삭제하기
+                          </button>
+                        ) : (
+                          <button
+                            className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
+                            onClick={async () => {
+                              await leaveGroupChatRoom(activeRoom.gcrId);
+
+                              // 🔥 popupRooms 즉시 반영
+                              useChatPopupStore
+                                .getState()
+                                .updatePopupRoomJoined(activeRoom.gcrId, false);
+
+                              useChatMessageStore.getState().clearRoomState({
+                                roomType: "GROUP",
+                                roomId: activeRoom.gcrId,
+                              });
+                              removeRoom("GROUP", activeRoom.gcrId);
+                              setActiveRoom(null);
+                            }}
+                          >
+                            채팅방 나가기
+                          </button>
+                        )
+                      ) : (
+                        /* PRIVATE → 항상 삭제 */
                         <button
-                          className="mx-2 text-[14px] font-semibold text-left text-text-main hover:text-text-sub transition"
-                          onClick={() => {
-                            setShowEditModal(true);
-                            toggleMenu();
+                          className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
+                          onClick={async () => {
+                            await deletePrivateChatRoom(activeRoom.roomId);
+
+                            useChatMessageStore.getState().clearRoomState({
+                              roomType: "PRIVATE",
+                              roomId: activeRoom.roomId,
+                            });
+                            removeRoom("PRIVATE", activeRoom.roomId);
+                            setActiveRoom(null);
                           }}
                         >
-                          수정하기
+                          채팅방 삭제하기
                         </button>
+                      )}
 
-                        <div className="w-full h-px bg-white/60"></div>
-                      </>
-                    )}
-
-                  {/* GROUP → Owner는 삭제, 참여자는 나가기 */}
-                  {roomType === "GROUP" ? (
-                    activeRoom?.ownerId === currentUserId ? (
                       <button
                         className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
-                        onClick={async () => {
-                          await deleteGroupChatRoom(activeRoom.gcrId);
-
-                          useChatMessageStore.getState().clearRoomState({
-                            roomType: "GROUP",
-                            roomId: activeRoom.gcrId,
-                          });
-
-                          removeRoom("GROUP", activeRoom.gcrId);
-                          setActiveRoom(null);
-                          const { fetchPopupRooms, selectedPopup } =
-                            useChatPopupStore.getState();
-                          await fetchPopupRooms(selectedPopup.popId);
+                        onClick={() => {
+                          setShowReportModal(true);
+                          toggleMenu();
                         }}
                       >
-                        채팅방 삭제하기
+                        채팅방 신고하기
                       </button>
-                    ) : (
-                      <button
-                        className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
-                        onClick={async () => {
-                          await leaveGroupChatRoom(activeRoom.gcrId);
-
-                          useChatMessageStore.getState().clearRoomState({
-                            roomType: "GROUP",
-                            roomId: activeRoom.gcrId,
-                          });
-                          removeRoom("GROUP", activeRoom.gcrId);
-                          setActiveRoom(null);
-                        }}
-                      >
-                        채팅방 나가기
-                      </button>
-                    )
-                  ) : (
-                    /* PRIVATE → 항상 삭제 */
-                    <button
-                      className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
-                      onClick={async () => {
-                        await deletePrivateChatRoom(activeRoom.roomId);
-
-                        useChatMessageStore.getState().clearRoomState({
-                          roomType: "PRIVATE",
-                          roomId: activeRoom.roomId,
-                        });
-                        removeRoom("PRIVATE", activeRoom.roomId);
-                        setActiveRoom(null);
-                      }}
-                    >
-                      채팅방 삭제하기
-                    </button>
-                  )}
-
-                  <button
-                    className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
-                    onClick={() => {
-                      setShowReportModal(true);
-                      toggleMenu();
-                    }}
-                  >
-                    채팅방 신고하기
-                  </button>
-                </div>
+                    </div>
+                  </div>
+                )}
               </div>
+            </div>
+            {roomType === "GROUP" && (
+              <GroupRoomInfoPopover
+                room={activeRoom}
+                currentUserId={currentUserId}
+                anchorRef={roomInfoRef}
+                open={showRoomInfo}
+                onClose={() => setShowRoomInfo(false)}
+              />
             )}
-          </div>
-        </div>
-        {roomType === "GROUP" && (
-          <GroupRoomInfoPopover
-            room={activeRoom}
-            currentUserId={currentUserId}
-            anchorRef={roomInfoRef}
-            open={showRoomInfo}
-            onClose={() => setShowRoomInfo(false)}
-          />
-        )}
-        {/* 메시지 리스트 */}
-        <div
-          className="
-            flex flex-col flex-1 overflow-y-auto scrollbar-hide
+            {/* 메시지 리스트 */}
+            <div
+              className="
+            flex flex-col flex-1 min-h-0 overflow-y-auto scrollbar-hide
             border-t border-white/20 mb-2 px-1 justify-start"
-          ref={scrollRef}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDragOver(true);
-          }}
-          onDragLeave={() => setIsDragOver(false)}
-          onDrop={async (e) => {
-            e.preventDefault();
-            setIsDragOver(false);
+              ref={scrollRef}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragOver(true);
+              }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={async (e) => {
+                e.preventDefault();
+                setIsDragOver(false);
 
-            const files = Array.from(e.dataTransfer.files || []).filter((f) =>
-              f.type.startsWith("image/")
-            );
+                const files = Array.from(e.dataTransfer.files || []).filter(
+                  (f) => f.type.startsWith("image/")
+                );
 
-            if (files.length === 0) return;
+                if (files.length === 0) return;
 
-            await handleImageFiles(files);
-          }}
-        >
-          {messages.map((msg, i) => {
-            const prev = messages[i - 1];
-            const next = messages[i + 1];
-            const isMine = msg.senderId === currentUserId;
+                await handleImageFiles(files);
+              }}
+            >
+              {messages.map((msg, i) => {
+                const prev = messages[i - 1];
+                const next = messages[i + 1];
+                const isMine = msg.senderId === currentUserId;
 
-            const key =
-              typeof msg.cmId === "number"
-                ? `msg-${msg.cmId}`
-                : `temp-${msg.clientMessageKey}`;
+                const key =
+                  typeof msg.cmId === "number"
+                    ? `msg-${msg.cmId}`
+                    : `temp-${msg.clientMessageKey}`;
 
-            const showDateDivider =
-              i === 0 || prev?.dateLabel !== msg.dateLabel;
+                const showDateDivider =
+                  i === 0 || prev?.dateLabel !== msg.dateLabel;
 
-            const isGroupWithPrev =
-              i > 0 &&
-              prev?.senderId === msg.senderId &&
-              prev?.minuteKey === msg.minuteKey;
+                const isGroupWithPrev =
+                  i > 0 &&
+                  prev?.senderId === msg.senderId &&
+                  prev?.minuteKey === msg.minuteKey;
 
-            // 시간 보여 줄지 여부 (마지막 말풍선에만)
-            const showTime =
-              !next ||
-              next.senderId !== msg.senderId ||
-              next.minuteKey !== msg.minuteKey;
+                // 시간 보여 줄지 여부 (마지막 말풍선에만)
+                const showTime =
+                  !next ||
+                  next.senderId !== msg.senderId ||
+                  next.minuteKey !== msg.minuteKey;
 
-            const showUnreadDivider =
-              initialUnreadMessageId !== null &&
-              msg.cmId === initialUnreadMessageId;
+                const showUnreadDivider =
+                  initialUnreadMessageId !== null &&
+                  msg.cmId === initialUnreadMessageId;
 
-            return (
-              <div key={key} className="mb-1" data-cmid={msg.cmId}>
-                {showDateDivider && <DateDivider label={msg.dateLabel} />}
+                return (
+                  <div key={key} className="mb-1" data-cmid={msg.cmId}>
+                    {showDateDivider && <DateDivider label={msg.dateLabel} />}
 
-                {showUnreadDivider && (
-                  <div className="flex justify-center my-3">
-                    <span
-                      className="
+                    {showUnreadDivider && (
+                      <div className="flex justify-center my-3">
+                        <span
+                          className="
                       text-xs font-semibold
                       text-primary-light
                       bg-primary-soft2/30
                       px-4 py-1 rounded-full
                     "
-                    >
-                      여기까지 읽음
-                    </span>
+                        >
+                          여기까지 읽음
+                        </span>
+                      </div>
+                    )}
+
+                    <MessageItem
+                      msg={msg}
+                      isMine={isMine}
+                      isGroupWithPrev={isGroupWithPrev}
+                      showTime={showTime}
+                      otherLastReadMessageId={otherLastReadMessageId}
+                      participants={participants}
+                      roomType={roomType}
+                      currentUserId={currentUserId}
+                      otherUserId={otherUserId}
+                      onOpenUserPopover={(id, ref) => {
+                        setOpenUserPopover(id);
+                        setUserAnchorRef(ref);
+                      }}
+                      onImageLoad={() => {
+                        if (msg.senderId === currentUserId)
+                          scrollToBottom("auto");
+                        else if (isAtBottom) scrollToBottom("auto");
+                      }}
+                      onRetryImage={() =>
+                        retryImageUpload(msg.clientMessageKey)
+                      }
+                      onCancelImage={() =>
+                        cancelImageUpload(msg.clientMessageKey)
+                      }
+                    />
                   </div>
-                )}
+                );
+              })}
 
-                <MessageItem
-                  msg={msg}
-                  isMine={isMine}
-                  isGroupWithPrev={isGroupWithPrev}
-                  showTime={showTime}
-                  otherLastReadMessageId={otherLastReadMessageId}
-                  participants={participants}
-                  roomType={roomType}
-                  currentUserId={currentUserId}
-                  otherUserId={otherUserId}
-                  onOpenUserPopover={(id, ref) => {
-                    setOpenUserPopover(id);
-                    setUserAnchorRef(ref);
+              <UserProfilePopover
+                userId={openUserPopover}
+                anchorRef={userAnchorRef}
+                open={!!openUserPopover}
+                onClose={() => {
+                  setOpenUserPopover(null);
+                  setUserAnchorRef(null);
+                }}
+                scrollParentRef={scrollRef}
+              />
+              <div ref={bottomRef} />
+            </div>
+            {/* typing indicator 영역 (스크롤 X) */}
+            <div className="h-3 flex items-center ml-3 mb-2">
+              {showUnreadButton && (
+                <button
+                  onClick={() => {
+                    scrollToBottom();
+                    setUnreadCount(0);
                   }}
-                  onImageLoad={() => {
-                    if (msg.senderId === currentUserId) scrollToBottom("auto");
-                    else if (isAtBottom) scrollToBottom("auto");
-                  }}
-                  onRetryImage={() => retryImageUpload(msg.clientMessageKey)}
-                  onCancelImage={() => cancelImageUpload(msg.clientMessageKey)}
-                />
-              </div>
-            );
-          })}
-
-          <UserProfilePopover
-            userId={openUserPopover}
-            anchorRef={userAnchorRef}
-            open={!!openUserPopover}
-            onClose={() => {
-              setOpenUserPopover(null);
-              setUserAnchorRef(null);
-            }}
-            scrollParentRef={scrollRef}
-          />
-          <div ref={bottomRef} />
-        </div>
-        {/* typing indicator 영역 (스크롤 X) */}
-        <div className="h-3 flex items-center ml-3 mb-2">
-          {showUnreadButton && (
-            <button
-              onClick={() => {
-                scrollToBottom();
-                setUnreadCount(0);
-              }}
-              className="
+                  className="
               absolute bottom-24 left-1/2 -translate-x-1/2
               px-4 py-2
               bg-primary-soft2/40 text-white text-sm font-semibold
@@ -1086,76 +1195,80 @@ export default function MessageChatSection() {
               active:scale-95
               z-20
     "
-            >
-              ↓ 읽지 않은 메시지 {unreadCount}개
-            </button>
-          )}
+                >
+                  ↓ 읽지 않은 메시지 {unreadCount}개
+                </button>
+              )}
 
-          {typingUserList.length > 0 && (
-            <div className="flex items-center text-sm transition-opacity duration-200 text-white/80">
-              {/* AI */}
-              {isAiTyping && roomType === "PRIVATE" ? (
-                <>
-                  <AiTypingDots />
-                  <span className="ml-1 text-white/60">생각 중 .. </span>
-                </>
-              ) : (
-                <>
-                  <UserTypingDots />
-
-                  {/* PRIVATE - USER */}
-                  {roomType === "PRIVATE" && typingUserList.length === 1 && (
+              {typingUserList.length > 0 && (
+                <div className="flex items-center text-sm transition-opacity duration-200 text-white/80">
+                  {/* AI */}
+                  {isAiTyping && roomType === "PRIVATE" ? (
                     <>
-                      <span className="font-semibold text-white">
-                        {typingUserList[0].nickname}
-                      </span>
-                      <span>님이 입력 중</span>
+                      <AiTypingDots />
+                      <span className="ml-1 text-white/60">생각 중 .. </span>
+                    </>
+                  ) : (
+                    <>
+                      <UserTypingDots />
+
+                      {/* PRIVATE - USER */}
+                      {roomType === "PRIVATE" &&
+                        typingUserList.length === 1 && (
+                          <>
+                            <span className="font-semibold text-white">
+                              {typingUserList[0].nickname}
+                            </span>
+                            <span>님이 입력 중</span>
+                          </>
+                        )}
+
+                      {/* GROUP */}
+                      {roomType === "GROUP" && (
+                        <>
+                          {typingUserList.length === 1 && (
+                            <>
+                              <span className="font-semibold text-white">
+                                {typingUserList[0].nickname}
+                              </span>
+                              <span>님이 입력 중</span>
+                            </>
+                          )}
+
+                          {typingUserList.length === 2 && (
+                            <>
+                              <span className="font-semibold text-white">
+                                {typingUserList[0].nickname},{" "}
+                                {typingUserList[1].nickname}
+                              </span>
+                              <span>님이 입력 중</span>
+                            </>
+                          )}
+
+                          {typingUserList.length >= 3 && (
+                            <>
+                              <span className="font-semibold text-white">
+                                {typingUserList[0].nickname}
+                              </span>
+                              <span>
+                                {" "}
+                                외 {typingUserList.length - 1}명 입력 중
+                              </span>
+                            </>
+                          )}
+                        </>
+                      )}
                     </>
                   )}
-
-                  {/* GROUP */}
-                  {roomType === "GROUP" && (
-                    <>
-                      {typingUserList.length === 1 && (
-                        <>
-                          <span className="font-semibold text-white">
-                            {typingUserList[0].nickname}
-                          </span>
-                          <span>님이 입력 중</span>
-                        </>
-                      )}
-
-                      {typingUserList.length === 2 && (
-                        <>
-                          <span className="font-semibold text-white">
-                            {typingUserList[0].nickname},{" "}
-                            {typingUserList[1].nickname}
-                          </span>
-                          <span>님이 입력 중</span>
-                        </>
-                      )}
-
-                      {typingUserList.length >= 3 && (
-                        <>
-                          <span className="font-semibold text-white">
-                            {typingUserList[0].nickname}
-                          </span>
-                          <span> 외 {typingUserList.length - 1}명 입력 중</span>
-                        </>
-                      )}
-                    </>
-                  )}
-                </>
+                </div>
               )}
             </div>
-          )}
-        </div>
-        {/* 입력창 */}
-        <div className="flex items-end gap-2 border border-white/20 px-5 py-2 rounded-2xl">
-          <div className="relative" ref={emojiRef}>
-            <button
-              disabled={isEmojiDisabled}
-              className={`
+            {/* 입력창 */}
+            <div className="flex items-end gap-2 border border-white/20 px-5 py-2 rounded-2xl">
+              <div className="relative" ref={emojiRef}>
+                <button
+                  disabled={isEmojiDisabled}
+                  className={`
               p-2 rounded-full transition
               ${
                 isEmojiDisabled
@@ -1163,52 +1276,52 @@ export default function MessageChatSection() {
                   : "hover:bg-white/10"
               }
             `}
-              onClick={() => {
-                if (isEmojiDisabled) return;
-                setShowEmojiPicker(true);
-              }}
-            >
-              <EmojiIcon className="w-6 h-6" fill="#fff" />
-            </button>
+                  onClick={() => {
+                    if (isEmojiDisabled) return;
+                    setShowEmojiPicker(true);
+                  }}
+                >
+                  <EmojiIcon className="w-6 h-6" fill="#fff" />
+                </button>
 
-            {/* 📱 Mobile Emoji Bottom Sheet */}
-            {isMobile && showEmojiPicker && (
-              <div className="fixed inset-0 z-[999] flex items-end">
-                {/* backdrop */}
-                <div
-                  className="absolute inset-0 bg-black/40"
-                  onClick={() => setShowEmojiPicker(false)}
-                />
+                {/* 📱 Mobile Emoji Bottom Sheet */}
+                {isMobile && showEmojiPicker && (
+                  <div className="fixed inset-0 z-[999] flex items-end">
+                    {/* backdrop */}
+                    <div
+                      className="absolute inset-0 bg-black/40"
+                      onClick={() => setShowEmojiPicker(false)}
+                    />
 
-                {/* sheet */}
-                <div
-                  className="
+                    {/* sheet */}
+                    <div
+                      className="
                   relative w-full
                   bg-white/90 backdrop-blur-xl
                   rounded-t-3xl
                   p-4
                   animate-slide-up
                 "
-                >
-                  {/* drag bar */}
-                  <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-3" />
+                    >
+                      {/* drag bar */}
+                      <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-3" />
 
-                  <EmojiPicker
-                    onEmojiClick={(e) => {
-                      handleEmojiClick(e);
-                      setShowEmojiPicker(false);
-                    }}
-                    theme="light"
-                    height={360}
-                    width="100%"
-                  />
-                </div>
-              </div>
-            )}
+                      <EmojiPicker
+                        onEmojiClick={(e) => {
+                          handleEmojiClick(e);
+                          setShowEmojiPicker(false);
+                        }}
+                        theme="light"
+                        height={360}
+                        width="100%"
+                      />
+                    </div>
+                  </div>
+                )}
 
-            {!isMobile && showEmojiPicker && !isEmojiDisabled && (
-              <div
-                className="
+                {!isMobile && showEmojiPicker && !isEmojiDisabled && (
+                  <div
+                    className="
                 absolute bottom-14 left-0 z-50
                 rounded-2xl
                 bg-white/35 backdrop-blur-xl
@@ -1217,125 +1330,143 @@ export default function MessageChatSection() {
                 overflow-hidden
                 animate-scale-in
               "
-              >
-                <EmojiPicker
-                  onEmojiClick={handleEmojiClick}
-                  theme="auto"
-                  SkinTones="neutral"
-                  height={360}
-                  width={350}
-                  searchDisabled={false}
-                />
+                  >
+                    <EmojiPicker
+                      onEmojiClick={handleEmojiClick}
+                      theme="auto"
+                      SkinTones="neutral"
+                      height={360}
+                      width={350}
+                      searchDisabled={false}
+                    />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <textarea
-            ref={textareaRef}
-            value={input}
-            rows={1}
-            maxLength={3000}
-            disabled={isAiTyping && roomType === "PRIVATE"}
-            placeholder={inputPlaceholder}
-            className="flex-1  rounded-xl px-2 py-2 
+              <textarea
+                ref={textareaRef}
+                value={input}
+                rows={1}
+                maxLength={3000}
+                disabled={isAiTyping && roomType === "PRIVATE"}
+                placeholder={inputPlaceholder}
+                className="flex-1  rounded-xl px-2 py-2 
                     text-white placeholder:text-white/60
                     resize-none overflow-y-auto focus:outline-none max-h-[120px]
                     chat-textarea-scroll"
-            onCompositionStart={() => (isComposingRef.current = true)}
-            onCompositionEnd={() => (isComposingRef.current = false)}
-            onChange={(e) => {
-              setInput(e.target.value);
+                onCompositionStart={() => (isComposingRef.current = true)}
+                onCompositionEnd={() => (isComposingRef.current = false)}
+                onChange={(e) => {
+                  setInput(e.target.value);
 
-              if (!isTypingRef.current) {
-                sendTyping("TYPING_START");
-                isTypingRef.current = true;
-              }
+                  if (!isTypingRef.current) {
+                    sendTyping("TYPING_START");
+                    isTypingRef.current = true;
+                  }
 
-              clearTimeout(typingTimeoutRef.current);
-              typingTimeoutRef.current = setTimeout(() => {
-                sendTyping("TYPING_STOP");
-                isTypingRef.current = false;
-              }, 1200);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                if (e.shiftKey) return;
-                if (isComposingRef.current) return;
-                e.preventDefault();
-                sendMessage();
-              }
-            }}
-          />
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,.heic,.heif"
-            multiple
-            hidden
-            onChange={async (e) => {
-              const files = Array.from(e.target.files || []);
-              await handleImageFiles(files);
-              e.target.value = "";
-            }}
-          />
+                  clearTimeout(typingTimeoutRef.current);
+                  typingTimeoutRef.current = setTimeout(() => {
+                    sendTyping("TYPING_STOP");
+                    isTypingRef.current = false;
+                  }, 1200);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    if (e.shiftKey) return;
+                    if (isComposingRef.current) return;
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.heic,.heif"
+                multiple
+                hidden
+                onChange={async (e) => {
+                  const files = Array.from(e.target.files || []);
+                  await handleImageFiles(files);
+                  e.target.value = "";
+                }}
+              />
 
-          {isDragOver && (
-            <div
-              className="
+              {isDragOver && (
+                <div
+                  className="
                 absolute inset-0 z-50
                 flex items-center justify-center
                 pointer-events-none
               "
-            >
-              {/* 전체 영역 반응 레이어 */}
-              <div
-                className="
+                >
+                  {/* 전체 영역 반응 레이어 */}
+                  <div
+                    className="
                   absolute inset-0
                   border-5 border-dashed border-white/60
                   rounded-2xl
                   bg-white/40
                 "
-              />
+                  />
 
-              {/* 중앙 가이드 */}
-              <div className="flex items-center gap-4">
-                <ImageUploadIcon
-                  className="w-12 h-12 text-white"
-                  fill="white"
-                />
+                  {/* 중앙 가이드 */}
+                  <div className="flex items-center gap-4">
+                    <ImageUploadIcon
+                      className="w-12 h-12 text-white"
+                      fill="white"
+                    />
 
-                <div className="flex flex-col">
-                  <p className="text-white text-[20px] font-semibold">
-                    이미지 업로드
-                  </p>
-                  <p className="text-white/60 text-sm">드래그해서 놓아주세요</p>
+                    <div className="flex flex-col">
+                      <p className="text-white text-[20px] font-semibold">
+                        이미지 업로드
+                      </p>
+                      <p className="text-white/60 text-sm">
+                        드래그해서 놓아주세요
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              <button
+                disabled={isSendingImage}
+                className="p-2 hover:bg-white/10 rounded-full disabled:opacity-40"
+                onClick={() => {
+                  if (!isSendingImageRef.current) fileInputRef.current?.click();
+                }}
+              >
+                <ImageUploadIcon className="w-6 h-6" fill="#fff" />
+              </button>
+
+              <button className="p-2 hover:bg-white/10 rounded-full">
+                <ScheduleIcon className="w-6 h-6" fill="#fff" />
+              </button>
+
+              <button
+                onClick={sendMessage}
+                className="px-4 py-2 bg-white text-purple-700  font-semibold rounded-xl hover:bg-white/80 transition"
+              >
+                전송
+              </button>
             </div>
-          )}
-
-          <button
-            disabled={isSendingImage}
-            className="p-2 hover:bg-white/10 rounded-full disabled:opacity-40"
-            onClick={() => {
-              if (!isSendingImageRef.current) fileInputRef.current?.click();
-            }}
-          >
-            <ImageUploadIcon className="w-6 h-6" fill="#fff" />
-          </button>
-
-          <button className="p-2 hover:bg-white/10 rounded-full">
-            <ScheduleIcon className="w-6 h-6" fill="#fff" />
-          </button>
-
-          <button
-            onClick={sendMessage}
-            className="px-4 py-2 bg-white text-purple-700  font-semibold rounded-xl hover:bg-white/80 transition"
-          >
-            전송
-          </button>
+          </div>
         </div>
+        {/* RIGHT: 참여자 목록 */}
+        {!isMobile && (
+          <ParticipantSection
+            open={showParticipants}
+            participants={participants}
+            onClose={closeParticipants}
+          />
+        )}
       </div>
+      {isMobile && showParticipants && (
+        <ParticipantBottomSheet
+          participants={participants}
+          onClose={closeParticipants}
+        />
+      )}
 
       {/* ------------------ MODALS ------------------ */}
       <BlurModal open={showEditModal} onClose={() => setShowEditModal(false)}>
@@ -1352,6 +1483,15 @@ export default function MessageChatSection() {
               title: data.title,
               description: data.description,
               maxUserCnt: data.maxUserCnt,
+            });
+
+            // 🔥 왼쪽 채팅 리스트 즉시 반영
+            useChatStore.getState().updateRoomMeta({
+              roomType: "GROUP",
+              roomId: activeRoom.gcrId,
+              patch: {
+                roomName: data.title,
+              },
             });
 
             setShowEditModal(false);

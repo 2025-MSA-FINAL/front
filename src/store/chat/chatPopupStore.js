@@ -107,4 +107,13 @@ joinRoom: async (gcrId) => {
   // 생성 모드
   openCreateForm: () => set({ createMode: true }),
   closeCreateForm: () => set({ createMode: false }),
+
+  updatePopupRoomJoined: (gcrId, joined) =>
+  set((state) => ({
+    popupRooms: state.popupRooms.map((room) =>
+      room.gcrId === gcrId ? { ...room, joined } : room
+    ),
+  })),
 }));
+
+
