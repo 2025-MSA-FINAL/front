@@ -535,7 +535,10 @@ export default function KakaoMap({
     }
 
     const circle = new kakao.maps.Circle({
-      center: new kakao.maps.LatLng(searchCircleCenter.lat, searchCircleCenter.lng),
+      center: new kakao.maps.LatLng(
+        searchCircleCenter.lat,
+        searchCircleCenter.lng
+      ),
       radius: searchCircleRadiusKm * 1000,
       strokeWeight: 2,
       strokeColor: ui.primary,
@@ -572,7 +575,8 @@ export default function KakaoMap({
     if (address) return;
 
     const map = mapRef.current;
-    const selectedIdStr = selectedPopupId == null ? null : String(selectedPopupId);
+    const selectedIdStr =
+      selectedPopupId == null ? null : String(selectedPopupId);
 
     const normalImg = getPopupMarkerImage(false);
     const selectedImg = getPopupMarkerImage(true);
@@ -585,7 +589,9 @@ export default function KakaoMap({
 
     if (!selectedIdStr) return;
 
-    const target = popupMarkersRef.current.find((x) => x.idStr === selectedIdStr);
+    const target = popupMarkersRef.current.find(
+      (x) => x.idStr === selectedIdStr
+    );
     if (!target) return;
 
     map.panTo(target.marker.getPosition());

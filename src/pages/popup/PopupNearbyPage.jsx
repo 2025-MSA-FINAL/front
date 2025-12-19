@@ -227,7 +227,18 @@ function PopupNearbyPage() {
                   setSearchRadiusKm(pendingViewport.radiusKm);
                   setPendingViewport(null);
                 }}
-                className="absolute left-1/2 -translate-x-1/2 top-4 z-10 bg-paper text-text-black border border-secondary-light px-4 py-2 rounded-full text-[12px] shadow-card hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                className="
+                  absolute left-1/2 -translate-x-1/2
+                  top-auto bottom-[calc(env(safe-area-inset-bottom)+72px)]
+                  md:top-4 md:bottom-auto
+                  z-10
+                  max-w-[calc(100%-2rem)]
+                  bg-paper text-text-black border border-secondary-light
+                  px-4 py-2 rounded-full text-[12px]
+                  shadow-card hover:bg-primary-soft
+                  whitespace-normal text-center
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60
+                "
               >
                 이 지역에서 다시 검색
               </button>
@@ -237,7 +248,14 @@ function PopupNearbyPage() {
               <button
                 type="button"
                 onClick={handleRecenterToMyPos}
-                className="absolute right-4 bottom-4 z-10 bg-paper text-text-black border border-secondary-light px-3 py-2 rounded-full text-[11px] shadow-card hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                className="
+                  absolute right-4 bottom-[calc(env(safe-area-inset-bottom)+16px)]
+                  z-10
+                  bg-paper text-text-black border border-secondary-light
+                  px-3 py-2 rounded-full text-[11px]
+                  shadow-card hover:bg-primary-soft
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60
+                "
               >
                 내 위치 기준으로 보기
               </button>
