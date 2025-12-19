@@ -284,21 +284,25 @@ export default function MessageChatSection() {
       if (body.roomType !== roomType || body.roomId !== roomId) return;
 
       const store = useChatMessageStore.getState();
-      const { userId, nickname } = body.payload;
+      const { userId } = body.payload;
 
       switch (body.type) {
-        case "PARTICIPANT_JOIN":
-          store.addParticipant({
-            roomType,
-            roomId,
-            participant: body.payload,
-          });
+        case "PARTICIPANT_JOIN": {
+          const p = body.payload;
 
-          setMessages((prev) => [
-            ...prev,
-            makeSystemMessage(`${nickname}님이 채팅방에 입장했습니다`),
-          ]);
+          const normalized = {
+            userId: p.userId,
+            nickName: p.nickName ?? p.nickname ?? "",
+            photoUrl: p.photoUrl ?? p.photo ?? "",
+            lastReadMessageId: p.lastReadMessageId ?? 0,
+            isOwner: !!p.isOwner,
+            isMe: Number(p.userId) === Number(currentUserId),
+            online: p.online ?? true,
+          };
+
+          store.addParticipant({ roomType, roomId, participant: normalized });
           break;
+        }
 
         case "PARTICIPANT_LEAVE":
           store.removeParticipant({
@@ -306,11 +310,6 @@ export default function MessageChatSection() {
             roomId,
             userId,
           });
-
-          setMessages((prev) => [
-            ...prev,
-            makeSystemMessage(`${nickname}님이 채팅방을 나갔습니다`),
-          ]);
           break;
 
         case "PARTICIPANT_ONLINE":
@@ -408,19 +407,6 @@ export default function MessageChatSection() {
       });
     }
   };
-
-  const makeSystemMessage = (text) => ({
-    cmId: `system-${Date.now()}-${Math.random()}`,
-    roomId,
-    roomType,
-    senderId: null,
-    senderNickname: null,
-    content: text,
-    messageType: "SYSTEM",
-    createdAt: formatTime(new Date()),
-    minuteKey: toMinuteKey(new Date()),
-    dateLabel: formatDateLabel(new Date()),
-  });
 
   /* 메시지 전송 */
   const sendMessage = () => {

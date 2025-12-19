@@ -12,6 +12,9 @@ export default function ParticipantItem({ participant }) {
       <div className="relative">
         <img
           src={photoUrl || "/default-profile.png"}
+          onError={(e) => {
+            e.currentTarget.src = "/default-profile.png";
+          }}
           className="w-9 h-9 rounded-full object-cover"
         />
         {/* 온라인 점 */}
