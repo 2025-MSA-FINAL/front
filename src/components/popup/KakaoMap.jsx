@@ -16,9 +16,6 @@ export default function KakaoMap({
   onViewportChange, // { center, radiusKm } 콜백
   searchCircleCenter, // { lat, lng }
   searchCircleRadiusKm, // number, km
-
-  //사이드바 열림 여부
-  sidebarOpen,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -82,7 +79,7 @@ export default function KakaoMap({
     });
     mapRef.current = map;
 
-    //뷰포트 변경 이벤트 (idle) - 최초 1회만 등록 
+    //뷰포트 변경 이벤트 (idle) - 최초 1회만 등록
     if (onViewportChange) {
       kakao.maps.event.addListener(map, "idle", () => {
         const c = map.getCenter();
@@ -170,6 +167,7 @@ export default function KakaoMap({
 
   // 5) 좌표 기반 모드: 팝업 마커 + 인포윈도우
   useEffect(() => {
+    if (!isKakaoLoaded) return;
     if (!mapRef.current) return;
     if (!window.kakao?.maps) return;
     if (address) return; // 주소 모드일 땐 마커 안 찍음
@@ -248,8 +246,7 @@ export default function KakaoMap({
 
       popupMarkersRef.current.push({ marker, infoWindow, id: m.id });
     });
-
-  }, [markers, onMarkerClick, address]);
+  }, [markers, onMarkerClick, address, isKakaoLoaded]);
 
   // 6) 내 위치 마커
   useEffect(() => {
@@ -290,6 +287,7 @@ export default function KakaoMap({
 
   // 7) 검색 반경 원(circle)
   useEffect(() => {
+    if (!isKakaoLoaded) return;
     if (!mapRef.current) return;
     if (!window.kakao?.maps) return;
 
@@ -318,7 +316,7 @@ export default function KakaoMap({
     });
     circle.setMap(map);
     circleRef.current = circle;
-  }, [searchCircleCenter, searchCircleRadiusKm]);
+  }, [searchCircleCenter, searchCircleRadiusKm, isKakaoLoaded]);
 
   // 8) 선택된 팝업 포커스 (선택 시 지도 중심 + InfoWindow)
   useEffect(() => {
@@ -338,26 +336,6 @@ export default function KakaoMap({
       target.infoWindow.open(map, target.marker);
     }
   }, [selectedPopupId]);
-
-  // 9) 사이드바 열림/닫힘에 따른 지도 리레이아웃 + 검색 원 중심으로 맞추기
-  useEffect(() => {
-    if (!mapRef.current) return;
-    if (!window.kakao?.maps) return;
-
-    const map = mapRef.current;
-    const kakao = window.kakao;
-
-    const targetCenter =
-      searchCircleCenter && searchCircleCenter.lat && searchCircleCenter.lng
-        ? new kakao.maps.LatLng(searchCircleCenter.lat, searchCircleCenter.lng)
-        : map.getCenter();
-
-    setTimeout(() => {
-      map.relayout();
-      map.setCenter(targetCenter);
-    }, 0);
-  }, [sidebarOpen, searchCircleCenter]);
-
 
   return (
     <div

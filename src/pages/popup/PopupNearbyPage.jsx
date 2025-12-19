@@ -27,7 +27,7 @@ function PopupNearbyPage() {
   const [isNearbyLoading, setIsNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState(null);
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
   const [selectedPopupId, setSelectedPopupId] = useState(null);
 
   const [wishlistLoadingId, setWishlistLoadingId] = useState(null);
@@ -78,6 +78,14 @@ function PopupNearbyPage() {
   useEffect(() => {
     requestLocation();
   }, []);
+
+  useEffect(() => {
+    if (!myLocation) return;
+
+    setSearchCenter((prev) => prev ?? { lat: myLocation.lat, lng: myLocation.lng });
+    setSearchRadiusKm((prev) => prev ?? 0.7);
+    setHasInitializedViewport(true);
+  }, [myLocation]);
 
   // ===========================
   // 3. /nearby 조회 (검색 기준 중심+반경 기준)
@@ -166,7 +174,6 @@ function PopupNearbyPage() {
   // ===========================
   const handleMarkerClick = useCallback((popupId) => {
     setSelectedPopupId(popupId);
-    setIsSidebarOpen(true);
   }, []);
 
   const handleOpenDetail = useCallback(
@@ -247,25 +254,12 @@ function PopupNearbyPage() {
 
         {/* 본문: 사이드바 + 지도 */}
         <section className="flex gap-4 h-[600px]">
-          {/* 사이드바 (리스트) */}
-          <aside
-            className={`bg-paper rounded-card shadow-card border border-secondary-light transition-all duration-300 overflow-hidden flex flex-col ${
-              isSidebarOpen
-                ? "w-[360px] opacity-100"
-                : "w-0 opacity-0 pointer-events-none"
-            }`}
-          >
+          {/* 사이드바 (항상 열림) */}
+          <aside className="bg-paper rounded-card shadow-card border border-secondary-light overflow-hidden flex flex-col w-[360px] opacity-100">
             <div className="flex items-center justify-between px-4 py-2 border-b border-secondary-light">
               <span className="text-[13px] font-semibold text-text-black">
                 이 지역의 팝업 목록
               </span>
-              <button
-                type="button"
-                onClick={() => setIsSidebarOpen(false)}
-                className="text-[12px] text-text-sub hover:text-text-black"
-              >
-                목록 숨기기
-              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
@@ -300,16 +294,6 @@ function PopupNearbyPage() {
 
           {/* 지도 영역 */}
           <div className="relative flex-1">
-            {!isSidebarOpen && (
-              <button
-                type="button"
-                onClick={() => setIsSidebarOpen(true)}
-                className="absolute left-0 top-4 z-10 bg-paper border border-secondary-light rounded-r-card shadow-card px-3 py-2 text-[12px] text-text-sub hover:text-text-black"
-              >
-                목록 열기
-              </button>
-            )}
-
             <div className="w-full h-full rounded-card overflow-hidden border border-secondary-light bg-secondary-light">
               <KakaoMap
                 center={searchCenter || myLocation || undefined}
@@ -320,7 +304,6 @@ function PopupNearbyPage() {
                 onViewportChange={handleViewportChange}
                 searchCircleCenter={searchCenter}
                 searchCircleRadiusKm={searchRadiusKm}
-                sidebarOpen={isSidebarOpen}
               />
             </div>
 
