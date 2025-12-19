@@ -185,12 +185,13 @@ function PopupNearbyPage() {
               지금 보고 있는 지도 중심 기준 약 {(searchRadiusKm ?? 0.7).toFixed(1)}
               km 반경 안의 팝업을 보여드려요.
             </p>
+
             {locationError && (
-              <p className="text-[12px] text-red-500 mt-1">{locationError}</p>
+              <p className="text-[12px] text-accent-pink mt-1">{locationError}</p>
             )}
           </div>
 
-          <div className="text-[13px] text-text-sub">
+          <div className="text-[13px] text-text-sub" role="status" aria-live="polite">
             {isLocationLoading
               ? "위치 확인 중..."
               : isNearbyLoading
@@ -204,7 +205,7 @@ function PopupNearbyPage() {
         <section className="flex flex-col md:flex-row gap-3 md:gap-4 flex-1 min-h-0">
           {/* 지도 영역 */}
           <div className="order-1 md:order-2 relative w-full flex-none h-[42vh] min-h-[240px] md:h-auto md:flex-1 min-h-0">
-            <div className="w-full h-full rounded-card overflow-hidden border border-secondary-light">
+            <div className="w-full h-full rounded-card overflow-hidden border border-secondary-light bg-paper">
               <KakaoMap
                 center={searchCenter || myLocation || undefined}
                 myLocation={myLocation || undefined}
@@ -220,12 +221,13 @@ function PopupNearbyPage() {
 
             {showRecenterButton && (
               <button
+                type="button"
                 onClick={() => {
                   setSearchCenter(pendingViewport.center);
                   setSearchRadiusKm(pendingViewport.radiusKm);
                   setPendingViewport(null);
                 }}
-                className="absolute left-1/2 -translate-x-1/2 top-4 z-10 bg-paper border px-4 py-2 rounded-full text-[12px] shadow-md hover:bg-gray-50"
+                className="absolute left-1/2 -translate-x-1/2 top-4 z-10 bg-paper text-text-black border border-secondary-light px-4 py-2 rounded-full text-[12px] shadow-card hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
               >
                 이 지역에서 다시 검색
               </button>
@@ -233,8 +235,9 @@ function PopupNearbyPage() {
 
             {myLocation && (
               <button
+                type="button"
                 onClick={handleRecenterToMyPos}
-                className="absolute right-4 bottom-4 z-10 bg-paper border px-3 py-2 rounded-full text-[11px] shadow-md hover:bg-gray-50"
+                className="absolute right-4 bottom-4 z-10 bg-paper text-text-black border border-secondary-light px-3 py-2 rounded-full text-[11px] shadow-card hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
               >
                 내 위치 기준으로 보기
               </button>
@@ -243,7 +246,7 @@ function PopupNearbyPage() {
 
           {/* 목록 영역 */}
           <aside className="order-2 md:order-1 bg-paper rounded-card shadow-card border border-secondary-light overflow-hidden flex flex-col flex-1 min-h-0 w-full md:w-[360px] md:flex-none md:shrink-0">
-            <div className="px-4 py-2 border-b border-secondary-light font-semibold text-[13px]">
+            <div className="px-4 py-2 border-b border-secondary-light font-semibold text-[13px] text-text-black">
               목록
             </div>
 

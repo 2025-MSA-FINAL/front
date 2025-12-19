@@ -1,4 +1,19 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+
+const readTheme = () => {
+  if (typeof document === "undefined") return "light";
+  return document.documentElement.getAttribute("data-theme") || "light";
+};
+
+const readCssVar = (name, fallback) => {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return fallback;
+  }
+  const v = getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+  return v || fallback;
+};
 
 export default function KakaoMap({
   // 주소 기반 모드 (상세 페이지용)
@@ -55,159 +70,187 @@ export default function KakaoMap({
     onOpenDetailRef.current = onOpenDetail;
   }, [onOpenDetail]);
 
+  // ===== Theme 상태 (data-theme 변경 대응) =====
+  const [theme, setTheme] = useState(readTheme);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+
+    const obs = new MutationObserver(() => {
+      setTheme(readTheme());
+    });
+
+    obs.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
+
+  const ui = useMemo(() => {
+    const primary = readCssVar("--color-primary", "#C33DFF");
+    const accentPink = readCssVar("--color-accent-pink", "#FF2A7E");
+    const accentAqua = readCssVar("--color-accent-aqua", "#45DFD3");
+
+    const paper = readCssVar("--color-paper", "#FFFFFF");
+    const paperDark = readCssVar("--color-paper-dark", "#111827");
+    const textSub = readCssVar("--color-text-sub", "#70757A");
+    const textWhite = readCssVar("--color-text-white", "#FFFFFF");
+    const border = readCssVar("--color-secondary-light", "rgba(0,0,0,0.08)");
+
+    return {
+      theme,
+      isHighContrast: theme === "high-contrast",
+      primary,
+      accentPink,
+      accentAqua,
+      paper,
+      paperDark,
+      textSub,
+      textWhite,
+      border,
+    };
+  }, [theme]);
+
+  // 테마가 바뀌면: 마커 이미지 캐시/인포윈도우 정리 (새 토큰 반영)
+  useEffect(() => {
+    popupMarkerImagesRef.current = { normal: null, selected: null };
+    popupInfoWindowRef.current?.close();
+  }, [ui.primary, ui.accentPink, ui.paper, ui.paperDark, ui.border]);
+
   // 스크립트 로드 상태
   const [isKakaoLoaded, setIsKakaoLoaded] = useState(() => {
     if (typeof window === "undefined") return false;
     return !!window.kakao?.maps;
   });
 
-  // ===== 유틸: 팝업 마커 이미지 만들기 =====
-  const getPopupMarkerImage = useCallback((isSelected) => {
-    const kakao = window.kakao;
-    if (!kakao?.maps) return null;
+  // ===== 유틸: 팝업 마커 이미지 만들기 (토큰 기반) =====
+  const getPopupMarkerImage = useCallback(
+    (isSelected) => {
+      const kakao = window.kakao;
+      if (!kakao?.maps) return null;
 
-    const key = isSelected ? "selected" : "normal";
-    if (popupMarkerImagesRef.current[key])
-      return popupMarkerImagesRef.current[key];
+      const key = isSelected ? "selected" : "normal";
+      if (popupMarkerImagesRef.current[key])
+        return popupMarkerImagesRef.current[key];
 
-    const fill = isSelected ? "#7C3AED" : "#FF4E42";
-    const stroke = isSelected ? "#4C1D95" : "#B91C1C";
+      const fill = isSelected ? ui.primary : ui.accentPink;
+      const stroke = ui.paperDark; // 어떤 테마든 바깥선은 '진한' 색으로 고정
 
-    const svg = `
-      <svg width="38" height="44" viewBox="0 0 38 44" xmlns="http://www.w3.org/2000/svg">
-        <path d="M19 1C11.8 1 6 6.8 6 14c0 10.6 13 28.5 13 28.5S32 24.6 32 14C32 6.8 26.2 1 19 1z"
-              fill="${fill}" stroke="${stroke}" stroke-width="1.5" />
-        <circle cx="19" cy="14" r="6.2" fill="#ffffff" opacity="0.95"/>
-        <circle cx="19" cy="14" r="3.2" fill="${stroke}" opacity="0.35"/>
-      </svg>
-    `;
+      const svg = `
+        <svg width="38" height="44" viewBox="0 0 38 44" xmlns="http://www.w3.org/2000/svg">
+          <path d="M19 1C11.8 1 6 6.8 6 14c0 10.6 13 28.5 13 28.5S32 24.6 32 14C32 6.8 26.2 1 19 1z"
+                fill="${fill}" stroke="${stroke}" stroke-width="1.5" />
+          <circle cx="19" cy="14" r="6.2" fill="${ui.paper}" opacity="0.95"/>
+          <circle cx="19" cy="14" r="3.2" fill="${ui.paperDark}" opacity="0.35"/>
+        </svg>
+      `;
 
-    const img = new kakao.maps.MarkerImage(
-      "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
-      new kakao.maps.Size(38, 44),
-      { offset: new kakao.maps.Point(19, 44) }
-    );
+      const img = new kakao.maps.MarkerImage(
+        "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
+        new kakao.maps.Size(38, 44),
+        { offset: new kakao.maps.Point(19, 44) }
+      );
 
-    popupMarkerImagesRef.current[key] = img;
-    return img;
-  }, []);
+      popupMarkerImagesRef.current[key] = img;
+      return img;
+    },
+    [ui.primary, ui.accentPink, ui.paper, ui.paperDark]
+  );
 
   // ===== 유틸: 카드형 인포윈도우 열기(썸네일+제목+버튼) =====
-  const openPopupCard = useCallback(({ title, thumbnail, idRaw }, marker) => {
-    const map = mapRef.current;
-    const iw = popupInfoWindowRef.current;
-    if (!map || !iw || !marker) return;
+  const openPopupCard = useCallback(
+    ({ title, thumbnail, idRaw }, marker) => {
+      const map = mapRef.current;
+      const iw = popupInfoWindowRef.current;
+      if (!map || !iw || !marker) return;
 
-    const card = document.createElement("div");
-    card.style.cssText =
-      "display:flex;gap:10px;align-items:center;" +
-      "padding:10px 10px;" +
-      "border-radius:14px;" +
-      "background:#ffffff;" +
-      "box-shadow:0 8px 22px rgba(0,0,0,0.12);" +
-      "border:1px solid rgba(0,0,0,0.06);" +
-      "min-width:280px;" +     
-      "max-width:320px;" +        
-      "cursor:pointer;" +
-      "user-select:none;";
+      const card = document.createElement("div");
+      card.className =
+        "animate-kakao-pop flex gap-2 items-center p-3 rounded-[16px] bg-paper border border-secondary-light shadow-card " +
+        "shadow-[var(--shadow-dropdown)] min-w-[280px] max-w-[340px] cursor-pointer select-none";
 
-    // 좌측 썸네일
-    const thumbWrap = document.createElement("div");
-    thumbWrap.style.cssText =
-      "width:56px;height:56px;border-radius:12px;overflow:hidden;" +
-      "flex:0 0 56px;background:linear-gradient(135deg,#f3f4f6,#e5e7eb);";
+      // 좌측 썸네일
+      const thumbWrap = document.createElement("div");
+      thumbWrap.className =
+        "w-14 h-14 rounded-[12px] overflow-hidden flex-none bg-secondary-light";
 
-    if (thumbnail) {
-      const img = document.createElement("img");
-      img.style.cssText =
-        "width:100%;height:100%;object-fit:cover;display:block;";
-      img.alt = title ?? "popup";
-      img.src = thumbnail;
-      img.referrerPolicy = "no-referrer";
-      img.onerror = () => {
-        img.remove();
+      if (thumbnail) {
+        const img = document.createElement("img");
+        img.className = "w-full h-full object-cover block";
+        img.alt = title ?? "popup";
+        img.src = thumbnail;
+        img.referrerPolicy = "no-referrer";
+        img.onerror = () => {
+          img.remove();
+          const ph = document.createElement("div");
+          ph.className =
+            "w-full h-full flex items-center justify-center font-black text-[12px] text-text-sub";
+          ph.textContent = "POP";
+          thumbWrap.appendChild(ph);
+        };
+        thumbWrap.appendChild(img);
+      } else {
         const ph = document.createElement("div");
-        ph.style.cssText =
-          "width:100%;height:100%;display:flex;align-items:center;justify-content:center;" +
-          "font-weight:900;color:#6b7280;font-size:12px;";
+        ph.className =
+          "w-full h-full flex items-center justify-center font-black text-[12px] text-text-sub";
         ph.textContent = "POP";
         thumbWrap.appendChild(ph);
+      }
+
+      // 우측 텍스트 + 버튼
+      const right = document.createElement("div");
+      right.className = "flex flex-col gap-2 min-w-0 flex-1";
+
+      const titleEl = document.createElement("div");
+      titleEl.className =
+        "text-[13px] font-extrabold leading-tight text-text-black truncate max-w-[210px]";
+      titleEl.textContent = title ?? "";
+
+      const subRow = document.createElement("div");
+      subRow.className =
+        "flex items-center justify-between gap-2 flex-nowrap min-w-0";
+
+      const hintEl = document.createElement("div");
+      hintEl.className = "text-[11px] text-text-sub whitespace-nowrap";
+      hintEl.textContent = "선택됨";
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className =
+        "px-3 py-1 rounded-full border border-secondary-light text-[11px] font-extrabold " +
+        "whitespace-nowrap flex-shrink-0 leading-none inline-flex items-center justify-center " +
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60";
+      btn.textContent = "자세히 보기";
+
+      // 버튼은 테마별 대비가 중요해서 토큰값을 직접 읽어 컬러 지정
+      btn.style.backgroundColor = ui.primary;
+      btn.style.color = ui.isHighContrast ? ui.paper : ui.textWhite;
+
+      // 버튼 클릭 → 상세로 이동
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (idRaw != null) onOpenDetailRef.current?.(idRaw);
       };
-      thumbWrap.appendChild(img);
-    } else {
-      const ph = document.createElement("div");
-      ph.style.cssText =
-        "width:100%;height:100%;display:flex;align-items:center;justify-content:center;" +
-        "font-weight:900;color:#6b7280;font-size:12px;";
-      ph.textContent = "POP";
-      thumbWrap.appendChild(ph);
-    }
 
-    // 우측 텍스트 + 버튼
-    const right = document.createElement("div");
-    right.style.cssText =
-      "display:flex;flex-direction:column;gap:8px;min-width:0;flex:1;";
+      // 카드 클릭 → 선택 상태 유지(하이라이트/목록 동기화)
+      card.onclick = () => {
+        if (idRaw != null) onMarkerClickRef.current?.(idRaw);
+      };
 
-    const titleEl = document.createElement("div");
-    titleEl.style.cssText =
-      "font-size:13px;font-weight:900;line-height:1.25;" +
-      "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px;";
-    titleEl.textContent = title ?? "";
+      subRow.appendChild(hintEl);
+      subRow.appendChild(btn);
 
-    const subRow = document.createElement("div");
-    subRow.style.cssText =
-      "display:flex;align-items:center;justify-content:space-between;gap:10px;" +
-      "flex-wrap:nowrap;"; 
+      right.appendChild(titleEl);
+      right.appendChild(subRow);
 
-    const hintEl = document.createElement("div");
-    hintEl.style.cssText =
-      "font-size:11px;color:#6b7280;line-height:1.2;white-space:nowrap;";
-    hintEl.textContent = "선택됨";
+      card.appendChild(thumbWrap);
+      card.appendChild(right);
 
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.style.cssText =
-      "padding:6px 10px;" +
-      "border-radius:999px;" +
-      "border:1px solid rgba(0,0,0,0.08);" +
-      "background:#111827;" +
-      "color:#ffffff;" +
-      "font-size:11px;" +
-      "font-weight:800;" +
-      "cursor:pointer;" +
-      "white-space:nowrap;" +      
-      "flex-shrink:0;" +         
-      "line-height:1;" +           
-      "display:inline-flex;" +   
-      "align-items:center;" +       
-      "justify-content:center;";   
-
-    btn.textContent = "자세히 보기";
-
-    // 버튼 클릭 → 상세로 이동
-    btn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (idRaw != null) onOpenDetailRef.current?.(idRaw);
-    };
-
-    // 카드 클릭 → 선택 상태 유지(하이라이트/목록 동기화)
-    card.onclick = () => {
-      if (idRaw != null) onMarkerClickRef.current?.(idRaw);
-    };
-
-    subRow.appendChild(hintEl);
-    subRow.appendChild(btn);
-
-    right.appendChild(titleEl);
-    right.appendChild(subRow);
-
-    card.appendChild(thumbWrap);
-    card.appendChild(right);
-
-    iw.setContent(card);
-    iw.open(map, marker);
-  }, []);
+      iw.setContent(card);
+      iw.open(map, marker);
+    },
+    [ui.primary, ui.paper, ui.isHighContrast, ui.textWhite]
+  );
 
   // 1) 카카오 스크립트 로드
   useEffect(() => {
@@ -356,7 +399,16 @@ export default function KakaoMap({
 
       if (placeName) {
         const content = `
-          <div style="padding:6px 8px; font-size:12px; line-height:1.2;">
+          <div style="
+            padding:6px 8px;
+            font-size:12px;
+            line-height:1.2;
+            border-radius:10px;
+            background:${ui.paper};
+            color:${readCssVar("--color-text-black", "#111827")};
+            border:1px solid ${ui.border};
+            box-shadow:${readCssVar("--shadow-card", "0 2px 8px rgba(0,0,0,0.05)")};
+          ">
             <b>${placeName}</b>
           </div>
         `;
@@ -367,7 +419,7 @@ export default function KakaoMap({
 
       map.setCenter(coords);
     });
-  }, [address, placeName, isKakaoLoaded]);
+  }, [address, placeName, isKakaoLoaded, ui.paper, ui.border]);
 
   // 4) 좌표 기반 모드: center 변경 시 지도 중심 이동
   useEffect(() => {
@@ -411,7 +463,10 @@ export default function KakaoMap({
       marker.setMap(map);
 
       kakao.maps.event.addListener(marker, "click", () => {
-        openPopupCard({ title: m.title, thumbnail: m.thumbnail, idRaw: m.id }, marker);
+        openPopupCard(
+          { title: m.title, thumbnail: m.thumbnail, idRaw: m.id },
+          marker
+        );
         onMarkerClickRef.current?.(m.id);
       });
 
@@ -425,7 +480,7 @@ export default function KakaoMap({
     });
   }, [markers, address, isKakaoLoaded, getPopupMarkerImage, openPopupCard]);
 
-  // 6) 내 위치 마커 표시
+  // 6) 내 위치 마커 표시 (토큰 기반)
   useEffect(() => {
     if (!isKakaoLoaded) return;
     if (!mapRef.current) return;
@@ -442,10 +497,11 @@ export default function KakaoMap({
 
     const MY_MARKER_SVG = `
       <svg width="26" height="26" viewBox="0 0 26 26" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="13" cy="13" r="11" fill="#3b82f6" opacity="0.85"/>
-        <circle cx="13" cy="13" r="5" fill="#ffffff"/>
+        <circle cx="13" cy="13" r="11" fill="${ui.accentAqua}" opacity="0.85"/>
+        <circle cx="13" cy="13" r="5" fill="${ui.paper}"/>
       </svg>
     `;
+
     const myImage = new kakao.maps.MarkerImage(
       "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(MY_MARKER_SVG),
       new kakao.maps.Size(26, 26),
@@ -457,11 +513,12 @@ export default function KakaoMap({
       image: myImage,
       zIndex: 3,
     });
+
     marker.setMap(map);
     myMarkerRef.current = marker;
-  }, [myLocation, isKakaoLoaded]);
+  }, [myLocation, isKakaoLoaded, ui.accentAqua, ui.paper]);
 
-  // 7) 검색 원(반경) 표시
+  // 7) 검색 원(반경) 표시 (토큰 기반)
   useEffect(() => {
     if (!isKakaoLoaded) return;
     if (!mapRef.current) return;
@@ -481,11 +538,11 @@ export default function KakaoMap({
       center: new kakao.maps.LatLng(searchCircleCenter.lat, searchCircleCenter.lng),
       radius: searchCircleRadiusKm * 1000,
       strokeWeight: 2,
-      strokeColor: "#2563eb",
-      strokeOpacity: 0.9,
+      strokeColor: ui.primary,
+      strokeOpacity: ui.isHighContrast ? 1 : 0.9,
       strokeStyle: "solid",
-      fillColor: "#60a5fa",
-      fillOpacity: 0.15,
+      fillColor: ui.primary,
+      fillOpacity: ui.isHighContrast ? 0.08 : 0.15,
       zIndex: 1,
     });
 
@@ -498,7 +555,14 @@ export default function KakaoMap({
         circleRef.current = null;
       }
     };
-  }, [searchCircleCenter, searchCircleRadiusKm, isKakaoLoaded, address]);
+  }, [
+    searchCircleCenter,
+    searchCircleRadiusKm,
+    isKakaoLoaded,
+    address,
+    ui.primary,
+    ui.isHighContrast,
+  ]);
 
   // 8) 선택된 팝업 id 변경 시: pan + 카드 표시 + 선택 마커 강조
   useEffect(() => {
@@ -529,12 +593,20 @@ export default function KakaoMap({
       { title: target.title, thumbnail: target.thumbnail, idRaw: target.idRaw },
       target.marker
     );
-  }, [selectedPopupId, markers, isKakaoLoaded, address, getPopupMarkerImage, openPopupCard]);
+  }, [
+    selectedPopupId,
+    markers,
+    isKakaoLoaded,
+    address,
+    getPopupMarkerImage,
+    openPopupCard,
+  ]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-full rounded-card border border-secondary-light shadow-card"
+      className="w-full h-full rounded-card border border-secondary-light shadow-card bg-paper"
+      aria-label="카카오 지도"
     />
   );
 }
