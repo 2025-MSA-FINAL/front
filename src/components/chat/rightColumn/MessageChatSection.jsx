@@ -295,9 +295,9 @@ export default function MessageChatSection() {
             nickName: p.nickName ?? p.nickname ?? "",
             photoUrl: p.photoUrl ?? p.photo ?? "",
             lastReadMessageId: p.lastReadMessageId ?? 0,
-            isOwner: !!p.isOwner,
-            isMe: Number(p.userId) === Number(currentUserId),
+            isOwner: Number(p.userId) === Number(activeRoom?.ownerId),
             online: p.online ?? true,
+            isMe: Number(p.userId) === Number(currentUserId),
           };
 
           store.addParticipant({ roomType, roomId, participant: normalized });
@@ -516,6 +516,12 @@ export default function MessageChatSection() {
 
       setMessages(formattedMessages);
 
+      const normalizedParticipants = (participants ?? []).map((p) => ({
+        ...p,
+        isMe: Number(p.userId) === Number(currentUserId),
+        isOwner: Number(p.userId) === Number(activeRoom?.ownerId),
+      }));
+
       // 여기까지읽음 위치 계산 (입장 시 1회)
       // ✅ 입장 기준 읽음 고정 + divider index 계산은 store가 함
       const idx = initRoomReadState({
@@ -524,7 +530,7 @@ export default function MessageChatSection() {
         entryReadMessageId: lastReadMessageId ?? 0, // 🔒 여기까지읽음 기준
         myLastReadMessageId: lastReadMessageId ?? 0, // 내 실시간 읽음 초기값
         otherLastReadMessageId: otherLastReadMessageId ?? 0, // 상대 실시간 읽음 초기값
-        participants: participants ?? [],
+        participants: normalizedParticipants,
         formattedMessages,
         currentUserId,
       });
