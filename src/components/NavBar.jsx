@@ -118,6 +118,14 @@ export default function Navbar() {
                 <Link
                   key={item}
                   to={path}
+                  onClick={(e) => {
+                    if (item === "CHAT" && !isLoggedIn) {
+                      e.preventDefault();
+                      alert("로그인 후 이용할 수 있습니다.");
+                      navigate("/login");
+                      return;
+                    }
+                  }}
                   className="
                     relative
                     text-title-md font-normal text-text-black
@@ -561,7 +569,16 @@ export default function Navbar() {
                 key={item}
                 to={path}
                 className="text-title-md font-medium text-text-sub hover:text-primary py-2 border-b border-secondary-light"
-                onClick={() => setIsMenuOpen(false)}
+                onClick={(e) => {
+                  if (item === "CHAT" && !isLoggedIn) {
+                    e.preventDefault();
+                    alert("로그인 후 이용할 수 있습니다.");
+                    navigate("/login");
+                    setIsMenuOpen(false);
+                    return;
+                  }
+                  setIsMenuOpen(false);
+                }}
               >
                 {item}
               </Link>
