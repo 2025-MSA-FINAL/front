@@ -140,7 +140,9 @@ export default function GroupChatRoomListSection() {
                 hover:border-primary-light
               "
               onClick={async () => {
+                const { clearSelectedGroupRoom } = useChatPopupStore.getState();
                 if (room.joined) {
+                  clearSelectedGroupRoom();
                   const detail = await fetchRoomDetail(room.gcrId);
                   selectRoom(detail);
                   return;

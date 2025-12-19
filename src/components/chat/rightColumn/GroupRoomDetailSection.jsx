@@ -18,22 +18,19 @@ export default function GroupRoomDetailSection({ room }) {
   };
 
   return (
-    <div
-      className="w-full h-full flex flex-col justify-center items-center text-center overflow-y-auto px-4 lg:px-10
-  gap-3"
-    >
+    <div className="w-full h-full flex flex-col justify-center items-center text-center overflow-y-auto px-4 md:px-6 lg:px-10 gap-4 md:gap-6">
       {/* 타이틀 */}
-      <h1 className="text-[36px] font-extrabold text-white drop-shadow-xl mb-5 tracking-tight">
+      <h1 className="text-[26px] md:text-[32px] lg:text-[36px] font-extrabold text-white drop-shadow-xl mb-5 tracking-tight">
         {room.title}
       </h1>
 
       {/* 설명 */}
-      <p className="text-white/80 text-[17px] max-w-[700px] leading-relaxed mb-14">
+      <p className="text-white/80 max-w-[700px] leading-relaxed text-[14px] md:text-[16px] mb-8 md:mb-14">
         {room.description}
       </p>
 
       {/* 카드들 */}
-      <div className="flex gap-10 mb-16 flex-wrap justify-center text-white">
+      <div className="flex gap-4 md:gap-8 mb-10 md:mb-16 flex-wrap justify-center text-white">
         {/* 카드 공통 클래스 */}
         {[
           {
@@ -65,7 +62,7 @@ export default function GroupRoomDetailSection({ room }) {
           <div
             key={idx}
             className="
-              min-w-[210px] px-7 py-6
+              min-w-[160px] md:min-w-[200px] px-5 md:px-7 py-4 md:py-6
               bg-white/12 backdrop-blur-2xl
               border border-white/20 rounded-2xl 
               shadow-[0_4px_24px_rgba(0,0,0,0.25)]
@@ -75,7 +72,7 @@ export default function GroupRoomDetailSection({ room }) {
           >
             {item.icon}
             <span className="text-sm">{item.label}</span>
-            <p className="text-[22px] font-extrabold tracking-wide">
+            <p className="text-[18px] md:text-[22px] font-extrabold tracking-wide">
               {item.value}
             </p>
           </div>
@@ -86,7 +83,7 @@ export default function GroupRoomDetailSection({ room }) {
       <button
         onClick={handleJoin}
         className="
-    w-[230px] py-4 rounded-full font-bold
+    w-full max-w-[260px] py-3 md:py-4 rounded-full font-bold
     text-white backdrop-blur-xl
     bg-white/20 border border-white/30
     shadow-[0_4px_20px_rgba(180,140,255,0.25)]

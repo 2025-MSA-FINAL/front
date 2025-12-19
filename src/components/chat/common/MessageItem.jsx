@@ -140,7 +140,7 @@ const ImageGrid = ({
   const rows = buildRows(urls);
 
   return (
-    <div className="flex flex-col gap-0.5 max-w-[420px]">
+    <div className="flex flex-col gap-0.5 max-w-[260px] sm:max-w-[340px] md:max-w-[420px]">
       {rows.map((row, rowIdx) => {
         const cols =
           row.length === 1
@@ -186,7 +186,7 @@ const ImageBubble = ({
       onLoad={onLoad}
       alt="chat-image"
       className={`
-        max-w-[420px] w-full h-auto rounded-2xl object-cover aspect-square transition
+        max-w-full w-full h-auto rounded-2xl object-cover aspect-square transition
         ${pending ? "blur-sm opacity-80" : ""}
         ${failed ? "opacity-70" : "cursor-pointer"}
       `}
@@ -449,19 +449,19 @@ export default function MessageItem({
             onClick={() =>
               !isDeletedUser && onOpenUserPopover(msg.senderId, avatarRef)
             }
-            className={`w-10 h-10 rounded-full object-cover ${
+            className={`w-8 h-8 md:w-10 md:h-10 rounded-full object-cover ${
               isDeletedUser ? "cursor-not-allowed opacity-60" : "cursor-pointer"
             } ${isGroupWithPrev ? "invisible" : ""}`}
           />
 
           <div className="flex flex-col ml-2 items-start">
             {!isGroupWithPrev && (
-              <span className="text-white font-semibold text-[15px] ml-1">
+              <span className="text-white font-semibold text-sm md:text-[15px] ml-1">
                 {computedNickname}
               </span>
             )}
 
-            <div className="flex items-end gap-2 mt-1">
+            <div className="flex items-end gap-2 mt-1 text-sm md:text-base">
               {/* 말풍선 */}
               {/* ========================================================= */}
               {/* 팝업 메시지인지 일반 텍스트인지 구분하여 렌더링 */}
@@ -476,8 +476,8 @@ export default function MessageItem({
               ) : (
                 <div
                   className={`relative rounded-2xl whitespace-pre-wrap break-words 
-                  bg-white/20 text-white max-w-[500px] overflow-hidden  cursor-pointer
-                  ${isImage ? "" : "px-4 py-2"}
+                  bg-white/20 text-white max-w-[260px] sm:max-w-[340px] md:max-w-[500px] overflow-hidden  cursor-pointer
+                  ${isImage ? "" : "px-3 py-1.5 md:px-4 md:py-2"}
                   ${msg.isPending ? "opacity-50" : ""}
                   ${bubbleAnimationClass}
                 `}
@@ -520,14 +520,14 @@ export default function MessageItem({
               <div className="flex flex-col">
                 {/* ✅ 읽음 숫자 표시 (카톡 방식) */}
                 {!isAiMessage && unread > 0 && (
-                  <span className="text-[11px] text-accent-lemon">
+                  <span className="text-[10px] md:text-[11px] text-accent-lemon">
                     {unread}
                   </span>
                 )}
 
                 {/* 시간 (기존 위치 유지) */}
                 {showTime && (
-                  <span className="text-white/50 text-xs shrink-0">
+                  <span className="text-white/50 text-[10px] md:text-xs shrink-0">
                     {msg.createdAt}
                   </span>
                 )}
@@ -545,13 +545,13 @@ export default function MessageItem({
               <div className="flex flex-col items-end">
                 {/* ✅ 읽음 숫자 표시 (카톡 방식) */}
                 {!isAiMessage && unread > 0 && (
-                  <span className="text-[11px] text-accent-lemon">
+                  <span className="text-[10px] md:text-[11px] text-accent-lemon">
                     {unread}
                   </span>
                 )}
                 {/* 시간 (기존 위치 유지) */}
                 {showTime && (
-                  <span className="text-white/50 text-xs shrink-0">
+                  <span className="text-white/50 text-[10px] md:text-xs shrink-0">
                     {msg.createdAt}
                   </span>
                 )}
