@@ -37,53 +37,83 @@ export default function ChatMainPage() {
     debouncedSearch(keyword);
   }, [keyword]);
 
-  console.log("[ChatMainPage] activeChatRoom >>>", activeChatRoom);
   return (
-    <div className="w-full h-screen bg-primary-dark flex p-5 gap-5">
-      {/* LEFT COLUMN */}
-      <div className="w-[5%] min-w-[140px] h-full flex flex-col items-center">
-        {/* 상단 로고 */}
+    <div
+      className="
+      w-full h-dvh
+      bg-primary-dark
+      flex flex-col lg:flex-row
+      p-3 lg:p-5 gap-3 lg:gap-5
+      "
+    >
+      {/* LEFT COLUMN — 모바일 숨김 */}
+      <div
+        className="
+          hidden lg:flex
+          w-[5%] min-w-[140px]
+          h-full flex-col items-center
+        "
+      >
         <div className="h-[60px] flex items-center">
           <img
             src={logo}
             alt="Popspot Logo"
-            className="w-[100px] md:w-[120px] h-[33px] object-contain cursor-pointer"
+            className="w-[100px] xl:w-[120px] h-[33px] object-contain cursor-pointer"
             onClick={() => (window.location.href = "/")}
           />
         </div>
 
-        {/* 채팅방 목록 */}
         <div className="flex-1 min-h-0 w-full flex justify-center mt-4">
           <MyChatRoomSection />
         </div>
       </div>
 
       {/* MIDDLE COLUMN */}
-      <div className="w-[20%] min-w-[260px] h-full flex flex-col">
-        {/* Search Bar */}
+      <div
+        className="
+          w-full lg:w-[20%]
+          min-w-0 lg:min-w-[260px]
+          h-full flex flex-col
+        "
+      >
         <div className="h-[60px] flex items-center">
           <ChatSearchBar
             keyword={keyword}
             setKeyword={setKeyword}
-            onSearch={() => debouncedSearch(keyword)} // 버튼 눌러도 검색되게
+            onSearch={() => debouncedSearch(keyword)}
           />
         </div>
 
-        {/* 팝업 리스트 or 그룹채팅방 리스트 */}
-        <div className="flex-1 min-h-0 w-full mt-4 ">
+        <div className="flex-1 min-h-0 w-full mt-3">
           {selectedPopup ? <GroupChatRoomListSection /> : <PopupRoomSection />}
         </div>
       </div>
 
       {/* RIGHT COLUMN */}
-      <div className="w-[75%] min-w-[500px] h-full flex flex-col">
-        {/* User Info */}
-        <div className="h-[60px] flex items-center justify-end mt-4">
+      <div
+        className={`
+          w-full lg:w-[75%]
+          min-w-0 lg:min-w-[500px]
+            min-h-0 flex flex-col
+          ${
+            activeChatRoom || selectedGroupRoom || createMode
+              ? "flex"
+              : "hidden lg:flex"
+          }
+        `}
+      >
+        <div className="h-[60px] shrink-0 flex items-center justify-end mt-2 lg:mt-4">
           <ChatUserInfo />
         </div>
 
-        {/* 채팅창 */}
-        <div className="flex-1 min-h-0 w-full shadow-card rounded-2xl bg-white/10 backdrop-blur-xl border border-primary-light">
+        <div
+          className="
+          flex-1 min-h-0 w-full
+          shadow-card rounded-2xl
+          bg-white/10 backdrop-blur-xl
+          border border-primary-light overflow-hidden
+          "
+        >
           {createMode ? (
             <GroupRoomCreateForm />
           ) : activeChatRoom ? (

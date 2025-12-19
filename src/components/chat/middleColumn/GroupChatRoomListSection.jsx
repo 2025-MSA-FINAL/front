@@ -28,13 +28,14 @@ export default function GroupChatRoomListSection() {
   return (
     <section
       className="
-        w-full h-full
-        bg-primary-soft2
-        rounded-[24px]
-        p-4 flex flex-col
-        border border-primary-soft
-        shadow-[0_2px_8px_rgba(0,0,0,0.06)]
-      "
+    w-full min-h-full
+    bg-primary-soft2
+    rounded-[24px]
+    p-3 lg:p-4
+    flex flex-col
+    border border-primary-soft
+    shadow-[0_2px_8px_rgba(0,0,0,0.06)]
+  "
     >
       {/* HEADER */}
       <div className="flex items-center justify-between mb-4 w-full overflow-hidden">
@@ -125,7 +126,7 @@ export default function GroupChatRoomListSection() {
               key={room.gcrId}
               className="
                 group relative w-full
-                rounded-2xl px-4 py-4
+                rounded-2xl px-3 lg:px-4 py-3 lg:py-4
                 flex items-center justify-between
                 cursor-pointer
                 transition-all duration-200 ease-out

@@ -22,9 +22,12 @@ export default function ReportForm({ onSubmit }) {
         <label className="text-sm text-text-sub">카테고리</label>
         <select
           className="
-            mt-2 w-full p-3 rounded-card bg-secondary-light 
-            border border-secondary custom-select
-            focus:outline-none focus:border-primary
+                mt-2 w-full
+            h-32 lg:h-40
+            border-2 border-dashed border-secondary-dark/40
+            rounded-card flex items-center justify-center
+            text-secondary-dark
+            bg-secondary-light/50
           "
           value={category}
           onChange={(e) => setCategory(e.target.value)}
@@ -59,7 +62,7 @@ export default function ReportForm({ onSubmit }) {
 
         {/* 선택 이미지 preview */}
         {files.length > 0 && (
-          <div className="grid grid-cols-5 gap-2 mt-3">
+          <div className="grid grid-cols-3 lg:grid-cols-5 gap-2 mt-3">
             {files.map((file, idx) => (
               <img
                 key={idx}
