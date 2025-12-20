@@ -2,13 +2,15 @@ import React, { useState } from "react";
 import ReportIcon from "../icons/ReportIcon";
 
 export default function ReportForm({ onSubmit }) {
-  const [category, setCategory] = useState("욕설/비방");
+  const [categoryId, setCategoryId] = useState(1);
   const [files, setFiles] = useState([]);
 
   const handleFile = (e) => {
-    const arr = Array.from(e.target.files);
+    const arr = Array.from(e.target.files || []);
     setFiles(arr.slice(0, 10));
   };
+
+  const canSubmit = files.length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -18,68 +20,46 @@ export default function ReportForm({ onSubmit }) {
       </h2>
 
       {/* 카테고리 */}
-      <div>
-        <label className="text-sm text-text-sub">카테고리</label>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm text-gray-600">신고 사유</label>
         <select
-          className="
-                mt-2 w-full
-            h-32 lg:h-40
-            border-2 border-dashed border-secondary-dark/40
-            rounded-card flex items-center justify-center
-            text-secondary-dark
-            bg-secondary-light/50
-          "
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          value={categoryId}
+          onChange={(e) => setCategoryId(Number(e.target.value))}
+          className="rounded-lg border px-3 py-2"
         >
-          <option>욕설/비방</option>
-          <option>스팸/광고</option>
-          <option>개인정보 침해</option>
-          <option>지적 재산 침해</option>
-          <option>부적절한 콘텐츠</option>
+          <option value={1}>욕설/비방</option>
+          <option value={2}>스팸/광고</option>
+          <option value={3}>개인정보 침해</option>
+          <option value={4}>지적 재산 침해</option>
+          <option value={5}>부적절한 콘텐츠</option>
         </select>
       </div>
 
-      {/* 이미지 업로드 */}
-      <div>
-        <label className="text-sm text-text-sub">증거 이미지</label>
+      {/* 이미지 */}
+      <div className="flex flex-col gap-2">
+        <label className="text-sm text-gray-600">
+          증거 이미지
+          <span className="ml-1 text-xs text-red-500">(1장 이상 필수)</span>
+        </label>
 
-        <div
-          className="
-            mt-2 w-full h-40 border-2 border-dashed border-secondary-dark/40
-            rounded-card flex items-center justify-center text-secondary-dark
-            bg-secondary-light/50
-          "
-        >
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handleFile}
-            className="cursor-pointer"
-          />
-        </div>
+        <input type="file" multiple accept="image/*" onChange={handleFile} />
 
-        {/* 선택 이미지 preview */}
-        {files.length > 0 && (
-          <div className="grid grid-cols-3 lg:grid-cols-5 gap-2 mt-3">
-            {files.map((file, idx) => (
-              <img
-                key={idx}
-                src={URL.createObjectURL(file)}
-                className="rounded-card w-full h-20 object-cover border border-secondary"
-              />
-            ))}
-          </div>
-        )}
+        <span className="text-xs text-gray-400">
+          최대 10장까지 첨부할 수 있어요.
+        </span>
       </div>
 
       <button
-        onClick={() => onSubmit({ category, files })}
-        className="
-          mt-3 w-full py-3 rounded-btn bg-primary 
-          text-white font-semibold hover:bg-primary-dark transition
-        "
+        disabled={!canSubmit}
+        onClick={() => onSubmit({ categoryId, files })}
+        className={`
+          py-3 rounded-btn font-semibold transition
+          ${
+            canSubmit
+              ? "bg-primary text-white hover:bg-primary-dark"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }
+        `}
       >
         신고하기
       </button>
