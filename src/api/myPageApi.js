@@ -96,3 +96,10 @@ export async function verifyPhoneCodeApi(payload) {
   const res = await apiClient.post("/api/auth/phone/verify", payload);
   return res.data; // true / false
 }
+
+// ✅ 예약 취소 (마이페이지에서 사용)
+export async function cancelReservationApi(reservationId) {
+  if (!reservationId) throw new Error("reservationId가 없습니다.");
+  const res = await apiClient.delete(`/api/reservations/${reservationId}`);
+  return res.data; // { cancelled: true, reservationId }
+}
