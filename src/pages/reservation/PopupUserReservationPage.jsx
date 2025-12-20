@@ -256,9 +256,24 @@ export default function PopupUserReservationPage() {
         setCalendar(calendarRes);
 
         if (calendarRes?.availableDates?.length > 0) {
-          const first = new Date(calendarRes.availableDates[0]);
-          setSelectedDate(first);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          const firstAvailableFromToday = calendarRes.availableDates
+            .map((d) => new Date(d))
+            .find((d) => {
+              const t = new Date(d);
+              t.setHours(0, 0, 0, 0);
+              return t.getTime() >= today.getTime();
+            });
+
+          if (firstAvailableFromToday) {
+            setSelectedDate(firstAvailableFromToday);
+          } else {
+            setSelectedDate(null); // 전부 과거면 선택 안 함
+          }
         }
+
       } catch {
         if (!cancelled) {
           setError("예약 정보를 불러오는 중 오류가 발생했습니다.");
