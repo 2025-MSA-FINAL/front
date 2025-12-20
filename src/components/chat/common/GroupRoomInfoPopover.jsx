@@ -11,6 +11,7 @@ export default function GroupRoomInfoPopover({
   anchorRef,
   open,
   onClose,
+  openReportModal,
 }) {
   const popRef = useRef(null);
 
@@ -52,6 +53,12 @@ export default function GroupRoomInfoPopover({
     >
       {/* 신고 버튼 */}
       <button
+        onClick={() => {
+          openReportModal({
+            reportType: "CHAT",
+            targetId: room.gcrId,
+          });
+        }}
         className="
           absolute left-5 top-4 
           w-8 h-8 rounded-full 
