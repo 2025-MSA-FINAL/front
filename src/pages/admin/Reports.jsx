@@ -7,9 +7,11 @@ export default function Reports() {
   const navigate = useNavigate();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState(null);
   const [keyword, setKeyword] = useState("");
   const [debouncedKeyword, setDebouncedKeyword] = useState("");
+  const [searchType, setSearchType] = useState("all");  // 검색 타입 추가
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterType, setFilterType] = useState("all");
@@ -42,18 +44,24 @@ export default function Reports() {
     { id: 12, name: "불쾌한 표현(기타신고)" },
   ];
 
+  // 통계는 최초 로드시에만
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  // 검색어 디바운스
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedKeyword(keyword);
       setCurrentPage(1);
-    }, 500);
+    }, 400);
     return () => clearTimeout(timer);
   }, [keyword]);
 
+  // 필터/페이지/검색어 변경 시 데이터 로드
   useEffect(() => {
-    fetchStats();
     fetchReports();
-  }, [filterStatus, filterCategory, filterType, sortBy, sortDir, currentPage, debouncedKeyword]);
+  }, [filterStatus, filterCategory, filterType, sortBy, sortDir, currentPage, debouncedKeyword, searchType]);
 
   const fetchStats = async () => {
     try {
@@ -82,9 +90,13 @@ export default function Reports() {
         sortBy: sortBy,
         sortDir: sortDir.toUpperCase(),
       };
-      if (debouncedKeyword.trim()) params.keyword = debouncedKeyword.trim();
+      if (debouncedKeyword.trim()) {
+        params.keyword = debouncedKeyword.trim();
+        params.searchType = searchType;  // searchType 추가
+      }
       if (filterStatus) params.status = filterStatus;
       if (filterCategory) params.categoryId = filterCategory;
+      
       const response = await axiosInstance.get("/api/admin/reports", { params });
       setReports(response.data.content || []);
       setTotalPages(response.data.totalPages || 1);
@@ -93,8 +105,11 @@ export default function Reports() {
       console.error("Error fetching reports:", err);
       setError("신고 목록을 불러오는데 실패했습니다.");
       setReports([]);
+      setTotalPages(1);
+      setTotalElements(0);
     } finally {
       setLoading(false);
+      setIsInitialLoading(false);
     }
   };
 
@@ -116,14 +131,11 @@ export default function Reports() {
     navigate(`/admin/reports/${repId}`);
   };
 
-  const handleSearch = () => {
-    setDebouncedKeyword(keyword);
-    setCurrentPage(1);
-  };
-
   const handlePageChange = (page) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (page > 0 && page <= totalPages) {
+      setCurrentPage(page);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const getDisplayStatus = (status) => {
@@ -131,23 +143,11 @@ export default function Reports() {
     return status;
   };
 
-  if (loading) {
+  // 초기 로딩 UI
+  if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center h-[70vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#C33DFF]"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-[70vh]">
-        <div className="text-center">
-          <div className="text-[#FF2A7E] text-xl mb-4">{error}</div>
-          <button onClick={fetchReports} className="px-6 py-2 bg-gradient-to-r from-[#C33DFF] to-[#7E00CC] text-white rounded-xl">
-            다시 시도
-          </button>
-        </div>
       </div>
     );
   }
@@ -158,64 +158,134 @@ export default function Reports() {
     <div className="space-y-8">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-[#242424]">신고 관리</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-[#242424]">신고 관리</h1>
           <p className="text-sm text-[#70757A]">신고 내역 확인 및 처리</p>
         </div>
       </div>
 
+      {/* 통계 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard title="전체 신고" value={stats.total} icon={<FileText className="w-6 h-6 text-white" />} gradient="from-[#C33DFF] to-[#7E00CC]" />
-        <StatCard title="대기 중" value={stats.pending} icon={<Clock className="w-6 h-6 text-white" />} gradient="from-[#FFC92D] to-[#FF2A7E]" />
-        <StatCard title="승인됨" value={stats.approved} icon={<CheckCircle className="w-6 h-6 text-white" />} gradient="from-[#45CFD3] to-[#C33DFF]" />
-        <StatCard title="반려됨" value={stats.rejected} icon={<XCircle className="w-6 h-6 text-white" />} gradient="from-[#FF2A7E] to-[#FFC92D]" />
+        <StatCard 
+          title="전체 신고" 
+          value={stats.total} 
+          icon={<AlertTriangle className="w-6 h-6 text-white" />} 
+          gradient="from-[#C33DFF] to-[#7E00CC]" 
+        />
+        <StatCard 
+          title="대기중" 
+          value={stats.pending} 
+          icon={<Clock className="w-6 h-6 text-white" />} 
+          gradient="from-[#FFC92D] to-[#FF2A7E]" 
+        />
+        <StatCard 
+          title="승인" 
+          value={stats.approved} 
+          icon={<CheckCircle className="w-6 h-6 text-white" />} 
+          gradient="from-[#45CFD3] to-[#C33DFF]" 
+        />
+        <StatCard 
+          title="반려" 
+          value={stats.rejected} 
+          icon={<XCircle className="w-6 h-6 text-white" />} 
+          gradient="from-[#FF2A7E] to-[#FFC92D]" 
+        />
       </div>
 
-      <div className="bg-white rounded-2xl shadow-xl p-6">
+      {/* 검색 & 필터 */}
+      <div className="bg-white rounded-2xl shadow-xl px-6 py-6">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="md:col-span-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 w-5 h-5 text-[#70757A]" />
-              <input
-                type="text"
-                placeholder="검색어를 입력하세요..."
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                className="w-full pl-10 pr-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
-              />
-            </div>
+          {/* 검색 타입 선택 */}
+          <select
+            value={searchType}
+            onChange={(e) => {
+              setSearchType(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-4 py-3 border border-[#DDDFE2] rounded-xl 
+                     focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
+          >
+            <option value="all">전체 검색</option>
+            <option value="reporterName">신고자명</option>
+            <option value="reporterNickname">신고자 닉네임</option>
+            <option value="targetName">신고 대상</option>
+            <option value="categoryName">카테고리명</option>
+          </select>
+
+          {/* 검색어 입력 */}
+          <div className="relative">
+            <Search className="absolute left-3 top-3 w-5 h-5 text-[#70757A]" />
+            <input
+              type="text"
+              placeholder={
+                searchType === "all" ? "전체 검색..." :
+                searchType === "reporterName" ? "신고자명 검색..." :
+                searchType === "reporterNickname" ? "신고자 닉네임 검색..." :
+                searchType === "targetName" ? "신고 대상 검색..." :
+                "카테고리명 검색..."
+              }
+              value={keyword}
+              onChange={(e) => {
+                setKeyword(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-10 pr-4 py-3 border border-[#DDDFE2] rounded-xl 
+                       focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
+            />
           </div>
-          <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-            className="px-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent">
+
+          {/* 상태 필터 */}
+          <select
+            value={filterStatus}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-4 py-3 border border-[#DDDFE2] rounded-xl 
+                     focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
+          >
             <option value="">전체 상태</option>
-            <option value="pending">대기 중</option>
-            <option value="approved">승인됨</option>
-            <option value="rejected">반려됨</option>
+            <option value="pending">대기</option>
+            <option value="approved">승인</option>
+            <option value="rejected">반려</option>
           </select>
-          <select value={filterCategory} onChange={(e) => { setFilterCategory(e.target.value); setCurrentPage(1); }}
-            className="px-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent">
+
+          {/* 카테고리 필터 */}
+          <select
+            value={filterCategory}
+            onChange={(e) => {
+              setFilterCategory(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-4 py-3 border border-[#DDDFE2] rounded-xl 
+                     focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
+          >
             <option value="">전체 카테고리</option>
-            {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
           </select>
-          <select value={filterType} onChange={(e) => { setFilterType(e.target.value); setCurrentPage(1); }}
-            className="px-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent">
+
+          {/* 타입 필터 */}
+          <select
+            value={filterType}
+            onChange={(e) => {
+              setFilterType(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-4 py-3 border border-[#DDDFE2] rounded-xl 
+                     focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
+          >
             <option value="all">전체 타입</option>
             <option value="popup">팝업</option>
             <option value="user">유저</option>
             <option value="chat">채팅</option>
           </select>
-          <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
-            className="px-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent">
-            <option value="createdAt">신고일 순</option>
-            <option value="repStatus">상태 순</option>
-            <option value="repType">타입 순</option>
-          </select>
         </div>
-        <button onClick={handleSearch} className="mt-4 px-6 py-2 bg-gradient-to-r from-[#C33DFF] to-[#7E00CC] text-white rounded-xl hover:shadow-lg transition-all">
-          검색
-        </button>
       </div>
 
+      {/* 테이블 */}
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full">
@@ -232,18 +302,52 @@ export default function Reports() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F0F1F3]">
-              {filteredReports.length === 0 ? (
-                <tr><td colSpan="8" className="px-6 py-12 text-center text-[#70757A]">신고가 없습니다.</td></tr>
+              {loading ? (
+                <tr>
+                  <td colSpan="8" className="px-6 py-12 text-center text-[#70757A]">
+                    불러오는 중...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan="8" className="px-6 py-12 text-center">
+                    <div className="text-[#FF2A7E] mb-4">{error}</div>
+                    <button 
+                      onClick={fetchReports} 
+                      className="px-6 py-2 bg-gradient-to-r from-[#C33DFF] to-[#7E00CC] text-white rounded-xl hover:shadow-lg transition-all"
+                    >
+                      다시 시도
+                    </button>
+                  </td>
+                </tr>
+              ) : filteredReports.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="px-6 py-12 text-center text-[#70757A]">
+                    신고가 없습니다.
+                  </td>
+                </tr>
               ) : (
                 filteredReports.map((report) => {
                   const displayStatus = getDisplayStatus(report.repStatus);
                   return (
-                    <tr key={report.repId} className="hover:bg-[#F8F8F9] transition-colors">
-                      <td className="px-6 py-3 ">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-[#C33DFF] to-[#7E00CC] text-white font-bold text-sm">
-                          {report.repId}
-                        </div>
-                      </td>
+                    <tr key={report.repId} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 text-center group">
+                      <span
+                        onClick={() => {
+                          navigator.clipboard.writeText(report.repId);
+                        }}
+                        title="클릭하여 ID 복사"
+                        className="
+                          cursor-pointer
+                          text-xs
+                          text-gray-500
+                          group-hover:text-gray-700
+                          transition-colors
+                          font-mono"
+                      >
+                        {report.repId}
+                      </span>
+                    </td>
                       <td className="px-6 py-3">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
                           report.repType === "popup" ? "bg-gradient-to-r from-[#C33DFF]/20 to-[#7E00CC]/20 text-[#7E00CC]" :
@@ -273,11 +377,10 @@ export default function Reports() {
                       </td>
                       <td className="px-6 py-3">
                         <div className="flex items-center gap-2">
-                          <AlertTriangle className="w-4 h-4 text-[#FF2A7E]" />
                           <span className="text-sm text-[#242424] font-medium">{report.categoryName}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-3 ">
+                      <td className="px-6 py-3">
                         <div className="flex flex-col leading-tight">
                           <span className="text-sm text-[#242424] font-medium">{report.reporterName}</span>
                           <span className="text-xs text-[#70757A]">@{report.userNickname}</span>
@@ -292,25 +395,38 @@ export default function Reports() {
                           {displayStatus === "pending" ? "대기" : displayStatus === "approved" ? "승인" : "반려"}
                         </span>
                       </td>
-                      <td className="px-6 py-3 text-sm text-[#70757A]">{report.createdAt}</td>
+                      <td className="px-6 py-3 text-sm text-[#70757A] whitespace-nowrap">{report.createdAt}</td>
                       <td className="px-6 py-3">
                         <div className="flex gap-2">
                           {displayStatus === "pending" && (
                             <>
-                              <button onClick={() => handleStatusChange(report.repId, "approved")}
-                                className="p-2 bg-gradient-to-r from-[#45CFD3] to-[#C33DFF] text-white rounded-lg hover:shadow-lg transition-all" title="승인">
+                              <button
+                                onClick={() => handleStatusChange(report.repId, "approved")}
+                                className="p-2 bg-gradient-to-r from-[#45CFD3] to-[#C33DFF] text-white rounded-lg hover:shadow-lg transition-all"
+                                title="승인"
+                              >
                                 <CheckCircle className="w-4 h-4" />
                               </button>
-                              <button onClick={() => handleStatusChange(report.repId, "rejected")}
-                                className="p-2 bg-gradient-to-r from-[#FF2A7E] to-[#FFC92D] text-white rounded-lg hover:shadow-lg transition-all" title="반려">
+                              <button
+                                onClick={() => handleStatusChange(report.repId, "rejected")}
+                                className="p-2 bg-gradient-to-r from-[#FF2A7E] to-[#FFC92D] text-white rounded-lg hover:shadow-lg transition-all"
+                                title="반려"
+                              >
                                 <XCircle className="w-4 h-4" />
                               </button>
                             </>
                           )}
-                          {displayStatus === "approved" && <span className="text-sm text-[#45CFD3] font-medium">승인 완료</span>}
-                          {displayStatus === "rejected" && <span className="text-sm text-[#FF2A7E] font-medium">반려 완료</span>}
-                          <button onClick={() => handleViewDetail(report.repId)}
-                            className="p-2 bg-gradient-to-r from-[#C33DFF]/10 to-[#7E00CC]/10 text-[#C33DFF] rounded-lg hover:from-[#C33DFF]/20 hover:to-[#7E00CC]/20 transition-all" title="상세보기">
+                          {displayStatus === "approved" && (
+                            <span className="text-sm text-[#45CFD3] font-medium whitespace-nowrap">승인 완료</span>
+                          )}
+                          {displayStatus === "rejected" && (
+                            <span className="text-sm text-[#FF2A7E] font-medium whitespace-nowrap">반려 완료</span>
+                          )}
+                          <button
+                            onClick={() => handleViewDetail(report.repId)}
+                            className="p-2 bg-gradient-to-r from-[#C33DFF]/10 to-[#7E00CC]/10 text-[#C33DFF] rounded-lg hover:from-[#C33DFF]/20 hover:to-[#7E00CC]/20 transition-all"
+                            title="상세보기"
+                          >
                             <FileText className="w-4 h-4" />
                           </button>
                         </div>
@@ -323,30 +439,51 @@ export default function Reports() {
           </table>
         </div>
 
-        <div className="px-6 py-4 border-t border-[#DDDFE2] flex items-center justify-between">
-          <div className="text-sm text-[#70757A]">총 {totalElements.toLocaleString()}개의 신고</div>
+        {/* 페이지네이션 */}
+        <div className="px-6 py-4 border-t border-[#DDDFE2] flex items-center justify-between flex-wrap">
+          <div className="text-sm text-[#70757A]">
+            총 {totalElements.toLocaleString()}개의 신고
+          </div>
           <div className="flex gap-2">
-            <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}
-              className="px-4 py-2 border border-[#DDDFE2] rounded-lg hover:bg-[#F8F8F9] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[#424242]">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-4 py-2 border border-[#DDDFE2] rounded-lg hover:bg-[#F8F8F9] 
+                       transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[#424242]"
+            >
               이전
             </button>
+            
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
               let pageNum;
               if (totalPages <= 5) pageNum = i + 1;
               else if (currentPage <= 3) pageNum = i + 1;
               else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
               else pageNum = currentPage - 2 + i;
+              
+              if (pageNum < 1 || pageNum > totalPages) return null;
+              
               return (
-                <button key={pageNum} onClick={() => handlePageChange(pageNum)}
+                <button
+                  key={pageNum}
+                  onClick={() => handlePageChange(pageNum)}
                   className={`px-4 py-2 rounded-lg transition-colors ${
-                    currentPage === pageNum ? 'bg-gradient-to-r from-[#C33DFF] to-[#7E00CC] text-white' : 'border border-[#DDDFE2] text-[#424242] hover:bg-[#F8F8F9]'
-                  }`}>
+                    currentPage === pageNum
+                      ? 'bg-gradient-to-r from-[#C33DFF] to-[#7E00CC] text-white'
+                      : 'border border-[#DDDFE2] text-[#424242] hover:bg-[#F8F8F9]'
+                  }`}
+                >
                   {pageNum}
                 </button>
               );
             })}
-            <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}
-              className="px-4 py-2 border border-[#DDDFE2] rounded-lg hover:bg-[#F8F8F9] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[#424242]">
+            
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 border border-[#DDDFE2] rounded-lg hover:bg-[#F8F8F9] 
+                       transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-[#424242]"
+            >
               다음
             </button>
           </div>
