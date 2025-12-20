@@ -225,9 +225,9 @@ export default function Popups() {
             className="px-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
           >
             <option value="all">전체 승인상태</option>
-            <option value="true">승인</option>
-            <option value="false">반려</option>
-            <option value="null">대기</option>
+            <option value="approved">승인</option>
+            <option value="rejected">반려</option>
+            <option value="pending">대기</option>
           </select>
         </div>
       </div>
