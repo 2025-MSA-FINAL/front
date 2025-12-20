@@ -912,6 +912,10 @@ export default function MessageChatSection() {
   const handleSubmitReport = async ({ categoryId, files }) => {
     try {
       if (!reportContext) return;
+      if (!reportContext?.reportType || !reportContext?.targetId) {
+        alert("신고 대상 정보가 없습니다.");
+        return;
+      }
 
       //이미지 업로드
       const imageUrls = await uploadReportImages(files);
@@ -928,11 +932,16 @@ export default function MessageChatSection() {
       setShowReportModal(false);
       setReportContext(null);
     } catch (e) {
-      if (e.response?.data?.code === "DUPLICATE_REPORT") {
+      const data = e.response?.data;
+
+      if (data?.code === "CHAT_020" || data?.message?.includes("이미 신고")) {
         alert("이미 신고한 대상입니다.");
       } else {
         alert("신고 처리 중 오류가 발생했습니다.");
       }
+
+      setShowReportModal(false);
+      setReportContext(null);
     }
   };
 
@@ -1105,7 +1114,16 @@ export default function MessageChatSection() {
                         className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
                         onClick={() => {
                           toggleMenu();
-                          setTimeout(() => setShowReportModal(true), 180);
+
+                          setTimeout(() => {
+                            openReportModal({
+                              reportType: "CHAT",
+                              targetId:
+                                roomType === "GROUP"
+                                  ? activeRoom.gcrId
+                                  : activeRoom.roomId,
+                            });
+                          }, 180);
                         }}
                       >
                         채팅방 신고하기
