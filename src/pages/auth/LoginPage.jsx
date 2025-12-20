@@ -8,7 +8,7 @@ import { useAuthStore } from "../../store/authStore";
 import kakaoBtn from "../../assets/kakaoBtn.png";
 import logo from "../../assets/logo.png";
 import ghost1 from "../../assets/ghost1.png";
-import naverBtn from "../../assets/naverBtn.png";
+import naverBtn from "../../assets/naverBtn4.png";
 import googleBtn from "../../assets/googleBtn.png";
 
 import { EyeIcon, EyeOffIcon } from "../../components/icon/EyeIcons.jsx"; // 👈 공용 아이콘
@@ -158,6 +158,7 @@ function LoginPage() {
                 fullWidth
                 loading={loading}
                 className="mt-1"
+                size="xl"
               >
                 {loading ? "로그인 중..." : "일반 로그인"}
               </PrimaryButton>
@@ -171,6 +172,7 @@ function LoginPage() {
             </div>
 
             {/* Social buttons */}
+            {/*
             <div className="grid grid-cols-3 gap-2 mb-4 h-[40px]">
               <button
                 className="w-full h-full rounded-[8px]"
@@ -205,6 +207,19 @@ function LoginPage() {
                   src={googleBtn}
                   alt="google-login"
                   className="object-scale-down w-full h-full rounded-[8px]"
+                />
+              </button>
+            </div>*/}
+            <div className="mb-4 h-[41px]">
+              <button
+                className="w-full h-full rounded-[10px]"
+                type="button"
+                onClick={handleNaverLogin}
+              >
+                <img
+                  src={naverBtn}
+                  alt="naver-login"
+                  className="object-cover w-full h-full rounded-[10px]"
                 />
               </button>
             </div>
