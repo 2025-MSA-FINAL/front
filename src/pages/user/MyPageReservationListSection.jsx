@@ -3,7 +3,10 @@ import { useEffect, useState } from "react";
 import { apiClient } from "../../api/authApi";
 import FilterDropdown from "../../components/FilterDropdown";
 import Pagination from "../../components/Pagination";
-import { useNavigate } from "react-router-dom"; // ✅ 추가
+import { useNavigate } from "react-router-dom";
+
+// ✅ 추가: 취소 API
+import { cancelReservationApi } from "../../api/myPageApi";
 
 const PAGE_SIZE = 6;
 
@@ -46,7 +49,7 @@ function ReservationListSection({ authUser }) {
   // 예약: 상태(전체/예약완료/취소됨) + 정렬(최신/오래된)
   const [reservationStatusFilter, setReservationStatusFilter] =
     useState("ALL");
-  const [reservationSortOrder, setReservationSortOrder] = useState("DESC"); // DESC: 최신순, ASC: 오래된순
+  const [reservationSortOrder, setReservationSortOrder] = useState("DESC"); // DESC: 가까운 날짜 순, ASC: 먼 날짜 순
 
   // =========================
   // 예약 리스트 API 호출
@@ -59,7 +62,7 @@ function ReservationListSection({ authUser }) {
         params: {
           page,
           size: PAGE_SIZE,
-          status: reservationStatusFilter, // ✅ Enum 이름과 매칭
+          status: reservationStatusFilter,
           sortDir: reservationSortOrder,
         },
       });
@@ -119,13 +122,19 @@ function ReservationListSection({ authUser }) {
             로딩 중...
           </div>
         )}
+
         {!reservationLoading && reservationPageData.content.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {reservationPageData.content.map((item) => (
-              <ReservationRow key={item.reservationId} item={item} />
+              <ReservationRow
+                key={item.reservationId}
+                item={item}
+                onCancelled={() => loadReservationPage(reservationPage)} // ✅ 취소 후 현재 페이지 리로드
+              />
             ))}
           </div>
         )}
+
         {!reservationLoading && reservationPageData.content.length === 0 && (
           <div className="bg-paper rounded-[18px] px-6 py-6 text-center text-[14px] text-text-sub border border-secondary-light">
             예약한 팝업이 없습니다.
@@ -148,17 +157,38 @@ function ReservationListSection({ authUser }) {
 /* =========================================
    예약 리스트 카드 – 이미지 왼쪽, 설명 박스 오른쪽
    ========================================= */
-function ReservationRow({ item }) {
-  const navigate = useNavigate(); // ✅ 추가
+function ReservationRow({ item, onCancelled }) {
+  const navigate = useNavigate();
   const { date, time } = formatDateTime(item.reserveDateTime);
 
   const isCancelled = item.reserveStatus === false;
   const statusLabel = isCancelled ? "취소됨" : "예약 완료";
 
   const handleCardClick = () => {
-    // ✅ 상세 페이지 이동
     navigate(`/popup/${item.popupId}`);
   };
+
+  const handleCancel = async (e) => {
+    e.stopPropagation(); // 카드 클릭 방지
+
+    if (isCancelled) return;
+
+    // ✅ 반드시 await
+    const ok = await window.confirm("예약을 취소하시겠어요?");
+    if (!ok) return;
+
+    try {
+      await cancelReservationApi(item.reservationId);
+      window.alert("예약이 취소되었습니다.");
+      onCancelled?.();
+    } catch (err) {
+      console.error(err);
+      window.alert(
+        err?.response?.data?.message || "예약 취소에 실패했습니다."
+      );
+    }
+  };
+
 
   return (
     <div
@@ -227,10 +257,7 @@ function ReservationRow({ item }) {
             <button
               type="button"
               className="text-[12px] text-text-sub hover:text-primary-dark"
-              onClick={(e) => {
-                e.stopPropagation(); // ✅ 카드 클릭 막기
-                // 여기 나중에 실제 "취소하기" 로직 붙이면 됨
-              }}
+              onClick={handleCancel} // ✅ 실제 취소 로직 연결
             >
               취소하기
             </button>

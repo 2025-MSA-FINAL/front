@@ -5,13 +5,16 @@ import axiosInstance from "../../api/axios";
 export default function Popups() {
   const [popups, setPopups] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);  // 초기 로딩 상태
   const [error, setError] = useState(null);
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [debouncedKeyword, setDebouncedKeyword] = useState("");  // debounced 검색어
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterModeration, setFilterModeration] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
+
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -28,16 +31,16 @@ export default function Popups() {
   // 검색어 디바운스
   useEffect(() => {
     const timer = setTimeout(() => {
+      setDebouncedKeyword(searchKeyword);
       setCurrentPage(1);
-      fetchPopups();
-    }, 500);
+    }, 400);
     return () => clearTimeout(timer);
   }, [searchKeyword]);
 
-  // 필터/페이지 변경 시 즉시 검색
+  // 필터/페이지/debounced 검색어 변경 시 데이터 로드
   useEffect(() => {
     fetchPopups();
-  }, [filterStatus, filterModeration, currentPage]);
+  }, [filterStatus, filterModeration, currentPage, debouncedKeyword]);
 
   // 전체 통계 가져오기 (필터 무관)
   const fetchStats = async () => {
@@ -65,7 +68,7 @@ export default function Popups() {
         size: pageSize,
       };
       
-      if (searchKeyword) params.keyword = searchKeyword;
+      if (debouncedKeyword) params.keyword = debouncedKeyword;
       if (filterStatus !== "all") params.status = filterStatus;
       if (filterModeration !== "all") params.moderation = filterModeration;
       
@@ -78,8 +81,12 @@ export default function Popups() {
     } catch (err) {
       console.error("Error fetching popups:", err);
       setError("팝업스토어 목록을 불러오는데 실패했습니다.");
+      setPopups([]);
+      setTotalPages(1);
+      setTotalElements(0);
     } finally {
       setLoading(false);
+      setIsInitialLoading(false);
     }
   };
 
@@ -125,33 +132,18 @@ export default function Popups() {
     }
   };
 
-  const handleSearch = () => {
-    setCurrentPage(1);
-    fetchPopups();
-  };
-
   const handlePageChange = (page) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (page > 0 && page <= totalPages) {
+      setCurrentPage(page);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
-  if (loading) {
+  // 초기 로딩 UI
+  if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center h-[70vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#C33DFF]"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-[70vh]">
-        <div className="text-center">
-          <div className="text-[#FF2A7E] text-xl mb-4">{error}</div>
-          <button onClick={fetchPopups} className="px-6 py-2 bg-gradient-to-r from-[#C33DFF] to-[#7E00CC] text-white rounded-xl">
-            다시 시도
-          </button>
-        </div>
       </div>
     );
   }
@@ -160,7 +152,7 @@ export default function Popups() {
     <div className="space-y-8">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-[#242424]">팝업 관리</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-[#242424]">팝업 관리</h1>
           <p className="text-sm text-[#70757A]">팝업스토어 승인 및 관리</p>
         </div>
       </div>
@@ -186,70 +178,73 @@ export default function Popups() {
           gradient="from-[#45CFD3] to-[#C33DFF]" 
         />
         <StatCard 
-          title="종료 팝업" 
+          title="종료된 팝업" 
           value={stats.ended} 
           icon={<XCircle className="w-6 h-6 text-white" />} 
           gradient="from-[#FF2A7E] to-[#FFC92D]" 
         />
       </div>
 
-      {/* 필터 & 검색 */}
-      <div className="bg-white rounded-2xl shadow-xl p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="md:col-span-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 w-5 h-5 text-[#70757A]" />
-              <input
-                type="text"
-                placeholder="팝업명, 위치 검색..."
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                className="w-full pl-10 pr-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
-              />
-            </div>
+      {/* 검색/필터 */}
+      <div className="bg-white rounded-2xl shadow-xl px-6 py-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 w-5 h-5 text-[#70757A]" />
+            <input
+              type="text"
+              placeholder="팝업명, 위치 검색..."
+              value={searchKeyword}
+              onChange={(e) => {
+                setSearchKeyword(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-10 pr-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent transition-all"
+            />
           </div>
-
+          
           <select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setCurrentPage(1);
+            }}
             className="px-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
           >
             <option value="all">전체 상태</option>
-            <option value="upcoming">예정</option>
-            <option value="active">활성</option>
-            <option value="ended">종료</option>
+            <option value="ONGOING">활성</option>
+            <option value="UPCOMING">예정</option>
+            <option value="ENDED">종료</option>
           </select>
-
+          
           <select
             value={filterModeration}
-            onChange={(e) => setFilterModeration(e.target.value)}
+            onChange={(e) => {
+              setFilterModeration(e.target.value);
+              setCurrentPage(1);
+            }}
             className="px-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
           >
             <option value="all">전체 승인상태</option>
-            <option value="pending">승인 대기</option>
-            <option value="approved">승인됨</option>
-            <option value="rejected">반려됨</option>
+            <option value="approved">승인</option>
+            <option value="rejected">반려</option>
+            <option value="pending">대기</option>
           </select>
         </div>
-
-        <button
-          onClick={handleSearch}
-          className="mt-4 px-6 py-2 bg-gradient-to-r from-[#C33DFF] to-[#7E00CC] text-white rounded-xl hover:shadow-lg transition-all"
-        >
-          검색
-        </button>
       </div>
 
-      {/* 팝업 테이블 */}
+      {/* 테이블 */}
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-[#DDDFE2]">
+          <h3 className="text-xl font-bold text-[#242424]">팝업스토어 목록</h3>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead className="bg-gradient-to-r from-[#C33DFF]/10 to-[#45CFD3]/10 border-b-2 border-[#DDDFE2]">
               <tr>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424] w-16 whitespace-nowrap">ID</th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424] min-w-[150px] whitespace-nowrap ">팝업명</th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424 min-w-[150px] whitespace-nowrap">위치</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424] min-w-[150px] whitespace-nowrap">팝업명</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424] min-w-[150px] whitespace-nowrap">위치</th>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424] w-24 whitespace-nowrap">상태</th>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424] w-28 whitespace-nowrap">승인상태</th>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-[#242424] w-20 whitespace-nowrap">조회수</th>
@@ -258,7 +253,25 @@ export default function Popups() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F0F1F3]">
-              {popups.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="8" className="px-4 py-12 text-center text-[#70757A]">
+                    불러오는 중...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan="8" className="px-4 py-12 text-center">
+                    <div className="text-[#FF2A7E] mb-4">{error}</div>
+                    <button 
+                      onClick={fetchPopups} 
+                      className="px-6 py-2 bg-gradient-to-r from-[#C33DFF] to-[#7E00CC] text-white rounded-xl hover:shadow-lg transition-all"
+                    >
+                      다시 시도
+                    </button>
+                  </td>
+                </tr>
+              ) : popups.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="px-4 py-12 text-center text-[#70757A]">
                     팝업스토어가 없습니다.
@@ -267,20 +280,30 @@ export default function Popups() {
               ) : (
                 popups.map((popup) => (
                   <tr key={popup.popId} className="hover:bg-[#F8F8F9] transition-colors">
-                    <td className="px-4 py-4 w-16">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-[#C33DFF] to-[#7E00CC] text-white font-bold text-sm">
-                        {popup.popId}
+                     <td className="px-4 py-4 w-16 text-center group">
+                  <span
+                    onClick={() => navigator.clipboard.writeText(popup.popId)}
+                    title="클릭하여 ID 복사"
+                    className="
+                      cursor-pointer
+                      text-xs
+                      text-gray-500
+                      group-hover:text-gray-700
+                      transition-colors
+                      font-mono
+                    "
+                  >
+                    {popup.popId}
+                  </span>
+                </td>
+                  <td className="px-4 py-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-[#242424] whitespace-nowrap">{popup.popName}</span>
                       </div>
                     </td>
+
                     <td className="px-4 py-4 text-sm">
                       <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-[#C33DFF]" />
-                        <span className="text-sm text-[#242424] font-medium">{popup.popName}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-[#45CFD3]" />
                         <span className="text-sm text-[#242424] whitespace-nowrap">{popup.popLocation}</span>
                       </div>
                     </td>
@@ -331,7 +354,7 @@ export default function Popups() {
                           <>
                             <button
                               onClick={() => handleApprove(popup.popId)}
-                              className="p-1.5 bg-gradient-to-r from-[#45CFD3] to-[#C33DFF] text-white rounded-lg hover:shad                   ow-lg transition-all"
+                              className="p-1.5 bg-gradient-to-r from-[#45CFD3] to-[#C33DFF] text-white rounded-lg hover:shadow-lg transition-all"
                               title="승인"
                             >
                               <CheckCircle className="w-4 h-4" />
@@ -367,7 +390,7 @@ export default function Popups() {
         </div>
 
         {/* 페이지네이션 */}
-        <div className="px-6 py-4 border-t border-[#DDDFE2] flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-[#DDDFE2] flex items-center justify-between flex-wrap">
           <div className="text-sm text-[#70757A]">
             총 {totalElements.toLocaleString()}개의 팝업스토어
             {(filterStatus !== "all" || filterModeration !== "all" || searchKeyword) && (
@@ -391,6 +414,9 @@ export default function Popups() {
               else if (currentPage <= 3) pageNum = i + 1;
               else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
               else pageNum = currentPage - 2 + i;
+              
+              if (pageNum < 1 || pageNum > totalPages) return null;
+              
               return (
                 <button
                   key={pageNum}
