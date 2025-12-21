@@ -164,7 +164,35 @@ export async function uploadChatImages({
 
   return res.data; // ChatMessageResponse
 }
+/* -------------------------------------------
+    8) 신고 생성
+------------------------------------------- */
+export async function createChatReport(payload) {
+  const res = await apiClient.post(
+    "/api/chat/reports",
+    payload,
+    { headers: { "Content-Type": "application/json" } }
+  );
+  return res.data;
+}
 
+/* -------------------------------------------
+   9) 신고 이미지 업로드
+------------------------------------------- */
+export async function uploadReportImages(files) {
+  if (!files || files.length === 0) return [];
+
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+
+  const res = await apiClient.post(
+    "/api/chat/reports/upload",   // ✅ 백엔드와 일치
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+
+  return res.data; // List<String>
+}
 
 /* -------------------------------------------
     기본 export
@@ -190,4 +218,6 @@ export default {
   startAiChat,
 
   uploadChatImages,
+  createChatReport,
+  uploadReportImages,
 };

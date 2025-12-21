@@ -9,6 +9,8 @@ import {
   updateGroupChatRoom,
   leaveGroupChatRoom,
   uploadChatImages,
+  uploadReportImages,
+  createChatReport,
 } from "../../../api/chatApi";
 import BlurModal from "../../common/BlurModal";
 import MessageItem from "../../chat/common/MessageItem";
@@ -33,6 +35,7 @@ import EmojiIcon from "../../chat/icons/emojiIcon";
 import ImageUploadIcon from "../../chat/icons/imageIcon";
 import ScheduleIcon from "../../chat/icons/scheduleIcon";
 import MoreIcon from "../../chat/icons/MoreIcon";
+
 import { API_BASE } from "../../../utils/env";
 import ParticipantSection from "./ParticipantSection";
 import { ParticipantBottomSheet } from "./ParticipantBottomSheet";
@@ -111,6 +114,7 @@ export default function MessageChatSection() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [reportContext, setReportContext] = useState(null);
 
   const subRef = useRef(null);
   const scrollRef = useRef(null);
@@ -905,6 +909,47 @@ export default function MessageChatSection() {
     };
   }, [isMobile, setActiveRoom, clearSelectedGroupRoom]);
 
+  const handleSubmitReport = async ({ categoryId, files }) => {
+    try {
+      if (!reportContext) return;
+      if (!reportContext?.reportType || !reportContext?.targetId) {
+        alert("신고 대상 정보가 없습니다.");
+        return;
+      }
+
+      //이미지 업로드
+      const imageUrls = await uploadReportImages(files);
+
+      //신고 생성
+      await createChatReport({
+        reportType: reportContext.reportType,
+        targetId: reportContext.targetId,
+        categoryId,
+        imageUrls,
+      });
+
+      alert("신고가 접수되었습니다.");
+      setShowReportModal(false);
+      setReportContext(null);
+    } catch (e) {
+      const data = e.response?.data;
+
+      if (data?.code === "CHAT_020" || data?.message?.includes("이미 신고")) {
+        alert("이미 신고한 대상입니다.");
+      } else {
+        alert("신고 처리 중 오류가 발생했습니다.");
+      }
+
+      setShowReportModal(false);
+      setReportContext(null);
+    }
+  };
+
+  const openReportModal = (context) => {
+    setReportContext(context); // { reportType, targetId }
+    setShowReportModal(true);
+  };
+
   /* =======================================================================
         📌 RENDER
   ======================================================================= */
@@ -991,8 +1036,8 @@ export default function MessageChatSection() {
                             <button
                               className="mx-2 text-[14px] font-semibold text-left text-text-main hover:text-text-sub transition"
                               onClick={() => {
-                                setShowEditModal(true);
                                 toggleMenu();
+                                setShowEditModal(true);
                               }}
                             >
                               수정하기
@@ -1068,8 +1113,17 @@ export default function MessageChatSection() {
                       <button
                         className="mx-2 text-accent-pink text-[14px] font-semibold text-left hover:opacity-70 transition"
                         onClick={() => {
-                          setShowReportModal(true);
                           toggleMenu();
+
+                          setTimeout(() => {
+                            openReportModal({
+                              reportType: "CHAT",
+                              targetId:
+                                roomType === "GROUP"
+                                  ? activeRoom.gcrId
+                                  : activeRoom.roomId,
+                            });
+                          }, 180);
                         }}
                       >
                         채팅방 신고하기
@@ -1086,6 +1140,7 @@ export default function MessageChatSection() {
                 anchorRef={roomInfoRef}
                 open={showRoomInfo}
                 onClose={() => setShowRoomInfo(false)}
+                openReportModal={openReportModal}
               />
             )}
             {/* 메시지 리스트 */}
@@ -1198,6 +1253,7 @@ export default function MessageChatSection() {
                   setUserAnchorRef(null);
                 }}
                 scrollParentRef={scrollRef}
+                openReportModal={openReportModal}
               />
               <div ref={bottomRef} />
             </div>
@@ -1532,12 +1588,7 @@ export default function MessageChatSection() {
         open={showReportModal}
         onClose={() => setShowReportModal(false)}
       >
-        <ReportForm
-          onSubmit={() => {
-            alert("신고가 접수되었습니다.");
-            setShowReportModal(false);
-          }}
-        />
+        <ReportForm onSubmit={handleSubmitReport} />
       </BlurModal>
     </>
   );

@@ -1,7 +1,8 @@
 // src/components/ui/PrimaryButton.jsx
 import clsx from "clsx";
 
-export default function PrimaryButton({
+export default function 
+PrimaryButton({
   children,
   type = "button",
   onClick,
@@ -10,10 +11,13 @@ export default function PrimaryButton({
   size = "md", // "md" | "lg"
   className,
   disabled,
+
 }) {
   const sizeClasses =
     size === "lg"
       ? "text-[15px] py-[12px] px-[26px]"
+      :size==="xl"
+      ? "text-[17.5px] py-[7px] px-[12px] font-semibold"
       : "text-[14px] py-[10px] px-[18px]";
 
   return (

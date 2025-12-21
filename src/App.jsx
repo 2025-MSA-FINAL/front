@@ -117,13 +117,31 @@ function App() {
           Alert 모달
          =============================== */}
       {alertMessage && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
-          <div className="w-[320px] rounded-xl bg-white p-6 shadow-xl">
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50"
+          onClick={(e) => {
+            // ✅ 모달 뒤 클릭/전파 방지
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        >
+          <div
+            className="w-[320px] rounded-xl bg-white p-6 shadow-xl"
+            onClick={(e) => {
+              // ✅ 내용 영역 클릭도 전파 방지
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
             <p className="text-center text-sm text-gray-800 whitespace-pre-wrap">
               {alertMessage}
             </p>
             <button
-              onClick={() => setAlertMessage(null)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setAlertMessage(null);
+              }}
               className="mx-auto mt-5 block rounded-md bg-purple-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-700"
             >
               확인
@@ -136,21 +154,43 @@ function App() {
           Confirm 모달
          =============================== */}
       {confirmState && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
-          <div className="w-[320px] rounded-xl bg-white p-6 shadow-xl">
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50"
+          onClick={(e) => {
+            // ✅ 모달 뒤 클릭/전파 방지
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        >
+          <div
+            className="w-[320px] rounded-xl bg-white p-6 shadow-xl"
+            onClick={(e) => {
+              // ✅ 내용 영역 클릭도 전파 방지
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
             <p className="text-center text-sm text-gray-800 whitespace-pre-wrap">
               {confirmState}
             </p>
 
             <div className="mt-5 flex justify-center gap-3">
               <button
-                onClick={() => handleConfirm(false)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleConfirm(false);
+                }}
                 className="rounded-md bg-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-300"
               >
                 취소
               </button>
               <button
-                onClick={() => handleConfirm(true)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleConfirm(true);
+                }}
                 className="rounded-md bg-purple-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-purple-700"
               >
                 확인

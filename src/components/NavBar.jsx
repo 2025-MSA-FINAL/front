@@ -9,7 +9,7 @@ import {
   AVAILABLE_THEMES,
 } from "../theme";
 
-export default function Navbar() {
+export default function Navbar({ hidden = false }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isThemeOpen, setIsThemeOpen] = useState(false);
@@ -74,7 +74,13 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-100 bg-paper h-[88px]">
+     <nav
+      className={`
+        sticky top-0 z-100 bg-paper h-[88px]
+        transition-transform duration-300 ease-out
+        ${hidden ? "-translate-y-full" : "translate-y-0"}
+      `}
+    >
       <div className="w-full max-w-7xl mx-auto px-6 md:px-12 h-full flex justify-between items-center">
         {/* LEFT: 로고 + 데스크탑 메뉴 */}
         <div className="flex items-center gap-12 lg:gap-20">
