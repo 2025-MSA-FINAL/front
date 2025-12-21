@@ -1,3 +1,4 @@
+// src/pages/MainPage.jsx
 import React, {
   useCallback,
   useEffect,
@@ -194,7 +195,80 @@ const CardGridSection = memo(function CardGridSection({
           }}
         >
           <div className="flex justify-between items-center mb-5 sm:mb-6">
-            <h2 className="text-[24px] font-bold text-primary">{title}</h2>
+           <h2 className="flex items-end">
+  {(() => {
+    const t = String(title || "").trim();
+
+    // 월 분리 (예: "... 12월")
+    const m = t.match(/(.*?)(\d{1,2}월)\s*$/);
+    const baseTitle = m ? m[1].trim() : t;
+    const month = m ? m[2].trim() : null;
+
+    const isSoon =
+      baseTitle.includes("오픈예정") || baseTitle.includes("곧 오픈");
+    const isHot =
+      baseTitle.includes("따끈따끈") || baseTitle.includes("인기팝업");
+    const isDeadline =
+      baseTitle.includes("마감") || baseTitle.includes("임박");
+
+    let label = "FEATURED";
+    let main = baseTitle;
+    let point = null;
+    let pointColor = "rgba(0,0,0,0.6)";
+
+    if (isSoon) {
+      label = "COMING SOON";
+      main = "오픈예정";
+      point = month;
+      pointColor = "rgba(155,44,255,0.95)"; // 💜 보라
+    } else if (isHot) {
+      label = "JUST IN";
+      main = "최신 팝업";
+      point = "NOW";
+      pointColor = "rgba(236, 72, 153, 0.95)";
+    } else if (isDeadline) {
+      label = "FINAL DAYS";
+      main = "마감 임박";
+      point = "FINAL";
+      pointColor = "rgba(229,57,53,0.95)"; 
+    }
+
+    return (
+      <div className="flex flex-col items-start leading-[1.08]">
+        {/* 라벨 */}
+        <span
+          className="text-[12px] font-medium tracking-wide uppercase"
+          style={{ color: "rgba(0,0,0,0.45)" }}
+        >
+          {label}
+        </span>
+
+        {/* 메인 */}
+        <div className="flex items-baseline gap-2">
+          <span className="text-[30px] font-extrabold text-text-black">
+            {main}
+          </span>
+
+          {point && (
+            <span
+              className="font-extrabold leading-none"
+              style={{
+                fontSize: "36px",
+                color: pointColor,
+                letterSpacing: "-0.4px",
+              }}
+            >
+              {point}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  })()}
+</h2>
+
+
+
             <span
               className="text-[13px] transition-colors cursor-pointer font-medium"
               style={{ color: PURPLE.neon }}
@@ -230,6 +304,8 @@ const CardGridSection = memo(function CardGridSection({
               overflowY: "visible",
               paddingTop: "10px",
               paddingBottom: "14px",
+              paddingLeft: "24px",
+              paddingRight: "24px",
             }}
             onWheelCapture={(e) => {
               e.preventDefault();
@@ -785,8 +861,15 @@ const MainBottom = memo(function MainBottom({
   mainKeyword,
   setMainKeyword,
   goPopupSearch,
+
+  // ✅ 기존
   latestPopups,
   endingSoonPopups,
+
+  // ✅ 추가
+  openingSoonPopups,
+  openingSoonTitle,
+
   onAllClick,
   mainLoading,
 }) {
@@ -841,6 +924,14 @@ const MainBottom = memo(function MainBottom({
         </div>
       </div>
 
+      {/* ✅ NEW: 두근두근 곧 오픈예정 섹션 */}
+      <CardGridSection
+        title={openingSoonTitle || "두근 두근 곧 오픈예정"}
+        items={openingSoonPopups}
+        onAllClick={onAllClick}
+        mainLoading={mainLoading}
+      />
+
       <CardGridSection
         title="따끈따끈 팝업"
         items={latestPopups}
@@ -873,9 +964,20 @@ function MainPage() {
   const [heroPopups, setHeroPopups] = useState([]);
   const [latestPopups, setLatestPopups] = useState([]);
   const [endingSoonPopups, setEndingSoonPopups] = useState([]);
+
+  // ✅ 추가
+  const [openingSoonPopups, setOpeningSoonPopups] = useState([]);
+
   const [mainLoading, setMainLoading] = useState(false);
 
   const MAIN_CARD_LIMIT = 10; // ✅ 프론트에서 원하는 만큼 조절
+
+  // ✅ (추가) 현재 달 타이틀: "12월"
+  const openingSoonTitle = useMemo(() => {
+    const now = new Date();
+    const mm = now.getMonth() + 1;
+    return `두근 두근 곧 오픈예정 ${mm}월`;
+  }, []);
 
   // ✅ HERO에서 기존 posters 형태 유지하기 위한 변환 (JSX/스타일 건드리지 않기)
   const posters = useMemo(() => {
@@ -912,11 +1014,19 @@ function MainPage() {
         setEndingSoonPopups(
           Array.isArray(mainData?.endingSoon) ? mainData.endingSoon : []
         );
+
+        // ✅ 추가: openingSoon
+        setOpeningSoonPopups(
+          Array.isArray(mainData?.openingSoon) ? mainData.openingSoon : []
+        );
       } catch (e) {
         if (!alive) return;
         setHeroPopups([]);
         setLatestPopups([]);
         setEndingSoonPopups([]);
+
+        // ✅ 추가
+        setOpeningSoonPopups([]);
       } finally {
         if (!alive) return;
         setMainLoading(false);
@@ -1099,6 +1209,8 @@ function MainPage() {
         goPopupSearch={goPopupSearch}
         latestPopups={latestPopups}
         endingSoonPopups={endingSoonPopups}
+        openingSoonPopups={openingSoonPopups}
+        openingSoonTitle={openingSoonTitle}
         onAllClick={onAllClick}
         mainLoading={mainLoading}
       />
