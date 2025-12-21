@@ -19,6 +19,7 @@ export default function Users() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // 모드에 따른 현재 리스트
   const currentList = mode === "user" ? userList : managerList;
@@ -34,8 +35,11 @@ export default function Users() {
 
   useEffect(() => {
     const fetchData = async () => {
+
       try {
+        if (isInitialLoading) {
         setLoading(true);
+        }
 
         const params = { 
           status: filterStatus,
@@ -67,13 +71,15 @@ export default function Users() {
         setTotalElements(0);
 
       } finally {
-        setLoading(false);
-        setIsInitialLoading(false);
+         if (isInitialLoading) {
+          setLoading(false);
+          setIsInitialLoading(false);
+        }
       }
     };
 
     fetchData();
-  }, [mode, filterStatus, currentPage, debouncedKeyword, searchType]);  // searchType 추가!
+  }, [mode, filterStatus, currentPage, debouncedKeyword, searchType, reloadKey]);  // searchType 추가!
 
   // 페이지 변경
   const handlePageChange = (page) => {
@@ -85,40 +91,48 @@ export default function Users() {
 
   // 유저 상태 변경
   const handleStatusChange = async (userId, newStatus) => {
+
     const statusText = newStatus === "ACTIVE" ? "활성화" : "정지";
-    if (!window.confirm(`이 회원을 ${statusText}하시겠습니까?`)) return;
+    const confirmResult = await confirm(
+        `이 회원을 "${statusText}" 상태로 변경하시겠습니까?`
+      );
+    if (!confirmResult) return;
 
     try {
       await axiosInstance.put(`/api/admin/users/${userId}/status`, null, {
         params: { status: newStatus }
       });
-
-      alert(`${statusText}되었습니다!`);
-      setCurrentPage(1);
-
     } catch (err) {
       console.error("Error changing status:", err);
-      alert("상태 변경에 실패했습니다.");
-    }
+      alert(err.response?.data?.message || "상태 변경에 실패했습니다.");
+      return; 
+    }        
+    alert(`${statusText}되었습니다.`);
+    setReloadKey(prev => prev + 1);
   };
 
   // 역할 변경
   const handleRoleChange = async (userId, newRole) => {
     const roleText = newRole === "MANAGER" ? "매니저로 승격" : "일반 회원으로 변경";
-    if (!window.confirm(`이 회원을 ${roleText}하시겠습니까?`)) return;
+    
+    const confirmResult = await confirm(
+    `이 회원을 "${roleText}" 하시겠습니까?`
+  );
+  if (!confirmResult) return;
 
     try {
-      await axiosInstance.put(`/api/admin/users/${userId}/role`, null, {
-        params: { role: newRole }
-      });
-
-      alert(`${roleText}되었습니다!`);
-      setCurrentPage(1);
+      await axiosInstance.put(`/api/admin/users/${userId}/role`, 
+        null, 
+        {params: { role: newRole }}
+      );
 
     } catch (err) {
       console.error("Error changing role:", err);
-      alert("권한 변경에 실패했습니다.");
+      alert(err.response?.data?.message || "권한 변경에 실패했습니다.");
+      return;
     }
+    alert(`${roleText}되었습니다!`);
+    setReloadKey(prev => prev + 1);
   };
 
   // 로딩 UI
