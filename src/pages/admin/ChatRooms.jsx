@@ -44,7 +44,9 @@ export default function ChatRooms() {
 
   const fetchChatRooms = async () => {
     try {
+      if (isInitialLoading) {
       setLoading(true);
+      }
       setError(null);
       
       const params = {
@@ -77,8 +79,10 @@ export default function ChatRooms() {
       setTotalPages(1);
       setTotalElements(0);
     } finally {
+      if (isInitialLoading) {
       setLoading(false);
       setIsInitialLoading(false);
+      }
     }
   };
 
@@ -114,8 +118,13 @@ export default function ChatRooms() {
     }
   };
 
+
+
+  
   const handleDelete = async (chatId) => {
-    if (!confirm("이 채팅방을 삭제하시겠습니까?")) return;
+
+    const confirmResult = await confirm("이 채팅방을 삭제하시겠습니까?");
+    if (!confirmResult) return;
 
     try {
       await axiosInstance.delete(`/api/admin/chatrooms/${chatId}`);
@@ -126,6 +135,7 @@ export default function ChatRooms() {
     } catch (err) {
       console.error("Error deleting chatroom:", err);
       alert(err.response?.data?.message || "삭제에 실패했습니다.");
+      fetchChatRooms(); 
     }
   };
 
@@ -135,7 +145,10 @@ export default function ChatRooms() {
       return;
     }
 
-    if (!confirm(`선택한 ${selectedRooms.length}개의 채팅방을 삭제하시겠습니까?`)) return;
+    const confirmResult = await confirm(
+        `선택한 ${selectedRooms.length}개의 채팅방을 삭제하시겠습니까?`
+      );
+    if (!confirmResult) return;
 
     try {
       await Promise.all(
@@ -152,6 +165,7 @@ export default function ChatRooms() {
     } catch (err) {
       console.error("Error bulk deleting:", err);
       alert(err.response?.data?.message || "일괄 삭제에 실패했습니다.");
+      fetchChatRooms();
     }
   };
 
