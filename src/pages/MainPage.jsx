@@ -195,79 +195,127 @@ const CardGridSection = memo(function CardGridSection({
           }}
         >
           <div className="flex justify-between items-center mb-5 sm:mb-6">
-           <h2 className="flex items-end">
-  {(() => {
-    const t = String(title || "").trim();
+            <h2 className="flex items-end">
+              {(() => {
+                const t = String(title || "").trim();
 
-    // 월 분리 (예: "... 12월")
-    const m = t.match(/(.*?)(\d{1,2}월)\s*$/);
-    const baseTitle = m ? m[1].trim() : t;
-    const month = m ? m[2].trim() : null;
+                // 월 분리 (예: "... 12월")
+                const m = t.match(/(.*?)(\d{1,2}월)\s*$/);
+                const baseTitle = m ? m[1].trim() : t;
+                const month = m ? m[2].trim() : null;
 
-    const isSoon =
-      baseTitle.includes("오픈예정") || baseTitle.includes("곧 오픈");
-    const isHot =
-      baseTitle.includes("따끈따끈") || baseTitle.includes("인기팝업");
-    const isDeadline =
-      baseTitle.includes("마감") || baseTitle.includes("임박");
+                const isSoon =
+                  baseTitle.includes("오픈예정") || baseTitle.includes("곧 오픈");
+                const isHot =
+                  baseTitle.includes("따끈따끈") || baseTitle.includes("인기팝업");
+                const isDeadline =
+                  baseTitle.includes("마감") || baseTitle.includes("임박");
 
-    let label = "FEATURED";
-    let main = baseTitle;
-    let point = null;
-    let pointColor = "rgba(0,0,0,0.6)";
+                let label = "FEATURED";
+                let main = baseTitle;
+                let point = null;
+                let pointColor = "rgba(0,0,0,0.6)";
 
-    if (isSoon) {
-      label = "COMING SOON";
-      main = "오픈예정";
-      point = month;
-      pointColor = "rgba(155,44,255,0.95)"; // 💜 보라
-    } else if (isHot) {
-      label = "JUST IN";
-      main = "최신 팝업";
-      point = "NOW";
-      pointColor = "rgba(236, 72, 153, 0.95)";
-    } else if (isDeadline) {
-      label = "FINAL DAYS";
-      main = "마감 임박";
-      point = "FINAL";
-      pointColor = "rgba(229,57,53,0.95)"; 
-    }
+                if (isSoon) {
+                  label = "COMING SOON";
+                  main = "오픈예정";
+                  point = month;
+                  pointColor = "var(--color-primary)"; // index.css 팔레트 우선
+                } else if (isHot) {
+                  label = "JUST IN";
+                  main = "최신 팝업";
+                  point = "NOW";
+                  pointColor = "var(--color-primary)";
+                } else if (isDeadline) {
+                  label = "FINAL DAYS";
+                  main = "마감 임박";
+                  point = "FINAL";
+                  pointColor = "var(--color-primary)";
+                }
 
-    return (
-      <div className="flex flex-col items-start leading-[1.08]">
-        {/* 라벨 */}
-        <span
-          className="text-[12px] font-medium tracking-wide uppercase"
-          style={{ color: "rgba(0,0,0,0.45)" }}
-        >
-          {label}
-        </span>
+                return (
+                  <div className="flex flex-col items-start leading-[1.06]">
+                    {/* ✅ 심플 라벨: 캡슐/배경 없이, 얇게 */}
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="text-[12px] font-semibold tracking-[0.18em] uppercase"
+                        style={{ color: "rgba(0,0,0,0.42)" }}
+                      >
+                        {label}
+                      </span>
+                      <span
+                        className="inline-block w-[3px] h-[3px] rounded-full"
+                        style={{ background: "rgba(0,0,0,0.18)" }}
+                      />
+                      <span
+                        className="text-[12px] font-medium tracking-[0.10em] uppercase"
+                        style={{ color: "rgba(0,0,0,0.32)" }}
+                      >
+                        POPSPOT
+                      </span>
+                    </div>
 
-        {/* 메인 */}
-        <div className="flex items-baseline gap-2">
-          <span className="text-[30px] font-extrabold text-text-black">
-            {main}
-          </span>
+                    {/* ✅ 메인 + stroke를 한 덩어리로 묶어서 stroke가 끝까지 따라가게 */}
+                    <div className="mt-1 inline-block">
+                      {/* 텍스트 라인 */}
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span
+                          className="text-[30px] font-extrabold text-text-black"
+                          style={{ letterSpacing: "-0.7px" }}
+                        >
+                          {main}
+                        </span>
 
-          {point && (
-            <span
-              className="font-extrabold leading-none"
-              style={{
-                fontSize: "36px",
-                color: pointColor,
-                letterSpacing: "-0.4px",
-              }}
-            >
-              {point}
-            </span>
-          )}
-        </div>
-      </div>
-    );
-  })()}
-</h2>
+                        {point && (
+                          <span
+                            className="font-extrabold leading-none"
+                            style={{
+                              fontSize: "34px",
+                              // ✅ NOW / FINAL = 핑크로 통일, 12월만 퍼플
+                               color: isHot
+                                ? "var(--color-accent-aqua)"              // 최신 NOW (블루)
+                                : isSoon
+                                ? "var(--color-primary)" // 오픈예정 12월 (퍼플)
+                                : isDeadline
+                                ? "var(--color-accent-pink)"              // 마감 FINAL (레드)
+                                : pointColor,
+                              textShadow: isHot
+                                ? "0 1px 10px rgba(37,99,235,0.15)"
+                                : isSoon
+                                ? "0 1px 10px rgba(195,61,255,0.10)"
+                                : isDeadline
+                                ? "0 1px 10px rgba(220,38,38,0.18)"
+                                : "none",
+                              letterSpacing: "-0.7px",
+                            }}
+                          >
+                            {point}
+                          </span>
+                        )}
+                      </div>
 
-
+                      {/* ✅ stroke: wrapper 폭(=메인+point) 100%로 끝까지 */}
+                      <div
+                        className="mt-2"
+                        style={{
+                          width: "100%",
+                          height: "2px",
+                          borderRadius: "999px",
+                          background: isHot
+                            ? "linear-gradient(90deg, var(--color-accent-aqua) 0%, var(--color-accent-aqua-soft) 70%, rgba(69,223,211,0) 100%)"
+                            : isSoon
+                            ? "linear-gradient(90deg, var(--color-primary) 0%, rgba(195,61,255,0.32) 70%, rgba(195,61,255,0) 100%)"
+                            : isDeadline
+                            ? "linear-gradient(90deg, var(--color-accent-pink) 0%, rgba(220,38,38,0.35) 70%, rgba(220,38,38,0) 100%)"
+                            : "linear-gradient(90deg, var(--color-primary) 0%, rgba(195,61,255,0.25) 70%, rgba(195,61,255,0) 100%)",
+                          opacity: 0.95,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
+            </h2>
 
             <span
               className="text-[13px] transition-colors cursor-pointer font-medium"
@@ -484,7 +532,7 @@ const MenuItem = memo(function MenuItem({ label }) {
             />
             <path
               className="cls-1"
-              d="M5,17a1,1,0,0,1-.89-.55,1,1,0,0,1,.44-1.34l4-2a1,1,0,1,1,.9,1.78l-4,2A.93.93,0,0,1,5,17Z"
+              d="M5,17a1,1,0,0,1-.89-.55,1,1,0,0,1,.44-1.34l4-2a1,1,0,0,1,.9,1.78l-4,2A.93.93,0,0,1,5,17Z"
             />
             <path
               className="cls-1"
