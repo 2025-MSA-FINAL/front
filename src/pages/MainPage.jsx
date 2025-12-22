@@ -1,3 +1,4 @@
+// src/pages/MainPage.jsx
 import React, {
   useCallback,
   useEffect,
@@ -194,9 +195,131 @@ const CardGridSection = memo(function CardGridSection({
           }}
         >
           <div className="flex justify-between items-center mb-5 sm:mb-6">
-            <h2 className="text-[24px] font-bold text-primary">{title}</h2>
+            <h2 className="flex items-end">
+              {(() => {
+                const t = String(title || "").trim();
+
+                // 월 분리 (예: "... 12월")
+                const m = t.match(/(.*?)(\d{1,2}월)\s*$/);
+                const baseTitle = m ? m[1].trim() : t;
+                const month = m ? m[2].trim() : null;
+
+                const isSoon =
+                  baseTitle.includes("오픈예정") || baseTitle.includes("곧 오픈");
+                const isHot =
+                  baseTitle.includes("따끈따끈") || baseTitle.includes("인기팝업");
+                const isDeadline =
+                  baseTitle.includes("마감") || baseTitle.includes("임박");
+
+                let label = "FEATURED";
+                let main = baseTitle;
+                let point = null;
+                let pointColor = "rgba(0,0,0,0.6)";
+
+                if (isSoon) {
+                  label = "COMING SOON";
+                  main = "오픈예정";
+                  point = month;
+                  pointColor = "var(--color-primary)"; // index.css 팔레트 우선
+                } else if (isHot) {
+                  label = "JUST IN";
+                  main = "최신 팝업";
+                  point = "NOW";
+                  pointColor = "var(--color-primary)";
+                } else if (isDeadline) {
+                  label = "FINAL DAYS";
+                  main = "마감 임박";
+                  point = "FINAL";
+                  pointColor = "var(--color-primary)";
+                }
+
+                return (
+                  <div className="flex flex-col items-start leading-[1.06]">
+                    {/* ✅ 심플 라벨: 캡슐/배경 없이, 얇게 */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className="text-[11px] sm:text-[12px] font-semibold tracking-[0.18em] uppercase"
+                        style={{ color: "rgba(0,0,0,0.42)" }}
+                      >
+                        {label}
+                      </span>
+                      <span
+                        className="inline-block w-[3px] h-[3px] rounded-full"
+                        style={{ background: "rgba(0,0,0,0.18)" }}
+                      />
+                      <span
+                        className="text-[11px] sm:text-[12px] font-medium tracking-[0.10em] uppercase"
+                        style={{ color: "rgba(0,0,0,0.32)" }}
+                      >
+                        POPSPOT
+                      </span>
+                    </div>
+
+                    {/* ✅ 메인 + stroke를 한 덩어리로 묶어서 stroke가 끝까지 따라가게 */}
+                    <div className="mt-1 inline-block">
+                      {/* 텍스트 라인 */}
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span
+                          className="font-extrabold text-text-black"
+                          style={{
+                            letterSpacing: "-0.7px",
+                            fontSize: "clamp(22px, 5.2vw, 30px)",
+                          }}
+                        >
+                          {main}
+                        </span>
+
+                        {point && (
+                          <span
+                            className="font-extrabold leading-none"
+                            style={{
+                              fontSize: "clamp(26px, 6vw, 34px)",
+                              color: isHot
+                                ? "var(--color-accent-aqua)" // 최신 NOW
+                                : isSoon
+                                ? "var(--color-primary)" // 오픈예정 12월
+                                : isDeadline
+                                ? "var(--color-accent-pink)" // 마감 FINAL
+                                : pointColor,
+                              textShadow: isHot
+                                ? "0 1px 10px rgba(69,223,211,0.14)"
+                                : isSoon
+                                ? "0 1px 10px rgba(195,61,255,0.10)"
+                                : isDeadline
+                                ? "0 1px 10px rgba(255,42,126,0.16)"
+                                : "none",
+                              letterSpacing: "-0.7px",
+                            }}
+                          >
+                            {point}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* ✅ stroke: wrapper 폭(=메인+point) 100%로 끝까지 */}
+                      <div
+                        className="mt-2 section-stroke"
+                        style={{
+                          borderRadius: "999px",
+                          background: isHot
+                            ? "linear-gradient(90deg, var(--color-accent-aqua) 0%, var(--color-accent-aqua-soft) 70%, rgba(69,223,211,0) 100%)"
+                            : isSoon
+                            ? "linear-gradient(90deg, var(--color-primary) 0%, rgba(195,61,255,0.32) 70%, rgba(195,61,255,0) 100%)"
+                            : isDeadline
+                            ? "linear-gradient(90deg, var(--color-accent-pink) 0%, rgba(255,42,126,0.35) 70%, rgba(255,42,126,0) 100%)"
+                            : "linear-gradient(90deg, var(--color-primary) 0%, rgba(195,61,255,0.25) 70%, rgba(195,61,255,0) 100%)",
+                          opacity: 0.95,
+                          height: "4px"
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
+            </h2>
+
             <span
-              className="text-[13px] transition-colors cursor-pointer font-medium"
+              className="text-[12px] sm:text-[13px] transition-colors cursor-pointer font-medium"
               style={{ color: PURPLE.neon }}
               onClick={onAllClick}
             >
@@ -208,6 +331,20 @@ const CardGridSection = memo(function CardGridSection({
           <style>
             {`
               .hide-scrollbar::-webkit-scrollbar { display: none; }
+
+              /* ✅ 헤더 스트로크 모바일 반응형 (이 파일 안에서만) */
+              .section-stroke {
+                width: 110%;
+                height: 3px;
+                filter: blur(0.5px);
+              }
+              @media (max-width: 639px) {
+                .section-stroke {
+                  width: 100%;
+                  height: 2px;
+                  filter: blur(0.35px);
+                }
+              }
             `}
           </style>
 
@@ -230,6 +367,8 @@ const CardGridSection = memo(function CardGridSection({
               overflowY: "visible",
               paddingTop: "10px",
               paddingBottom: "14px",
+              paddingLeft: "24px",
+              paddingRight: "24px",
             }}
             onWheelCapture={(e) => {
               e.preventDefault();
@@ -408,7 +547,7 @@ const MenuItem = memo(function MenuItem({ label }) {
             />
             <path
               className="cls-1"
-              d="M5,17a1,1,0,0,1-.89-.55,1,1,0,0,1,.44-1.34l4-2a1,1,0,1,1,.9,1.78l-4,2A.93.93,0,0,1,5,17Z"
+              d="M5,17a1,1,0,0,1-.89-.55,1,1,0,0,1,.44-1.34l4-2a1,1,0,0,1,.9,1.78l-4,2A.93.93,0,0,1,5,17Z"
             />
             <path
               className="cls-1"
@@ -468,6 +607,24 @@ const HeroCarousel = memo(function HeroCarousel({ posters, cfg, navigate }) {
   // ✅ HERO를 화면 중앙으로 스크롤하기 위한 ref
   const heroScrollRef = useRef(null);
 
+  // ✅ (추가) 중앙 카드 롱프레스용 ref (리렌더 없음)
+  const holdTimerRef = useRef(null);
+  const isHoldingRef = useRef(false);
+
+  // ✅ (추가) 롱프레스 미세 흔들림 허용용
+  const pressStartRef = useRef({ x: 0, y: 0 });
+  const pressMovedRef = useRef(false);
+
+  // ✅ (추가) 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const go = useCallback((idx) => setActive(idx), []);
 
   // ✅ 데이터 변경으로 active가 범위를 벗어나면 보정
@@ -480,7 +637,7 @@ const HeroCarousel = memo(function HeroCarousel({ posters, cfg, navigate }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posters?.length]);
 
-  // ✅ HERO 자동 슬라이드 (1초 간격) - 데이터 없을 때 가드 + 중앙 hover 시 멈춤
+  // ✅ HERO 자동 슬라이드 (1초 간격) - 데이터 없을 때 가드 + 중앙 hold 시 멈춤
   useEffect(() => {
     if (!posters || posters.length <= 1) return;
     if (isHeroCenterHovered) return;
@@ -605,6 +762,68 @@ const HeroCarousel = memo(function HeroCarousel({ posters, cfg, navigate }) {
                   onMouseLeave={() => {
                     if (isActive) setIsHeroCenterHovered(false);
                   }}
+
+                  // ✅ (수정) 모바일: "길게 누르고 있는 동안" 바로 멈춤 (200ms)
+                  onPointerDown={(e) => {
+                    if (!isActive) return;
+
+                    pressStartRef.current = { x: e.clientX, y: e.clientY };
+                    pressMovedRef.current = false;
+
+                    if (holdTimerRef.current) {
+                      clearTimeout(holdTimerRef.current);
+                      holdTimerRef.current = null;
+                    }
+
+                    holdTimerRef.current = setTimeout(() => {
+                      if (pressMovedRef.current) return;
+                      isHoldingRef.current = true;
+                      setIsHeroCenterHovered(true); // ✅ 여기서 즉시 멈춤
+                    }, 200);
+                  }}
+                  onPointerMove={(e) => {
+                    if (!isActive) return;
+
+                    const dx = e.clientX - pressStartRef.current.x;
+                    const dy = e.clientY - pressStartRef.current.y;
+
+                    // ✅ 8px 이상이면 스와이프/이동으로 판단 → 롱프레스 취소
+                    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+                      pressMovedRef.current = true;
+
+                      if (holdTimerRef.current) {
+                        clearTimeout(holdTimerRef.current);
+                        holdTimerRef.current = null;
+                      }
+
+                      // 롱프레스로 이미 멈춘 상태였으면 다시 재개
+                      if (isHoldingRef.current) {
+                        isHoldingRef.current = false;
+                        setIsHeroCenterHovered(false);
+                      }
+                    }
+                  }}
+                  onPointerUp={() => {
+                    if (holdTimerRef.current) {
+                      clearTimeout(holdTimerRef.current);
+                      holdTimerRef.current = null;
+                    }
+                    if (isHoldingRef.current) {
+                      isHoldingRef.current = false;
+                      setIsHeroCenterHovered(false);
+                    }
+                  }}
+                  onPointerCancel={() => {
+                    if (holdTimerRef.current) {
+                      clearTimeout(holdTimerRef.current);
+                      holdTimerRef.current = null;
+                    }
+                    if (isHoldingRef.current) {
+                      isHoldingRef.current = false;
+                      setIsHeroCenterHovered(false);
+                    }
+                  }}
+
                   onClick={() => {
                     // ✅ 중앙(활성) 카드 클릭 시 상세 이동
                     if (isActive) {
@@ -664,12 +883,12 @@ const HeroCarousel = memo(function HeroCarousel({ posters, cfg, navigate }) {
                       background: "#ffffff",
                       boxShadow: isActive
                         ? `0 26px 90px rgba(0,0,0,0.34),
-     0 0 30px rgba(155,44,255,0.8),
-     0 0 0 1px rgba(255,255,255,0.22),
-     0 0 0 2px rgba(155,44,255,0.22)`
-                        : `0 16px 54px rgba(0,0,0,0.26),
-     0 0 22px rgba(155,44,255,0.26),
-     0 0 0 1px rgba(255,255,255,0.16)`,
+                            0 0 30px rgba(155,44,255,0.8),
+                            0 0 0 1px rgba(255,255,255,0.22),
+                            0 0 0 2px rgba(155,44,255,0.22)`
+                                                : `0 16px 54px rgba(0,0,0,0.26),
+                            0 0 22px rgba(155,44,255,0.26),
+                            0 0 0 1px rgba(255,255,255,0.16)`,
                     }}
                   >
                     {!isActive && (
@@ -785,61 +1004,81 @@ const MainBottom = memo(function MainBottom({
   mainKeyword,
   setMainKeyword,
   goPopupSearch,
+
+  // ✅ 기존
   latestPopups,
   endingSoonPopups,
+
+  // ✅ 추가
+  openingSoonPopups,
+  openingSoonTitle,
+
   onAllClick,
   mainLoading,
 }) {
   return (
-    <section className="pt-24 md:pt-30 pb-10">
+    // ✅ (수정) 모바일에서 퀵슬롯과 검색영역 겹침 방지: pt만 모바일에서 증가
+    <section className="pt-[220px] sm:pt-24 md:pt-30 pb-10">
       <div className="flex justify-center mt-6 md:mt-8">
-        <div className="w-full max-w-[980px] px-4 sm:px-6 flex flex-col sm:flex-row gap-3">
-          <input
-            type="text"
-            value={mainKeyword}
-            onChange={(e) => setMainKeyword(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && goPopupSearch()}
-            placeholder="팝업스토어를 검색해보세요."
-            className="flex-1 h-[48px] bg-paper rounded-full px-6 text-[14px] text-text-black placeholder:text-text-sub outline-none ring-2 ring-secondary-light focus:ring-2 focus:ring-primary transition-all"
-            style={{
-              boxShadow: `0 10px 30px rgba(155,44,255,0.08)`,
-            }}
-          />
+        <div className="w-full max-w-[980px] px-4 sm:px-6">
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={mainKeyword}
+              onChange={(e) => setMainKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && goPopupSearch()}
+              placeholder="팝업스토어를 검색해보세요."
+              className="flex-1 min-w-0 w-full h-[48px] bg-paper rounded-full px-6 text-[14px] text-text-black placeholder:text-text-sub outline-none ring-2 ring-secondary-light focus:ring-2 focus:ring-primary transition-all"
+              style={{
+                boxShadow: `0 10px 30px rgba(155,44,255,0.08)`,
+              }}
+            />
 
-          <button
-            type="button"
-            aria-label="search"
-            onClick={goPopupSearch}
-            className="
-              w-full sm:w-[48px] h-[48px]
-              rounded-full
-              flex items-center justify-center
-              transition-all duration-200
-              hover:scale-105
-              active:scale-95
-            "
-            style={{
-              background: `linear-gradient(135deg, ${PURPLE.neon} 0%, ${PURPLE.deep} 100%)`,
-              boxShadow: `0 10px 34px rgba(155,44,255,0.40)`,
-            }}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="w-5 h-5"
+            <button
+              type="button"
+              aria-label="search"
+              onClick={goPopupSearch}
+              className="
+                w-[48px] h-[48px]
+                shrink-0
+                rounded-full
+                flex items-center justify-center
+                transition-all duration-200
+                hover:scale-105
+                active:scale-95
+              "
+              style={{
+                background: `linear-gradient(135deg, ${PURPLE.neon} 0%, ${PURPLE.deep} 100%)`,
+                boxShadow: `0 10px 34px rgba(155,44,255,0.40)`,
+              }}
             >
-              <path
-                d="M16.6725 16.6412L21 21M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z"
-                stroke="#ffffff"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-5 h-5"
+              >
+                <path
+                  d="M16.6725 16.6412L21 21M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z"
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
+
+
+      {/* ✅ NEW: 두근두근 곧 오픈예정 섹션 */}
+      <CardGridSection
+        title={openingSoonTitle || "두근 두근 곧 오픈예정"}
+        items={openingSoonPopups}
+        onAllClick={onAllClick}
+        mainLoading={mainLoading}
+      />
 
       <CardGridSection
         title="따끈따끈 팝업"
@@ -873,9 +1112,20 @@ function MainPage() {
   const [heroPopups, setHeroPopups] = useState([]);
   const [latestPopups, setLatestPopups] = useState([]);
   const [endingSoonPopups, setEndingSoonPopups] = useState([]);
+
+  // ✅ 추가
+  const [openingSoonPopups, setOpeningSoonPopups] = useState([]);
+
   const [mainLoading, setMainLoading] = useState(false);
 
   const MAIN_CARD_LIMIT = 10; // ✅ 프론트에서 원하는 만큼 조절
+
+  // ✅ (추가) 현재 달 타이틀: "12월"
+  const openingSoonTitle = useMemo(() => {
+    const now = new Date();
+    const mm = now.getMonth() + 1;
+    return `두근 두근 곧 오픈예정 ${mm}월`;
+  }, []);
 
   // ✅ HERO에서 기존 posters 형태 유지하기 위한 변환 (JSX/스타일 건드리지 않기)
   const posters = useMemo(() => {
@@ -912,11 +1162,19 @@ function MainPage() {
         setEndingSoonPopups(
           Array.isArray(mainData?.endingSoon) ? mainData.endingSoon : []
         );
+
+        // ✅ 추가: openingSoon
+        setOpeningSoonPopups(
+          Array.isArray(mainData?.openingSoon) ? mainData.openingSoon : []
+        );
       } catch (e) {
         if (!alive) return;
         setHeroPopups([]);
         setLatestPopups([]);
         setEndingSoonPopups([]);
+
+        // ✅ 추가
+        setOpeningSoonPopups([]);
       } finally {
         if (!alive) return;
         setMainLoading(false);
@@ -1099,6 +1357,8 @@ function MainPage() {
         goPopupSearch={goPopupSearch}
         latestPopups={latestPopups}
         endingSoonPopups={endingSoonPopups}
+        openingSoonPopups={openingSoonPopups}
+        openingSoonTitle={openingSoonTitle}
         onAllClick={onAllClick}
         mainLoading={mainLoading}
       />
