@@ -2,24 +2,38 @@ import { useState, useEffect, useRef } from "react";
 import ghost1 from "../../../assets/ghost1.png";
 import { useAuthStore } from "../../../store/authStore";
 import { useChatStore } from "../../../store/chat/chatStore";
-import { startAiChat } from "../../../api/chatApi";
+import { startAiChat, getHiddenChatRooms } from "../../../api/chatApi";
 import { useNavigate } from "react-router-dom";
-
 import MyPageIcon from "../icons/MyPageIcon";
 import PopupListIcon from "../icons/PopupListIcon";
+import HiddenChatRoomModal from "../common/hidden/HiddenChatRoomModal";
+import { BoxIcon } from "lucide-react";
 
 export default function ChatUserInfo() {
   const { user, fetchMe, initialized, logout } = useAuthStore();
   const { addOrSelectPrivateRoom } = useChatStore();
-
+  const { fetchRooms } = useChatStore();
   const [open, setOpen] = useState(false);
   const [visible, setVisible] = useState(false);
+  const [openHidden, setOpenHidden] = useState(false);
+  const [hiddenRooms, setHiddenRooms] = useState([]);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!initialized) fetchMe();
   }, [initialized, fetchMe]);
+
+  //숨김 목록 로드 함수
+  const loadHiddenRooms = async () => {
+    try {
+      const data = await getHiddenChatRooms();
+      setHiddenRooms(data);
+      fetchRooms();
+    } catch (e) {
+      console.error("숨김 채팅방 불러오기 실패", e);
+    }
+  };
 
   const username = user?.nickname || user?.userNickname || "게스트";
   const profileImageUrl = user?.profileImage || ghost1;
@@ -191,9 +205,39 @@ export default function ChatUserInfo() {
                 전체 팝업리스트
               </span>
             </div>
+
+            {/* 숨김 채팅방 */}
+            <div
+              className="group relative w-full rounded-xl px-4 py-3 cursor-pointer
+             flex items-center gap-3 transition"
+              onClick={async () => {
+                await loadHiddenRooms();
+                setOpenHidden(true);
+                setOpen(false);
+                setTimeout(() => setVisible(false), 180);
+              }}
+            >
+              <div
+                className="absolute inset-0 rounded-xl opacity-0 
+               group-hover:opacity-100 transition
+               bg-primary-soft2/20 backdrop-blur-md
+               border border-primary-soft2/10"
+              />
+              <BoxIcon className="w-5 h-5 text-primary relative z-10" />
+              <span className="text-sm font-medium text-text-black relative z-10">
+                숨김 채팅방
+              </span>
+            </div>
           </div>
         </div>
       )}
+      {/* 🔥 여기 추가하면 된다 */}
+      <HiddenChatRoomModal
+        open={openHidden}
+        onClose={() => setOpenHidden(false)}
+        rooms={hiddenRooms}
+        onRefresh={loadHiddenRooms}
+      />
     </div>
   );
 }

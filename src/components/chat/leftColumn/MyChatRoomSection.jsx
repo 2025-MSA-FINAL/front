@@ -5,6 +5,7 @@ import groupChat from "../../../assets/groupChat.png";
 import privateChat from "../../../assets/privateChat.png";
 import ExpandDownDouble from "../icons/ExpandDownDouble";
 import ChatRoomItem from "../common/ChatRoomItem";
+import ChatRoomContextMenu from "../common/hidden/ChatRoomContextMenu";
 import POPBOT from "../../../assets/POPBOT.png";
 
 export default function MyChatRoomSection() {
@@ -13,8 +14,17 @@ export default function MyChatRoomSection() {
 
   const { rooms, fetchRooms, selectRoom } = useChatStore();
 
+  const [menu, setMenu] = useState(null);
+
   useEffect(() => {
     fetchRooms();
+  }, []);
+
+  // 외부 클릭 시 메뉴 닫기
+  useEffect(() => {
+    const close = () => setMenu(null);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
   }, []);
 
   // 스크롤 체크
@@ -73,6 +83,14 @@ export default function MyChatRoomSection() {
           <div
             key={`${room.roomId}-${room.roomType}`}
             onClick={() => handleRoomClick(room)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setMenu({
+                x: e.clientX,
+                y: e.clientY,
+                room,
+              });
+            }}
           >
             <ChatRoomItem
               name={room.roomName}
@@ -100,6 +118,17 @@ export default function MyChatRoomSection() {
             className="text-secondary-light animate-float-down"
           />
         </div>
+      )}
+
+      {/* 🔥 우클릭 메뉴 */}
+      {menu && (
+        <ChatRoomContextMenu
+          x={menu.x}
+          y={menu.y}
+          room={menu.room}
+          onClose={() => setMenu(null)}
+          onHidden={() => fetchRooms()}
+        />
       )}
     </section>
   );

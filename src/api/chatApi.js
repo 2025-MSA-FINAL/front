@@ -105,19 +105,23 @@ export async function deletePrivateChatRoom(pcrId) {
 /* -------------------------------------------
     4) 숨김/숨김 해제
 ------------------------------------------- */
-
 export async function hideChatRoom(crhType, crhRoomId) {
-  const res = await apiClient.post("/chat/hidden/hide", null, {
+  const res = await apiClient.post("/api/chat/hidden/hide", null, {
     params: { crhType, crhRoomId },
   });
   return res.data;
 }
 
 export async function unhideChatRoom(crhType, crhRoomId) {
-  const res = await apiClient.post("/chat/hidden/unhide", null, {
+  const res = await apiClient.post("/api/chat/hidden/unhide", null, {
     params: { crhType, crhRoomId },
   });
   return res.data;
+}
+
+export async function getHiddenChatRooms() {
+  const res = await apiClient.get("/api/chat/hidden");
+  return res.data; // List<ChatRoomHidden>
 }
 
 /* -------------------------------------------
