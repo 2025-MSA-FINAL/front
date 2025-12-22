@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import groupChatIcon from "../../../assets/groupChat.png";
 import ReportIcon from "../icons/ReportIcon";
 import { deleteGroupChatRoom, leaveGroupChatRoom } from "../../../api/chatApi";
@@ -14,10 +14,26 @@ export default function GroupRoomInfoPopover({
   openReportModal,
 }) {
   const popRef = useRef(null);
-
+  const titleRef = useRef(null);
+  const [smallTitle, setSmallTitle] = useState(false);
   const removeRoom = useChatStore((s) => s.removeRoom);
   const setActiveRoom = useChatStore((s) => s.setActiveChatRoom);
   const { fetchPopupRooms, selectedPopup } = useChatPopupStore();
+
+  useEffect(() => {
+    if (!open || !room?.title || !titleRef.current) return;
+
+    const el = titleRef.current;
+
+    requestAnimationFrame(() => {
+      const shouldBeSmall = el.scrollHeight > el.clientHeight;
+
+      setSmallTitle((prev) => {
+        if (prev !== shouldBeSmall) return shouldBeSmall;
+        return prev;
+      });
+    });
+  }, [open, room?.title]);
 
   /* 외부 클릭 감지 */
   useEffect(() => {
@@ -44,7 +60,7 @@ export default function GroupRoomInfoPopover({
     <div
       ref={popRef}
       className="
-        absolute left-20 top-17 z-[200]
+        absolute left-20 top-17 z-[200] 
         w-[340px] rounded-3xl px-7 py-7
         bg-white shadow-lg backdrop-blur-xl border border-gray-200
         flex flex-col items-center gap-2.5
@@ -71,7 +87,7 @@ export default function GroupRoomInfoPopover({
 
       {/* 팝업 이름 (있을 때만) */}
       {room.popName && (
-        <p className="text-xs font-bold text-primary text-center mt-3 mb-1">
+        <p className="text-xs font-bold text-primary text-center mt-7 mb-1">
           {room.popName}
         </p>
       )}
@@ -80,7 +96,14 @@ export default function GroupRoomInfoPopover({
       <img src={groupChatIcon} className="w-20 h-20 object-contain mt-1" />
 
       {/* 제목 */}
-      <h2 className="text-xl font-extrabold text-text-black text-center">
+      <h2
+        ref={titleRef}
+        className={`
+          text-text-black text-center font-extrabold
+          leading-snug max-h-20 overflow-auto custom-scroll
+          ${smallTitle ? "text-[14px]" : "text-[18px]"}
+        `}
+      >
         {room.title}
       </h2>
 

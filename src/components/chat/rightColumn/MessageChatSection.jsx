@@ -12,6 +12,7 @@ import {
   uploadReportImages,
   createChatReport,
   pureLlmReply,
+  hideChatRoom,
 } from "../../../api/chatApi";
 import BlurModal from "../../common/BlurModal";
 import MessageItem from "../../chat/common/MessageItem";
@@ -1020,41 +1021,65 @@ export default function MessageChatSection() {
         >
           <div className="w-full h-full flex flex-col px-4 py-4 md:px-8 md:py-5 relative z-[1]">
             {/* HEADER */}
-            <div className="flex items-center justify-between mb-2 px-1">
-              <div className="flex items-center gap-3">
-                <div className="w-12 flex items-center justify-center">
-                  <img src={roomIcon} className={iconSize} />
-                </div>
-
-                <div
-                  className="flex flex-col justify-center h-[48px]"
-                  ref={roomInfoRef}
-                >
-                  {roomType === "GROUP" ? (
-                    <div className="flex flex-row items-end gap-3">
-                      <button
-                        onClick={toggleRoomInfo}
-                        className="text-white font-semibold text-base md:text-lg hover:text-white/80 transition"
-                      >
-                        {activeRoom?.title}
-                      </button>
-                      <span
-                        className="text-white/60 text-[10px] md:text-[11px] cursor-pointer hover:text-white transition"
-                        onClick={toggleParticipants}
-                      >
-                        인원 {participants.length} / {activeRoom?.maxUserCnt}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-white font-semibold text-base md:text-lg">
-                      {activeRoom?.roomName}
-                    </span>
-                  )}
-                </div>
+            <div className="flex items-center gap-3 mb-2 px-1">
+              {/* LEFT: 아이콘 (고정) */}
+              <div className="w-12 h-12 flex items-center justify-center shrink-0">
+                <img src={roomIcon} className={iconSize} />
               </div>
 
+              <div
+                className="flex flex-col justify-center flex-1 min-w-0"
+                ref={roomInfoRef}
+              >
+                {roomType === "GROUP" ? (
+                  <div className="flex items-end gap-2 min-w-0">
+                    {/* 제목 */}
+                    <button
+                      onClick={toggleRoomInfo}
+                      className="
+                      text-white font-semibold
+                      text-base md:text-lg
+                      truncate
+                      min-w-0
+                      max-w-full
+                      hover:text-white/80
+                      transition
+                    "
+                    >
+                      {activeRoom?.title}
+                    </button>
+
+                    {/* 인원 (고정) */}
+                    <span
+                      className="
+                      shrink-0
+                      text-white/60
+                      text-[10px] md:text-[11px]
+                      cursor-pointer
+                      hover:text-white
+                      transition
+                      whitespace-nowrap
+                    "
+                      onClick={toggleParticipants}
+                    >
+                      인원 {participants.length} / {activeRoom?.maxUserCnt}
+                    </span>
+                  </div>
+                ) : (
+                  <span
+                    className="
+                  text-white font-semibold
+                  text-base md:text-lg
+                  truncate
+                  min-w-0
+                "
+                  >
+                    {activeRoom?.roomName}
+                  </span>
+                )}
+              </div>
               {/* More 메뉴 */}
-              <div className="relative" ref={menuRef}>
+              <div className="relative shrink-0" ref={menuRef}>
                 <button
                   onClick={toggleMenu}
                   className="p-2 hover:bg-white/10 rounded-full"
@@ -1078,6 +1103,41 @@ export default function MessageChatSection() {
                 `}
                   >
                     <div className="flex flex-col gap-4">
+                      <button
+                        className="mx-2 text-[14px] font-semibold text-left text-text-main hover:text-text-sub transition"
+                        onClick={async () => {
+                          try {
+                            await hideChatRoom(
+                              roomType,
+                              roomType === "GROUP"
+                                ? activeRoom.gcrId
+                                : activeRoom.roomId
+                            );
+
+                            // 1️⃣ 채팅방 목록 갱신
+                            const chatStore = useChatStore.getState();
+                            await chatStore.fetchRooms();
+
+                            // 2️⃣ 모바일 / 작은 화면이면 목록으로 이동
+                            if (isMobile) {
+                              chatStore.setActiveChatRoom(null);
+                              clearSelectedGroupRoom(); // ⭐ 중요 (PopupRoomSection으로 확실히)
+                            } else {
+                              // 데스크탑에서는 그냥 현재 방 닫기
+                              chatStore.setActiveChatRoom(null);
+                            }
+
+                            // 3️⃣ 메뉴 닫기
+                            toggleMenu();
+                          } catch (e) {
+                            alert("채팅방 숨김에 실패했습니다.");
+                            console.error(e);
+                          }
+                        }}
+                      >
+                        채팅방 숨기기
+                      </button>
+
                       {/* 수정하기 - GROUP & Owner */}
                       {roomType === "GROUP" &&
                         activeRoom?.ownerId === currentUserId && (
@@ -1091,10 +1151,10 @@ export default function MessageChatSection() {
                             >
                               수정하기
                             </button>
-
-                            <div className="w-full h-px bg-white/60"></div>
                           </>
                         )}
+
+                      <div className="w-full h-px bg-white/60"></div>
 
                       {/* GROUP → Owner는 삭제, 참여자는 나가기 */}
                       {roomType === "GROUP" ? (
