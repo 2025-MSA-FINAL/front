@@ -117,6 +117,16 @@ joinRoom: async (gcrId) => {
 
   clearSelectedGroupRoom: () => set({ selectedGroupRoom: null }),
 
+  updatePopupRoomMeta: ({ gcrId, patch }) =>
+  set((state) => ({
+    popupRooms: state.popupRooms.map((room) =>
+      room.gcrId === gcrId
+        ? { ...room, ...patch }
+        : room
+    ),
+  })),
+
+
 }));
 
 
