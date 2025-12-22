@@ -1717,12 +1717,20 @@ export default function MessageChatSection() {
               maxUserCnt: data.maxUserCnt,
             });
 
-            // 🔥 왼쪽 채팅 리스트 즉시 반영
+            // 왼쪽 채팅 리스트 즉시 반영
             useChatStore.getState().updateRoomMeta({
               roomType: "GROUP",
               roomId: activeRoom.gcrId,
               patch: {
                 roomName: data.title,
+              },
+            });
+
+            // 팝업 그룹 채팅 리스트
+            useChatPopupStore.getState().updatePopupRoomMeta({
+              gcrId: activeRoom.gcrId,
+              patch: {
+                title: data.title,
               },
             });
 
