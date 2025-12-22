@@ -373,7 +373,7 @@ export default function PopupUserReservationPage() {
         alert("결제 정보를 생성하지 못했습니다. (paymentId 없음)");
         return;
       }
-      if (!Number.isFinite(amount) || amount <= 0) {
+      if (!Number.isFinite(amount) || amount < 0) {
         alert(`결제 금액이 이상합니다. amount=${amount}`);
         return;
       }
