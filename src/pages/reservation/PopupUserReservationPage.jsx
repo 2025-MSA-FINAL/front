@@ -78,6 +78,11 @@ function UserReservationCalendar({
 
   const [monthOffset, setMonthOffset] = useState(0);
 
+  // ✅ [추가된 부분] selectedDate가 바뀌면 monthOffset을 0으로 리셋 (월 튐 방지)
+  useEffect(() => {
+    setMonthOffset(0);
+  }, [selectedDate]);
+
   const currentMonth = useMemo(() => {
     const d = new Date(baseTime);
     d.setDate(1);
@@ -273,7 +278,6 @@ export default function PopupUserReservationPage() {
             setSelectedDate(null); // 전부 과거면 선택 안 함
           }
         }
-
       } catch {
         if (!cancelled) {
           setError("예약 정보를 불러오는 중 오류가 발생했습니다.");
@@ -373,7 +377,7 @@ export default function PopupUserReservationPage() {
         alert("결제 정보를 생성하지 못했습니다. (paymentId 없음)");
         return;
       }
-      if (!Number.isFinite(amount) || amount <= 0) {
+      if (!Number.isFinite(amount) || amount < 0) {
         alert(`결제 금액이 이상합니다. amount=${amount}`);
         return;
       }
@@ -384,7 +388,9 @@ export default function PopupUserReservationPage() {
       console.log("[PAY] env", { storeId, channelKey });
 
       if (!storeId || !channelKey) {
-        alert("결제 설정이 누락되었습니다. (VITE_PORTONE_STORE_ID / VITE_PORTONE_CHANNEL_KEY)");
+        alert(
+          "결제 설정이 누락되었습니다. (VITE_PORTONE_STORE_ID / VITE_PORTONE_CHANNEL_KEY)"
+        );
         return;
       }
 
@@ -425,7 +431,11 @@ export default function PopupUserReservationPage() {
       console.log("[PAY] complete result", completeRes);
 
       if (completeRes?.status !== "PAID") {
-        alert(`결제가 완료되지 않았습니다. (status=${completeRes?.status ?? "UNKNOWN"})`);
+        alert(
+          `결제가 완료되지 않았습니다. (status=${
+            completeRes?.status ?? "UNKNOWN"
+          })`
+        );
         return;
       }
 
@@ -650,7 +660,9 @@ export default function PopupUserReservationPage() {
                     TOSS
                   </div>
                   <div className="text-left">
-                    <div className="text-[14px] font-semibold text-text-black">토스페이</div>
+                    <div className="text-[14px] font-semibold text-text-black">
+                      토스페이
+                    </div>
                     <div className="text-[11px] text-text-black">
                       간편결제 · 카드 등록 시 한 번에 결제
                     </div>

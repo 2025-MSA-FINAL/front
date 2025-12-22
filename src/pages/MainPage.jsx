@@ -644,7 +644,7 @@ const HeroCarousel = memo(function HeroCarousel({ posters, cfg, navigate }) {
 
     const id = setInterval(() => {
       setActive((prev) => (prev + 1) % posters.length);
-    }, 1000);
+    }, 2200);
 
     return () => clearInterval(id);
   }, [posters?.length, isHeroCenterHovered, posters]);
