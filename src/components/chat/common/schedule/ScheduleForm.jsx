@@ -99,13 +99,26 @@ export default function ScheduleForm({
   }, [mode, initialData]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div
+      className="
+        flex flex-col gap-6
+        bg-white/80
+        backdrop-blur-xl
+        border border-white/40
+        rounded-3xl
+        px-6 py-7
+        shadow-dropdown
+        animate-pop-in
+      "
+    >
       {/* Title */}
-      <h2 className="text-xl font-semibold text-gray-900">예약 메시지</h2>
+      <h2 className="text-title-lg font-semibold text-text-black">
+        예약 메시지
+      </h2>
 
-      {/* Message input */}
+      {/* Message */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm text-gray-500">메시지</label>
+        <label className="text-label-md text-text-sub">메시지</label>
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
@@ -113,20 +126,22 @@ export default function ScheduleForm({
           className="
             w-full h-28
             rounded-2xl
-            border border-gray-200
-            bg-gray-50
+            bg-white
+            border border-secondary
             px-4 py-3
-            text-sm text-gray-800
+            text-body-md text-text-black
+            placeholder:text-text-sub
             resize-none
             focus:outline-none
-            focus:ring-2 focus:ring-[#5856D6]/40
+            focus:ring-2 focus:ring-primary-soft2
+            chat-textarea-scroll
           "
         />
       </div>
 
       {/* Date selector */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm text-gray-500">예약 시간</label>
+        <label className="text-label-md text-text-sub">예약 시간</label>
 
         <button
           onClick={() => {
@@ -137,20 +152,20 @@ export default function ScheduleForm({
             w-full flex items-center justify-between
             px-4 py-3
             rounded-2xl
-            border border-gray-200
             bg-white
-            text-sm
-            hover:bg-gray-50
-            transition cursor-pointer
+            border border-secondary
+            text-body-md text-text-black
+            hover:bg-secondary-light
+            transition
           "
         >
-          <span className={scheduledAt ? "text-gray-900" : "text-gray-400"}>
+          <span className={scheduledAt ? "text-text-black" : "text-text-sub"}>
             {scheduledAt
               ? formatSchedulePreview(scheduledAt)
               : "날짜 및 시간 선택"}
           </span>
 
-          <span className="text-[#5856D6] font-semibold">선택</span>
+          <span className="text-primary font-semibold">선택</span>
         </button>
       </div>
 
@@ -175,20 +190,16 @@ export default function ScheduleForm({
       <div className="flex gap-3 pt-2">
         <button
           onClick={() => {
-            if (mode === "edit") {
-              onCancelEdit?.();
-            } else {
-              onClose();
-            }
+            mode === "edit" ? onCancelEdit?.() : onClose?.();
           }}
           className="
             flex-1 py-3
             rounded-full
-            bg-gray-100
-            text-gray-600
+            bg-secondary-light
+            text-text-sub
             font-semibold
-            hover:bg-gray-200
-            transition cursor-pointer
+            hover:bg-secondary
+            transition
           "
         >
           취소
@@ -200,28 +211,32 @@ export default function ScheduleForm({
           className="
             flex-1 py-3
             rounded-full
-            bg-[#5856D6]
-            text-white
+            bg-primary
+            text-text-white
             font-semibold
+            shadow-brand
+            hover:shadow-hover
+            hover:opacity-95
             transition
-            disabled:opacity-40 cursor-pointer
+            disabled:opacity-40
           "
         >
           {loading ? "예약 중..." : mode === "edit" ? "수정 저장" : "예약"}
         </button>
       </div>
 
+      {/* List link */}
       {mode === "create" && (
         <button
-          onClick={() => {
-            onOpenList?.();
-          }}
+          onClick={onOpenList}
           className="
-      text-sm text-[#5856D6]
-      font-semibold
-      underline
-      self-center cursor-pointer
-    "
+            text-body-sm
+            text-primary
+            font-semibold
+            underline
+            self-center
+            hover:opacity-80
+          "
         >
           예약 목록 보기
         </button>
