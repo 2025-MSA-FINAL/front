@@ -126,32 +126,28 @@ export default function ScheduleDateTimePicker({
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center">
-      {/* backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40 rounded-2xl"
-        onClick={onCancel}
-      />
-
-      {/* iOS card */}
+      {/* picker card */}
       <div
         className="
-          relative w-[340px]
-          bg-white/90 backdrop-blur-xl
-          rounded-3xl p-5
-          shadow-2xl
-          animate-scale-in
-        "
+        relative
+        w-[340px]
+        bg-white
+        rounded-3xl
+        p-5
+        shadow-dropdown
+        animate-pop-in
+      "
       >
         {/* header */}
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => setCurrentMonth(new Date(year, month - 1, 1))}
-            className="text-xl text-gray-500"
+            className="text-xl text-text-sub hover:text-primary transition"
           >
             ‹
           </button>
 
-          <h3 className="font-semibold text-base">
+          <h3 className="font-semibold text-body-md text-text-black">
             {currentMonth.toLocaleString("en-US", {
               month: "long",
               year: "numeric",
@@ -160,14 +156,14 @@ export default function ScheduleDateTimePicker({
 
           <button
             onClick={() => setCurrentMonth(new Date(year, month + 1, 1))}
-            className="text-xl text-gray-500"
+            className="text-xl text-text-sub hover:text-primary transition"
           >
             ›
           </button>
         </div>
 
         {/* weekdays */}
-        <div className="grid grid-cols-7 text-[11px] text-gray-400 mb-1">
+        <div className="grid grid-cols-7 text-label-sm text-text-sub mb-1">
           {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
             <div key={d} className="text-center">
               {d}
@@ -176,7 +172,7 @@ export default function ScheduleDateTimePicker({
         </div>
 
         {/* calendar */}
-        <div className="grid grid-cols-7 gap-1 text-sm mb-4">
+        <div className="grid grid-cols-7 gap-1 text-body-sm mb-4">
           {days.map((d, idx) => {
             const cellDate =
               d.day != null ? new Date(year, month, d.day) : null;
@@ -202,19 +198,19 @@ export default function ScheduleDateTimePicker({
                   if (!isDisabled) setSelectedDate(cellDate);
                 }}
                 className={`
-                    h-9 w-9 mx-auto rounded-full
-                    transition-all cursor-pointer
-                    ${
-                      isSelected
-                        ? "bg-[#5856D6] text-white scale-105"
-                        : "hover:bg-gray-100"
-                    }
-                    ${
-                      isDisabled
-                        ? "text-gray-300 cursor-not-allowed pointer-events-none hover:bg-transparent"
-                        : "text-gray-900"
-                    }
-                    `}
+                h-9 w-9 mx-auto rounded-full
+                transition-all
+                ${
+                  isSelected
+                    ? "bg-primary text-text-white scale-105"
+                    : "hover:bg-secondary-light"
+                }
+                ${
+                  isDisabled
+                    ? "text-text-sub/40 cursor-not-allowed pointer-events-none"
+                    : "text-text-black"
+                }
+              `}
               >
                 {d.day}
               </button>
@@ -223,35 +219,27 @@ export default function ScheduleDateTimePicker({
         </div>
 
         {/* time wheel */}
-        <div className="flex items-center justify-center gap-8 py-4 border-t">
-          {/* Hour */}
+        <div className="flex items-center justify-center gap-8 py-4 border-t border-secondary-light">
           <div
             onWheel={handleHourWheel}
             {...hourTouch}
-            className="
-                flex flex-col items-center
-                select-none cursor-pointer
-                "
+            className="flex flex-col items-center select-none cursor-pointer"
           >
-            <span className="text-[11px] text-gray-400 mb-1">Hour</span>
-            <div className="text-3xl font-semibold w-12 text-center">
+            <span className="text-label-sm text-text-sub mb-1">Hour</span>
+            <div className="text-3xl font-semibold w-12 text-center text-text-black">
               {String(hour).padStart(2, "0")}
             </div>
           </div>
 
-          <span className="text-3xl font-semibold text-gray-400">:</span>
+          <span className="text-3xl font-semibold text-text-sub">:</span>
 
-          {/* Minute */}
           <div
             onWheel={handleMinuteWheel}
             {...minuteTouch}
-            className="
-                flex flex-col items-center
-                select-none cursor-pointer
-                "
+            className="flex flex-col items-center select-none cursor-pointer"
           >
-            <span className="text-[11px] text-gray-400 mb-1">Min</span>
-            <div className="text-3xl font-semibold w-12 text-center">
+            <span className="text-label-sm text-text-sub mb-1">Min</span>
+            <div className="text-3xl font-semibold w-12 text-center text-text-black">
               {String(minute).padStart(2, "0")}
             </div>
           </div>
@@ -261,7 +249,7 @@ export default function ScheduleDateTimePicker({
         <div className="flex justify-between mt-4">
           <button
             onClick={onCancel}
-            className="text-[#5856D6] font-semibold cursor-pointer"
+            className="text-primary font-semibold hover:opacity-80 transition"
           >
             취소
           </button>
@@ -270,11 +258,15 @@ export default function ScheduleDateTimePicker({
             onClick={confirm}
             disabled={isInvalidTime}
             className="
-                px-4 py-2 rounded-full
-                bg-[#5856D6] text-white
-                font-semibold
-                disabled:opacity-40 cursor-pointer
-            "
+            px-4 py-2 rounded-full
+            bg-primary text-text-white
+            font-semibold
+            shadow-brand
+            hover:shadow-hover
+            hover:opacity-95
+            transition
+            disabled:opacity-40
+          "
           >
             확인
           </button>

@@ -19,7 +19,12 @@ export default function CreateScheduleModal({
   return (
     <>
       {(mode === "create" || mode === "edit") && (
-        <BlurModal open={open} onClose={onClose} width="420px">
+        <BlurModal
+          open={open}
+          onClose={onClose}
+          width="420px"
+          showCloseButton={false}
+        >
           <ScheduleForm
             roomId={roomId}
             roomType={roomType}
