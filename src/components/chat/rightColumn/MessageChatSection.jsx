@@ -15,6 +15,7 @@ import {
 } from "../../../api/chatApi";
 import BlurModal from "../../common/BlurModal";
 import MessageItem from "../../chat/common/MessageItem";
+import CreateScheduleModal from "../common/schedule/CreateScheduleModal";
 import EditRoomForm from "../../chat/rightColumn/EditRoomForm";
 import ReportForm from "../../chat/rightColumn/ReportForm";
 import GroupRoomInfoPopover from "../../chat/common/GroupRoomInfoPopover";
@@ -135,6 +136,7 @@ export default function MessageChatSection() {
   const [isMobile, setIsMobile] = useState(false);
   const [reportContext, setReportContext] = useState(null);
   const [aiMode, setAiMode] = useState("RAG");
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
 
   const subRef = useRef(null);
   const scrollRef = useRef(null);
@@ -165,9 +167,12 @@ export default function MessageChatSection() {
     (s) => s.clearSelectedGroupRoom
   );
 
+  const AI_USER_ID = 20251212;
+
   const roomId = activeRoom?.gcrId ?? activeRoom?.roomId;
   const roomType = activeRoom?.roomType;
   const otherUserId = activeRoom?.otherUserId;
+  const isAiChat = roomType === "PRIVATE" && otherUserId === AI_USER_ID;
 
   const showUnreadButton = !isAtBottom && unreadCount > 0;
 
@@ -190,8 +195,6 @@ export default function MessageChatSection() {
   const otherLastReadMessageId = roomState?.otherLastReadMessageId ?? 0;
   const participants = roomState?.participants ?? [];
   const initialUnreadMessageId = roomState?.initialUnreadMessageId ?? null;
-
-  const AI_USER_ID = 20251212;
 
   const iconSize =
     roomType === "GROUP"
@@ -1603,9 +1606,14 @@ export default function MessageChatSection() {
                 />
               </button>
 
-              <button className="p-2 hover:bg-white/10 rounded-full">
-                <ScheduleIcon className="w-5 h-5 md:w-6 md:h-6" fill="#fff" />
-              </button>
+              {!isAiChat && (
+                <button
+                  className="p-2 hover:bg-white/10 rounded-full"
+                  onClick={() => setShowScheduleModal(true)}
+                >
+                  <ScheduleIcon className="w-5 h-5 md:w-6 md:h-6" fill="#fff" />
+                </button>
+              )}
 
               <button
                 onClick={sendMessage}
@@ -1669,6 +1677,13 @@ export default function MessageChatSection() {
       >
         <ReportForm onSubmit={handleSubmitReport} />
       </BlurModal>
+
+      <CreateScheduleModal
+        open={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+        roomId={roomId}
+        roomType={roomType}
+      />
     </>
   );
 }
