@@ -137,7 +137,14 @@ export async function startAiChat() {
   });
   return res.data; // roomId
 }
-
+export async function pureLlmReply(payload) {
+  const res = await apiClient.post(
+    "/api/chat/messages/pure-llm",
+    payload,
+    { headers: { "Content-Type": "application/json" } }
+  );
+  return res.data;
+}
 /* -------------------------------------------
     7) 채팅 이미지 전송
 ------------------------------------------- */
@@ -216,6 +223,7 @@ export default {
   unhideChatRoom,
   getMiniUserProfile,
   startAiChat,
+  pureLlmReply,
 
   uploadChatImages,
   createChatReport,

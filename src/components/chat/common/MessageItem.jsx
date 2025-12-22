@@ -8,6 +8,35 @@ import DownloadIcon from "../icons/DownloadIcon";
 const MAX_PREVIEW_CHARS = 600; // 긴 메시지 기준
 const AI_USER_ID = 20251212;
 
+const stripCodeFence = (text = "") => {
+  const s = String(text).trim();
+
+  // ```json ... ``` 또는 ``` ... ```
+  if (s.startsWith("```")) {
+    return s
+      .replace(/^```[a-zA-Z]*\n?/, "") // 시작 ```json 제거
+      .replace(/```$/, "") // 끝 ``` 제거
+      .trim();
+  }
+  return s;
+};
+
+const tryParseJson = (content) => {
+  if (!content) return null;
+
+  if (typeof content === "object") return content;
+
+  const cleaned = stripCodeFence(content);
+
+  if (!cleaned.startsWith("{") && !cleaned.startsWith("[")) return null;
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    return null;
+  }
+};
+
 //팝업 카드 컴포넌트
 //클릭 시 해당 팝업 상세 페이지(/popup/:id)로 이동
 const PopupCardBubble = ({ popupData, onClick }) => (
@@ -256,6 +285,7 @@ export default function MessageItem({
   participants,
   currentUserId,
   otherUserId,
+  onResendPureLlm,
   onOpenUserPopover,
   onImageLoad,
   onRetryImage,
@@ -304,27 +334,40 @@ export default function MessageItem({
 
   // 1. 현재 메시지가 '팝업 공유' 타입인지 확인
   //백엔드나 소켓에서 messageType: "POPUP"으로 보낸 경우
-  const isPopupMessage =
-    msg.messageType === "POPUP" || msg.contentType === "POPUP";
+  const rawPopup =
+    typeof msg.content === "object" ? msg.content : tryParseJson(msg.content);
 
-  let popupData = null;
+  const popupData =
+    rawPopup && rawPopup.type === "POPUP" ? normalizePopupData(rawPopup) : null;
+
+  const isPopupMessage =
+    msg.messageType === "POPUP" ||
+    msg.contentType === "POPUP" ||
+    popupData !== null;
+
+  const isPopupRecommend =
+    rawPopup?.type === "POPUP_RECOMMEND" && Array.isArray(rawPopup?.items);
+
+  const popupRecommendItems = isPopupRecommend
+    ? rawPopup.items.map(normalizePopupData).filter(Boolean)
+    : [];
 
   // 2. 팝업 데이터 파싱
   //content에 JSON 문자열(팝업 ID, 이름, 썸네일 등)이 들어있으므로 객체로 변환
-  if (isPopupMessage) {
-    try {
-      //이미 객체라면 그대로 쓰고, 문자열이라면 JSON.parse 시도
-      const raw =
-        typeof msg.content === "string" ? JSON.parse(msg.content) : msg.content;
+  // if (isPopupMessage) {
+  //   try {
+  //     //이미 객체라면 그대로 쓰고, 문자열이라면 JSON.parse 시도
+  //     const raw =
+  //       typeof msg.content === "string" ? JSON.parse(msg.content) : msg.content;
 
-      //파싱한 raw를 pop* 형태로 정규화
-      popupData = normalizePopupData(raw);
-    } catch (e) {
-      console.error("[MessageItem] 팝업 데이터 파싱 실패:", e);
-      //파싱 실패 시 일반 텍스트로 보여주거나 에러 처리가 될 수 있도록 null 유지
-      popupData = null;
-    }
-  }
+  //     //파싱한 raw를 pop* 형태로 정규화
+  //     popupData = normalizePopupData(raw);
+  //   } catch (e) {
+  //     console.error("[MessageItem] 팝업 데이터 파싱 실패:", e);
+  //     //파싱 실패 시 일반 텍스트로 보여주거나 에러 처리가 될 수 있도록 null 유지
+  //     popupData = null;
+  //   }
+  // }
 
   //msg.content가 객체여도 길이/프리뷰 계산이 깨지지 않게 safeContentString 사용
   const isLong =
@@ -466,7 +509,17 @@ export default function MessageItem({
               {/* ========================================================= */}
               {/* 팝업 메시지인지 일반 텍스트인지 구분하여 렌더링 */}
               {/* ========================================================= */}
-              {isPopupMessage && popupData ? (
+              {isPopupRecommend ? (
+                <div className="flex gap-3 overflow-x-auto max-w-[90vw] pb-2">
+                  {popupRecommendItems.map((item) => (
+                    <PopupCardBubble
+                      key={item.popId ?? item.popName}
+                      popupData={item}
+                      onClick={() => navigate(`/popup/${item.popId}`)}
+                    />
+                  ))}
+                </div>
+              ) : isPopupMessage && popupData ? (
                 // (A) 팝업 공유 메시지인 경우 -> 카드 컴포넌트 표시 (props 전달)
                 <PopupCardBubble
                   popupData={popupData}
@@ -514,6 +567,12 @@ export default function MessageItem({
                       </button>
                     </div>
                   )}
+                  {msg._needConfirm && (
+                    <NeedConfirmCard
+                      data={msg._needConfirm}
+                      onResend={() => onResendPureLlm(msg)}
+                    />
+                  )}
                 </div>
               )}
 
@@ -533,6 +592,24 @@ export default function MessageItem({
                 )}
               </div>
             </div>
+
+            {isAiMessage && msg.aiMode === "RAG" && (
+              <span className="text-[10px] text-text-main ml-2 mt-2">
+                👻 팝스팟 정보 기준
+              </span>
+            )}
+
+            {isAiMessage && msg.aiMode === "PURE_LLM" && (
+              <span className="text-[10px] text-text-main ml-2 mt-2">
+                🤖 일반 AI
+              </span>
+            )}
+
+            {isAiMessage && msg.aiMode === "RAG_RECOMMEND" && (
+              <span className="text-[10px] text-primary-soft ml-2 mt-1">
+                ⭐️ 팝업 추천
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -654,6 +731,38 @@ export default function MessageItem({
       </BlurModal>
     </>
   );
+
+  function NeedConfirmCard({ data, onResend }) {
+    return (
+      <div
+        className="
+        mt-3 p-3 rounded-xl
+        bg-white/30 backdrop-blur-md
+        border border-white/30
+        shadow-sm
+        max-w-[260px] sm:max-w-[320px]
+      "
+      >
+        <p className="text-xs text-white/80 leading-relaxed">
+          {data?.message ?? "현재 팝스팟 정보만으로는 정확한 답변이 어려워요."}
+        </p>
+
+        <button
+          onClick={onResend}
+          className="
+          mt-3 w-full
+          py-2 text-xs font-semibold
+          rounded-lg
+          bg-primary-soft2 text-white
+          hover:bg-primary-soft2/80
+          transition
+        "
+        >
+          🤖 일반 AI로 질문하기
+        </button>
+      </div>
+    );
+  }
 
   function ImageViewerModal({ open, urls, startIndex = 0, onClose }) {
     const [index, setIndex] = useState(startIndex);
