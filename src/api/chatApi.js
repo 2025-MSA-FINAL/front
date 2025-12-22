@@ -202,6 +202,59 @@ export async function uploadReportImages(files) {
 }
 
 /* -------------------------------------------
+    10) 예약 메시지 (Schedule Message)
+------------------------------------------- */
+
+/**
+ * 예약 메시지 생성
+ * POST /api/chat/schedule
+ */
+export async function createScheduledMessage(payload) {
+  const res = await apiClient.post(
+    "/api/chat/schedule",
+    payload,
+    { headers: { "Content-Type": "application/json" } }
+  );
+  return res.data;
+}
+
+/**
+ * 내 예약 메시지 목록 조회
+ * GET /api/chat/schedule?status=PENDING
+ */
+export async function getMyScheduledMessages(status = "PENDING") {
+  const res = await apiClient.get("/api/chat/schedule", {
+    params: { status },
+  });
+  return res.data; // List<ScheduledMessageResponse>
+}
+
+/**
+ * 예약 메시지 수정
+ * PUT /api/chat/schedule/{csmId}
+ */
+export async function updateScheduledMessage(csmId, payload) {
+  const res = await apiClient.put(
+    `/api/chat/schedule/${csmId}`,
+    payload,
+    { headers: { "Content-Type": "application/json" } }
+  );
+  return res.data;
+}
+
+/**
+ * 예약 메시지 취소
+ * DELETE /api/chat/schedule/{csmId}
+ */
+export async function cancelScheduledMessage(csmId) {
+  const res = await apiClient.delete(
+    `/api/chat/schedule/${csmId}`
+  );
+  return res.data;
+}
+
+
+/* -------------------------------------------
     기본 export
 ------------------------------------------- */
 export default {
@@ -228,4 +281,9 @@ export default {
   uploadChatImages,
   createChatReport,
   uploadReportImages,
+
+  createScheduledMessage,
+  getMyScheduledMessages,
+  updateScheduledMessage,
+  cancelScheduledMessage,
 };
