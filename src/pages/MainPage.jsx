@@ -309,6 +309,7 @@ const CardGridSection = memo(function CardGridSection({
                             ? "linear-gradient(90deg, var(--color-accent-pink) 0%, rgba(255,42,126,0.35) 70%, rgba(255,42,126,0) 100%)"
                             : "linear-gradient(90deg, var(--color-primary) 0%, rgba(195,61,255,0.25) 70%, rgba(195,61,255,0) 100%)",
                           opacity: 0.95,
+                          height: "4px"
                         }}
                       />
                     </div>
@@ -882,12 +883,12 @@ const HeroCarousel = memo(function HeroCarousel({ posters, cfg, navigate }) {
                       background: "#ffffff",
                       boxShadow: isActive
                         ? `0 26px 90px rgba(0,0,0,0.34),
-     0 0 30px rgba(155,44,255,0.8),
-     0 0 0 1px rgba(255,255,255,0.22),
-     0 0 0 2px rgba(155,44,255,0.22)`
-                        : `0 16px 54px rgba(0,0,0,0.26),
-     0 0 22px rgba(155,44,255,0.26),
-     0 0 0 1px rgba(255,255,255,0.16)`,
+                            0 0 30px rgba(155,44,255,0.8),
+                            0 0 0 1px rgba(255,255,255,0.22),
+                            0 0 0 2px rgba(155,44,255,0.22)`
+                                                : `0 16px 54px rgba(0,0,0,0.26),
+                            0 0 22px rgba(155,44,255,0.26),
+                            0 0 0 1px rgba(255,255,255,0.16)`,
                     }}
                   >
                     {!isActive && (
