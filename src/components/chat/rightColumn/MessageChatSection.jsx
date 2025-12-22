@@ -11,6 +11,7 @@ import {
   uploadChatImages,
   uploadReportImages,
   createChatReport,
+  pureLlmReply,
 } from "../../../api/chatApi";
 import BlurModal from "../../common/BlurModal";
 import MessageItem from "../../chat/common/MessageItem";
@@ -94,6 +95,24 @@ const toMinuteKey = (dt) => {
   return `${h}:${m}`;
 };
 
+/* ------------------------------------------------------------------
+ 📌 JSON 안전 파싱 유틸
+------------------------------------------------------------------ */
+const tryParseJson = (value) => {
+  if (!value) return null;
+
+  // 이미 객체면 그대로 반환
+  if (typeof value === "object") return value;
+
+  if (typeof value !== "string") return null;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
 /* =======================================================================
  📌 MAIN COMPONENT
 ======================================================================= */
@@ -115,6 +134,7 @@ export default function MessageChatSection() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [reportContext, setReportContext] = useState(null);
+  const [aiMode, setAiMode] = useState("RAG");
 
   const subRef = useRef(null);
   const scrollRef = useRef(null);
@@ -131,6 +151,7 @@ export default function MessageChatSection() {
   const pendingUploadMapRef = useRef(new Map());
   const emojiRef = useRef(null);
   const swipeStartXRef = useRef(null);
+  const lastUserQuestionRef = useRef(null);
 
   const currentUserId = useAuthStore((s) => s.user?.userId);
   const activeRoom = useChatStore((s) => s.activeChatRoom);
@@ -367,6 +388,18 @@ export default function MessageChatSection() {
     if (body.type === "MESSAGE") {
       const payload = body.payload;
       const isAi = payload.senderId === AI_USER_ID;
+      console.log("🟣 MESSAGE payload raw =", body.payload);
+      console.log("🟣 payload.content =", body.payload?.content);
+
+      if (
+        payload.senderId === AI_USER_ID &&
+        typeof payload.content === "string"
+      ) {
+        const parsed = tryParseJson(payload.content); // 위 유틸 재사용 추천
+        if (parsed?.type === "NEED_CONFIRM") {
+          payload._needConfirm = parsed;
+        }
+      }
 
       // ⭐ AI 메시지 오면 typing 종료
       if (isAi) {
@@ -398,6 +431,7 @@ export default function MessageChatSection() {
           ...filtered,
           {
             ...payload,
+            aiMode: payload.aiMode,
             createdAt: formatTime(payload.createdAt),
             minuteKey: toMinuteKey(payload.createdAt),
             dateLabel: formatDateLabel(payload.createdAt),
@@ -430,7 +464,7 @@ export default function MessageChatSection() {
     // 임시 메시지 생성 (Optimistic UI)
     const clientMessageKey = uuidv4();
     const tempId = `temp-${clientMessageKey}`;
-
+    lastUserQuestionRef.current = input;
     const optimisticMessage = {
       cmId: tempId, // 임시 ID
       roomId,
@@ -441,10 +475,10 @@ export default function MessageChatSection() {
       senderStatus: "ACTIVE",
       content: input,
       messageType: "TEXT",
+      aiMode,
       createdAt: formatTime(new Date()),
       minuteKey: toMinuteKey(new Date()),
       dateLabel: formatDateLabel(new Date()),
-
       // ⭐ Pending 표시
       isPending: true,
       clientMessageKey,
@@ -470,6 +504,7 @@ export default function MessageChatSection() {
         senderId: currentUserId,
         messageType: "TEXT",
         clientMessageKey,
+        aiMode,
       }),
     });
 
@@ -950,6 +985,17 @@ export default function MessageChatSection() {
     setShowReportModal(true);
   };
 
+  const resendPureLlm = async () => {
+    if (!lastUserQuestionRef.current) return;
+
+    await pureLlmReply({
+      roomId,
+      roomType,
+      content: lastUserQuestionRef.current,
+      aiMode: "PURE_LLM",
+    });
+  };
+
   /* =======================================================================
         📌 RENDER
   ======================================================================= */
@@ -1224,6 +1270,7 @@ export default function MessageChatSection() {
                       roomType={roomType}
                       currentUserId={currentUserId}
                       otherUserId={otherUserId}
+                      onResendPureLlm={resendPureLlm}
                       onOpenUserPopover={(id, ref) => {
                         setOpenUserPopover(id);
                         setUserAnchorRef(ref);
@@ -1345,6 +1392,38 @@ export default function MessageChatSection() {
                 </div>
               )}
             </div>
+
+            {/* 🤖 AI 모드 선택 (PRIVATE + POPBOT일 때만) */}
+            {roomType === "PRIVATE" && otherUserId === AI_USER_ID && (
+              <div className="flex gap-2 mb-2 ml-2">
+                <button
+                  onClick={() => setAiMode("RAG")}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold
+                    ${
+                      aiMode === "RAG"
+                        ? "bg-primary-soft2 text-white"
+                        : "bg-white/10 text-white/60"
+                    }
+                  `}
+                >
+                  팝스팟 AI
+                </button>
+
+                <button
+                  onClick={() => setAiMode("PURE_LLM")}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold
+                    ${
+                      aiMode === "PURE_LLM"
+                        ? "bg-primary-soft2 text-white"
+                        : "bg-white/10 text-white/60"
+                    }
+                  `}
+                >
+                  일반 AI
+                </button>
+              </div>
+            )}
+
             {/* 입력창 */}
             <div className="flex items-end gap-2 border border-white/20 px-5 py-2 rounded-2xl">
               <div className="relative" ref={emojiRef}>
