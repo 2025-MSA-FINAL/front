@@ -32,7 +32,6 @@ export default function EditRoomForm({ room, onSubmit }) {
         <input
           className="mt-2 w-full p-3 rounded-card bg-secondary-light border border-secondary
                      focus:outline-none focus:border-primary"
-          maxLength={30}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />

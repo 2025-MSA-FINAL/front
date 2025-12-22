@@ -152,19 +152,21 @@ export default function GroupChatRoomListSection() {
                 await fetchRoomDetail(room.gcrId);
               }}
             >
-              {/* 아이콘 */}
-              <div className="flex items-center gap-3 relative z-10 flex-1 min-w-0">
+              {/* 아이콘 + 제목 */}
+              <div className="flex items-center gap-3 flex-1 min-w-0">
                 {room.joined ? (
-                  <LockOpenIcon className="w-6 h-6 text-secondary-dark" />
+                  <LockOpenIcon className="w-6 h-6 text-secondary-dark shrink-0" />
                 ) : (
-                  <LockClosedIcon className="w-6 h-6 text-secondary-dark" />
+                  <LockClosedIcon className="w-6 h-6 text-secondary-dark shrink-0" />
                 )}
 
                 <p
                   className="
-      font-semibold text-text-black text-[15px]
-      truncate overflow-hidden whitespace-nowrap
-    "
+                  font-semibold text-text-black text-[15px]
+                  truncate
+                  min-w-0
+                  flex-1
+                "
                 >
                   {room.title}
                 </p>
@@ -173,13 +175,17 @@ export default function GroupChatRoomListSection() {
               {/* 참여 여부 뱃지 */}
               <span
                 className={`
-                  px-4 py-1 rounded-full text-[13px] font-bold shrink-0
-                  ${
-                    room.joined
-                      ? "bg-accent-lemon-soft text-text-black"
-                      : "bg-accent-pink-soft text-text-black"
-                  }
-                `}
+              w-[72px] text-center
+              px-3 py-1
+              rounded-full
+              text-[13px] font-bold
+              shrink-0
+              ${
+                room.joined
+                  ? "bg-accent-lemon-soft text-text-black"
+                  : "bg-accent-pink-soft text-text-black"
+              }
+            `}
               >
                 {room.joined ? "참여 중" : "입장"}
               </span>
