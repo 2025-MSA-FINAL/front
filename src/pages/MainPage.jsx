@@ -12,6 +12,7 @@ import ghost1 from "../assets/ghost2.png";
 import { apiClient } from "../api/authApi";
 import { useAuthStore } from "../store/authStore";
 import { useChatStore } from "../store/chat/chatStore";
+import { startAiChat } from "../api/chatApi";
 
 // =========================
 // ✅ 반응형 레이아웃 값 계산
@@ -1225,31 +1226,68 @@ function MainPage() {
         }
 
         (async () => {
-          const AI_USER_ID = 20251212;
+          try {
+            const AI_USER_ID = 20251212;
+            const store = useChatStore.getState();
 
-          const store = useChatStore.getState();
+            // 1️⃣ rooms 없으면 먼저 로딩
+            if (!store.rooms || store.rooms.length === 0) {
+              await store.fetchRooms();
+            }
 
-          // 1) rooms 없으면 먼저 로딩
-          if (!store.rooms || store.rooms.length === 0) {
-            await store.fetchRooms();
+            // 2️⃣ 기존 챗봇 PRIVATE 방 찾기
+            let { rooms } = useChatStore.getState();
+            let botRoom = (rooms || []).find(
+              (r) =>
+                r.roomType === "PRIVATE" &&
+                Number(r.otherUserId) === Number(AI_USER_ID)
+            );
+
+            // 3️⃣ 없으면 → 처음 대화 → 방 생성
+            if (!botRoom) {
+              const created = await startAiChat(); // ✅ 핵심
+
+              // 방 생성 후 rooms 다시 로딩
+              await store.fetchRooms();
+              rooms = useChatStore.getState().rooms;
+
+              // 다시 찾기
+              botRoom = (rooms || []).find(
+                (r) =>
+                  r.roomType === "PRIVATE" &&
+                  (Number(r.otherUserId) === Number(AI_USER_ID) ||
+                    Number(r.roomId) === Number(created?.roomId))
+              );
+
+              // 그래도 없으면 fallback
+              if (!botRoom && created?.roomId) {
+                botRoom = {
+                  roomType: "PRIVATE",
+                  roomId: created.roomId,
+                  roomName: "팝스팟 도우미",
+                  otherUserId: AI_USER_ID,
+                  otherUserNickname: "팝스팟 도우미",
+                  otherUserProfileImage: null,
+                };
+
+                store.addOrSelectPrivateRoom(botRoom);
+              }
+            }
+
+            if (!botRoom) {
+              alert("챗봇 채팅방 생성에 실패했습니다.");
+              return;
+            }
+
+            // 4️⃣ 방 선택
+            store.selectRoom(botRoom);
+
+            // 5️⃣ 이동
+            goTopAndNavigate("/chat");
+          } catch (e) {
+            console.error("AI 챗봇 진입 실패:", e);
+            alert("챗봇 채팅방을 여는 중 오류가 발생했습니다.");
           }
-
-          // 2) 챗봇 PRIVATE 방 찾기 (실제 roomId 있는 방)
-          const { rooms } = useChatStore.getState();
-          const botRoom = (rooms || []).find(
-            (r) => r.roomType === "PRIVATE" && r.otherUserId === AI_USER_ID
-          );
-
-          if (!botRoom) {
-            alert("챗봇 채팅방을 찾을 수 없습니다.");
-            return;
-          }
-
-          // 3) ChatMainPage가 이해하는 실제 방으로 선택
-          useChatStore.getState().selectRoom(botRoom);
-
-          // 4) 이동
-          goTopAndNavigate("/chat");
         })();
 
         return;
