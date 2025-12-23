@@ -1,5 +1,5 @@
 import axios from './axios'; 
-const API_BASE_URL = '/api/admin/report'; 
+const API_BASE_URL = '/api/admin/ai-reports'; 
 
 /**
  * @returns {Promise<Object>} AdminAIReportDto와 매핑되는 리포트 데이터
