@@ -1291,6 +1291,7 @@ export default function MessageChatSection() {
 
                 const isGroupWithPrev =
                   i > 0 &&
+                  prev?.messageType !== "SYSTEM" &&
                   prev?.senderId === msg.senderId &&
                   prev?.minuteKey === msg.minuteKey;
 

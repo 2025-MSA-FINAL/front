@@ -382,10 +382,13 @@ export default function MessageItem({
       : safeContentString;
 
   const isDeletedUser = msg.senderStatus === "DELETED";
+  const senderParticipant = participants?.find(
+    (p) => Number(p.userId) === Number(msg.senderId)
+  );
+
   const computedProfileImg = isDeletedUser
     ? privateChatIcon
-    : msg.senderProfileUrl;
-
+    : msg.senderProfileUrl || senderParticipant?.photoUrl || privateChatIcon;
   const computedNickname = isDeletedUser ? "알 수 없음" : msg.senderNickname;
 
   const bubbleAnimationClass =
