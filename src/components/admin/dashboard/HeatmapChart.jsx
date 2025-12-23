@@ -1,7 +1,6 @@
 export default function HeatmapChart({ data }) {
-  
   console.log(" Heatmap raw data:", data);
-  
+
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-[300px] text-gray-500">
@@ -27,60 +26,54 @@ export default function HeatmapChart({ data }) {
     return "bg-purple-800";
   };
 
-  const getWeekday = (dayLabel) => {
-    if (!dayLabel || typeof dayLabel !== "string") return "weekday";
-
-    if (dayLabel.includes("토")) return "saturday";
-    if (dayLabel.includes("일")) return "sunday";
-    return "weekday";
-  };
-
-
   return (
-    <div className="w-full h-full flex flex-col py-2">
-      {/* <h3 className="text-lg font-semibold mb-4">조회 패턴 분석</h3> */}
-      
-      <div className="overflow-x-auto">
-        <div className="min-w-[800px] pb-4">
-          {/* 시간 헤더 */}
-          <div className="flex mb-2">
-            <div className="w-28 flex-shrink-0"></div>
-            <div className="flex flex-1">
-              {hours.map((hour) => (
-                <div
-                  key={hour}
-                  className="min-w-[32px] h-8 flex items-center justify-center text-xs text-gray-600 font-medium mx-[1px]"
-                >
-                  {hour}
-                </div>
-              ))}
-            </div>
+    <div className="w-full flex flex-col pt-2 pb-0">
+      <div className="w-full">
+        {/* 시간 헤더 */}
+        <div className="flex mb-2">
+          <div className="w-28 flex-shrink-0"></div>
+          <div 
+            className="flex-1"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(24, 1fr)',
+              gap: '4px'
+            }}
+          >
+            {hours.map((hour) => (
+              <div
+                key={hour}
+                className="h-8 flex items-center justify-center text-xs text-gray-600 font-medium"
+              >
+                {hour}
+              </div>
+            ))}
           </div>
+        </div>
 
-          {/* 히트맵 그리드 */}
-        <div className="pb-4">
+        {/* 히트맵 그리드 */}
+        <div className="space-y-2">
           {uniqueDays.map((day) => {
             if (!day) return null;
 
-            const weekdayType = getWeekday(day);
-            const bgColor =
-              weekdayType === "saturday"
-                ? "bg-blue-50/50"
-                : weekdayType === "sunday"
-                ? "bg-red-50/50"
-                : "";
-
             return (
-              <div key={day} className={`flex mb-2 ${bgColor}`}>
+              <div key={day} className="flex">
                 {/* 요일 라벨 */}
-                <div className="w-28 flex-shrink-0 sticky left-0 bg-white z-10 flex items-center justify-end pr-4">
+                <div className="w-28 flex-shrink-0 flex items-center justify-end pr-4">
                   <span className="text-sm font-medium text-gray-700">
                     {day}
                   </span>
                 </div>
 
-                {/* 시간별 셀 */}
-                <div className="flex flex-1">
+                {/* 시간별 셀 - CSS Grid로 완벽한 균등 분배 */}
+                <div 
+                  className="flex-1"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(24, 1fr)',
+                    gap: '4px'
+                  }}
+                >
                   {hours.map((hour) => {
                     const cell = data.find(
                       (d) => d.dayLabel === day && d.hour === hour
@@ -90,11 +83,10 @@ export default function HeatmapChart({ data }) {
                     return (
                       <div
                         key={`${day}-${hour}`}
-                        className={`min-w-[32px] h-12 flex items-center justify-center text-xs font-semibold text-white rounded-sm mx-[1px] transition-all
+                        className={`h-12 flex items-center justify-center text-xs font-semibold text-white rounded-sm transition-all
                           ${getColor(views)}
                           ${views > 0 ? "cursor-default" : ""}
                         `}
-                        // 클릭 이벤트 제거
                         title={`${day} ${hour}시: ${views}회`}
                       >
                         {views > 0 && views}
@@ -107,20 +99,22 @@ export default function HeatmapChart({ data }) {
           })}
         </div>
       </div>
-    </div>
 
-      {/* 범례 */}
-      <div className="mt-4 pt-3 flex items-center justify-center gap-2 text-xs text-gray-600">
-        <span>적음</span>
-        <div className="flex gap-1">
+      {/*  범례 - 색상 추가 + 간격 줄임 */}
+      <div className="mt-3 pt-2 pb-0 border-t border-gray-200 flex items-center justify-center gap-3 text-xs text-gray-600">
+        <span className="font-medium">적음</span>
+        <div className="flex gap-2">
           {[0, 2, 4, 6, 8].map((val) => (
             <div
               key={val}
-              className={`w-4 h-4 rounded-sm ${getColor(val)}`}
-            ></div>
+              className={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold text-white ${getColor(val)}`}
+              title={`조회수 ${val === 0 ? '0' : val === 8 ? '7+' : `~${val}`}`}
+            >
+              {val === 0 ? '0' : val === 2 ? '2' : val === 4 ? '4' : val === 6 ? '6' : '7+'}
+            </div>
           ))}
         </div>
-        <span>많음</span>
+        <span className="font-medium">많음</span>
       </div>
     </div>
   );

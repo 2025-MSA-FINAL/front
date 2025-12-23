@@ -249,7 +249,7 @@ export default function Popups() {
           gradient="from-[#FFC92D] to-[#FF2A7E]" 
         />
         <StatCard 
-          title="활성 팝업" 
+          title="진행중 팝업" 
           value={stats.active} 
           icon={<CheckCircle className="w-6 h-6 text-white" />} 
           gradient="from-[#45CFD3] to-[#C33DFF]" 
@@ -316,7 +316,7 @@ export default function Popups() {
             className="px-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
           >
             <option value="all">전체</option>
-            <option value="active">활성</option>
+            <option value="active">진행중</option>
             <option value="deleted">삭제됨</option>
           </select>
         </div>
@@ -413,7 +413,7 @@ export default function Popups() {
                         }`}
                       >
                         {popup.popStatus === "active" || popup.popStatus === "ONGOING"
-                          ? "활성"
+                          ? "진행중"
                           : popup.popStatus === "upcoming" || popup.popStatus === "UPCOMING"
                           ? "예정"
                           : "종료"}

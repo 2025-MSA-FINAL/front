@@ -825,7 +825,7 @@ const HeroCarousel = memo(function HeroCarousel({ posters, cfg, navigate }) {
                   }}
 
                   onClick={() => {
-                    // ✅ 중앙(활성) 카드 클릭 시 상세 이동
+                    // ✅ 중앙(진행중) 카드 클릭 시 상세 이동
                     if (isActive) {
                       navigate(`/popup/${p.id}`);
                       return;

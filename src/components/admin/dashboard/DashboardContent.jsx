@@ -179,8 +179,8 @@ export default function DashboardContent() {
       {/* Heatmap/WordCloud Section (필터 클래스 상수화 적용) */}
       <section className="flex flex-col space-y-6">
         {/* 조회수 히트맵 (원본과 동일) */}
-        <ChartCard title="최근 7일 조회수 히트맵" height="520px">
-          <div className="w-full h-full bg-white overflow-hidden rounded-b-lg">
+        <ChartCard title="최근 7일 조회수 히트맵" height="600px">
+          <div className="w-full bg-white rounded-b-lg p-4">
             <HeatmapChart data={stats.viewHeatmap} />
           </div>
         </ChartCard>
