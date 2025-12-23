@@ -15,6 +15,8 @@ export default function Navbar({ hidden = false }) {
   const [isThemeOpen, setIsThemeOpen] = useState(false);
   const [theme, setTheme] = useState(() => getCurrentTheme());
 
+  const isHighContrast = theme === "high-contrast";
+
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
@@ -74,7 +76,7 @@ export default function Navbar({ hidden = false }) {
   };
 
   return (
-     <nav
+    <nav
       className={`
         sticky top-0 z-100 bg-paper h-[88px]
         transition-transform duration-300 ease-out
@@ -183,13 +185,17 @@ export default function Navbar({ hidden = false }) {
                 setIsThemeOpen((prev) => !prev);
                 setIsProfileOpen(false); // 설정 열면 프로필 드롭다운은 닫기
               }}
-              className="
+              className={`
                 flex items-center gap-1
                 rounded-full border border-secondary-light bg-paper
                 px-3 py-1 text-xs text-text-sub
-                hover:bg-secondary-light hover:text-text-main
                 transition-colors
-              "
+                ${
+                  isHighContrast
+                    ? "hover:bg-primary hover:text-[var(--color-primary-light)]"
+                    : "hover:bg-secondary-light hover:text-text-main"
+                }
+              `}
             >
               <svg
                 className="w-4 h-4"
@@ -253,7 +259,11 @@ export default function Navbar({ hidden = false }) {
                         text-left transition-colors
                         ${
                           theme === mode.id
-                            ? "bg-primary text-text-white"
+                            ? isHighContrast
+                              ? "bg-primary text-[var(--color-primary-light)]"
+                              : "bg-primary text-text-white"
+                            : isHighContrast
+                            ? "text-text-sub hover:bg-primary-soft hover:text-text-white"
                             : "text-text-sub hover:bg-secondary-light hover:text-text-main"
                         }
                       `}
@@ -277,10 +287,13 @@ export default function Navbar({ hidden = false }) {
               <div className="absolute inset-x-0 top-0 z-20">
                 <div
                   className={`
+                    group
                     overflow-hidden rounded-btn border bg-paper transition-colors
                     ${
                       isProfileOpen
                         ? "border-secondary-light shadow-dropdown"
+                        : isHighContrast
+                        ? "border-transparent hover:bg-primary"
                         : "border-transparent hover:bg-secondary-light"
                     }
                   `}
@@ -299,14 +312,32 @@ export default function Navbar({ hidden = false }) {
                         alt="Profile"
                         className="w-8 h-8 rounded-full object-cover bg-secondary-light border border-secondary"
                       />
-                      <span className="text-sm font-bold text-text-black truncate">
+                      <span
+                        className={`text-sm font-bold truncate ${
+                          isHighContrast
+                            ? `text-text-white ${
+                                !isProfileOpen
+                                  ? "group-hover:text-[var(--color-primary-light)]"
+                                  : ""
+                              }`
+                            : "text-text-black"
+                        }`}
+                      >
                         {username}
                       </span>
                     </div>
 
                     <svg
-                      className={`w-4 h-4 text-text-sub transition-transform ${
+                      className={`w-4 h-4 transition-transform ${
                         isProfileOpen ? "rotate-180" : ""
+                      } ${
+                        isHighContrast
+                          ? `text-text-sub ${
+                              !isProfileOpen
+                                ? "group-hover:text-[var(--color-primary-light)]"
+                                : ""
+                            }`
+                          : "text-text-sub"
                       }`}
                       fill="none"
                       stroke="currentColor"
@@ -336,7 +367,11 @@ export default function Navbar({ hidden = false }) {
                         <>
                           <Link
                             to="/mypage"
-                            className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
+                            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors ${
+                              isHighContrast
+                                ? "text-text-white hover:bg-secondary-light/10 hover:text-text-white"
+                                : "hover:bg-secondary-light"
+                            }`}
                             onClick={() => setIsProfileOpen(false)}
                           >
                             <svg
@@ -357,7 +392,11 @@ export default function Navbar({ hidden = false }) {
 
                           <Link
                             to="/me/report"
-                            className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
+                            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors ${
+                              isHighContrast
+                                ? "text-text-white hover:bg-secondary-light/10 hover:text-text-white"
+                                : "hover:bg-secondary-light"
+                            }`}
                             onClick={() => setIsProfileOpen(false)}
                           >
                             <svg
@@ -402,7 +441,11 @@ export default function Navbar({ hidden = false }) {
                         <>
                           <Link
                             to="/manager"
-                            className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
+                            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors ${
+                              isHighContrast
+                                ? "text-text-white hover:bg-secondary-light/10 hover:text-text-white"
+                                : "hover:bg-secondary-light"
+                            }`}
                             onClick={() => setIsProfileOpen(false)}
                           >
                             <svg
@@ -423,7 +466,11 @@ export default function Navbar({ hidden = false }) {
 
                           <Link
                             to="/popup/register"
-                            className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
+                            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors ${
+                              isHighContrast
+                                ? "text-text-white hover:bg-secondary-light/10 hover:text-text-white"
+                                : "hover:bg-secondary-light"
+                            }`}
                             onClick={() => setIsProfileOpen(false)}
                           >
                             <svg
@@ -448,7 +495,11 @@ export default function Navbar({ hidden = false }) {
                       {isAdmin && (
                         <Link
                           to="/admin"
-                          className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
+                          className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors ${
+                            isHighContrast
+                              ? "text-text-white hover:bg-secondary-light/10 hover:text-text-white"
+                              : "hover:bg-secondary-light"
+                          }`}
                           onClick={() => setIsProfileOpen(false)}
                         >
                           <svg
@@ -609,6 +660,8 @@ export default function Navbar({ hidden = false }) {
                       ${
                         theme === mode.id
                           ? "bg-primary-soft text-text-black"
+                          : isHighContrast
+                          ? "bg-paper text-text-sub hover:bg-primary-soft hover:text-text-white"
                           : "bg-paper text-text-sub hover:bg-secondary-light hover:text-text-main"
                       }
                     `}

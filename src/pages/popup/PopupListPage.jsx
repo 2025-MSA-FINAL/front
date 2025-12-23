@@ -213,7 +213,7 @@ export default function PopupListPage() {
             </div>
           ) : !isInitialLoaded && isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-10">
-              {[...Array(4)].map((_, i) => (
+              {[...Array(6)].map((_, i) => (
                 <div
                   key={i}
                   className="aspect-[4/5] bg-[var(--color-secondary-light)] rounded-[20px] animate-pulse"
