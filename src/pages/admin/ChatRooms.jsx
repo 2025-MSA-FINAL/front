@@ -8,7 +8,7 @@ export default function ChatRooms() {
   const [chatRooms, setChatRooms] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);  // 초기 로딩 상태
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState(null);
   const [keyword, setKeyword] = useState(""); 
   const [debouncedKeyword, setDebouncedKeyword] = useState("");
@@ -45,7 +45,7 @@ export default function ChatRooms() {
   const fetchChatRooms = async () => {
     try {
       if (isInitialLoading) {
-      setLoading(true);
+        setLoading(true);
       }
       setError(null);
       
@@ -80,8 +80,8 @@ export default function ChatRooms() {
       setTotalElements(0);
     } finally {
       if (isInitialLoading) {
-      setLoading(false);
-      setIsInitialLoading(false);
+        setLoading(false);
+        setIsInitialLoading(false);
       }
     }
   };
@@ -118,13 +118,8 @@ export default function ChatRooms() {
     }
   };
 
-
-
-  
   const handleDelete = async (chatId) => {
-
-    const confirmResult = await confirm("이 채팅방을 삭제하시겠습니까?");
-    if (!confirmResult) return;
+    if (!window.confirm("이 채팅방을 삭제하시겠습니까?")) return;
 
     try {
       await axiosInstance.delete(`/api/admin/chatrooms/${chatId}`);
@@ -145,10 +140,7 @@ export default function ChatRooms() {
       return;
     }
 
-    const confirmResult = await confirm(
-        `선택한 ${selectedRooms.length}개의 채팅방을 삭제하시겠습니까?`
-      );
-    if (!confirmResult) return;
+    if (!window.confirm(`선택한 ${selectedRooms.length}개의 채팅방을 삭제하시겠습니까?`)) return;
 
     try {
       await Promise.all(
@@ -170,7 +162,7 @@ export default function ChatRooms() {
   };
 
   const handleViewReports = (chatId, chatName) => {
-    navigate(`/reports?type=chat&targetId=${chatId}&targetName=${encodeURIComponent(chatName)}`);
+    navigate(`/admin/reports?type=chat&targetId=${chatId}&targetName=${encodeURIComponent(chatName)}`);
   };
 
   const handlePageChange = (page) => {
@@ -178,6 +170,13 @@ export default function ChatRooms() {
       setCurrentPage(page);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  };
+
+  // 날짜 포맷 함수 추가
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '-';
+    // ISO 형식(YYYY-MM-DDTHH:mm:ss)을 일반 형식으로 변환
+    return dateString.replace('T', ' ');
   };
 
   // 초기 로딩 UI
@@ -375,22 +374,22 @@ export default function ChatRooms() {
                         }
                       </button>
                     </td>
-                   <td className="px-6 py-3 group">
-                    <span
-                      onClick={() => navigator.clipboard.writeText(room.chatId)}
-                      title="클릭하여 ID 복사"
-                      className="
-                        cursor-pointer
-                        text-xs
-                        text-gray-500
-                        group-hover:text-gray-700
-                        transition-colors
-                        font-mono
-                      "
-                    >
-                      {room.chatId}
-                    </span>
-                  </td>
+                    <td className="px-6 py-3 group">
+                      <span
+                        onClick={() => navigator.clipboard.writeText(room.chatId)}
+                        title="클릭하여 ID 복사"
+                        className="
+                          cursor-pointer
+                          text-xs
+                          text-gray-500
+                          group-hover:text-gray-700
+                          transition-colors
+                          font-mono
+                        "
+                      >
+                        {room.chatId}
+                      </span>
+                    </td>
                     <td className="px-6 py-3 whitespace-nowrap">
                       <div className="font-medium text-sm text-[#242424]">
                         {room.popupName}
@@ -407,7 +406,7 @@ export default function ChatRooms() {
                     <td className="px-6 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#45CFD3] to-[#C33DFF] flex items-center justify-center text-white text-xs font-bold">
-                          {room.hostUserId}
+                          {room.hostUserId?.toString().slice(-2) || '?'}
                         </div>
                         <div>
                           <div className="text-xs font-medium text-[#242424]">{room.hostUserName}</div>
@@ -421,7 +420,7 @@ export default function ChatRooms() {
                       </span>
                     </td>
                     <td className="px-6 py-3 whitespace-nowrap">
-                      {room.hasReports ? (
+                      {room.reportCount > 0 ? (
                         <button
                           onClick={() => handleViewReports(room.chatId, room.chatName)}
                           className="flex items-center gap-1 px-2 py-1 text-xs bg-gradient-to-r from-[#FF2A7E]/10 to-[#FFC92D]/10 
@@ -437,7 +436,7 @@ export default function ChatRooms() {
                       )}
                     </td>
                     <td className="px-6 py-3 text-sm text-[#70757A] whitespace-nowrap">
-                      {room.createdAt}
+                      {formatDateTime(room.createdAt)}
                     </td>
                     <td className="px-6 py-3">
                       {!room.chatIsDeleted && (
