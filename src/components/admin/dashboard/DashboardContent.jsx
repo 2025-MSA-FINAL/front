@@ -201,7 +201,7 @@ export default function DashboardContent() {
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-600 whitespace-nowrap w-[50px]">연령대</span>
                 <div className="flex items-center gap-3 overflow-x-auto pb-1 scrollbar-hide">
-                  {["전체", "10대", "20대", "30대", "40대", "50대"].map((a) => (
+                  {["전체", "10대", "20대", "30대", "40대", "50대+"].map((a) => (
                     <button
                       key={a}
                       onClick={() => setAge(a)}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Search, CheckCircle, XCircle, Eye, Trash2, RotateCcw, FileText, Clock, AlertTriangle, X, ChevronDown } from "lucide-react";
 import axiosInstance from "../../api/axios";
 
@@ -21,6 +21,11 @@ export default function Popups() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteReason, setDeleteReason] = useState("");
 
+  //상세 모달
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedPopup, setSelectedPopup] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
   //  승인상태 드롭다운 상태
   const [openDropdownId, setOpenDropdownId] = useState(null);
 
@@ -28,7 +33,7 @@ export default function Popups() {
     total: 0,
     pending: 0,
     active: 0,
-    ended: 0,
+    rejected: 0,
   });
   const pageSize = 10;
 
@@ -64,7 +69,7 @@ export default function Popups() {
         total: response.data.total || 0,
         pending: response.data.pending || 0,
         active: response.data.active || 0,
-        ended: response.data.ended || 0,
+        rejected: response.data.rejected || 0,
       });
     } catch (err) {
       console.error("Error fetching stats:", err);
@@ -72,7 +77,7 @@ export default function Popups() {
     }
   };
 
-  const fetchPopups = async () => {
+  const fetchPopups = useCallback(async () => {
     try {
       if (isInitialLoading) {
       setLoading(true);
@@ -107,7 +112,12 @@ export default function Popups() {
       setIsInitialLoading(false);
       }
     }
-  };
+  }, [currentPage, debouncedKeyword, filterStatus, filterModeration, filterDeleted, isInitialLoading, pageSize]);
+
+  useEffect(() => {
+  fetchPopups();
+}, [fetchPopups]);
+
 
   //  승인 상태 변경 (confirm 후에만 API 호출)
   const handleModerationChange = async (popId, newStatus) => {
@@ -128,14 +138,10 @@ export default function Popups() {
     }
 
     //  확인 후에만 진행
-    const confirmResult =  await confirm(`이 팝업스토어를 "${statusText}" 상태로 변경하시겠습니까?`);
+    const confirmResult = window.confirm(`이 팝업스토어를 "${statusText}" 상태로 변경하시겠습니까?`);
     if (!confirmResult) {
-    console.log('hi');
       return;
     }
-    console.log('here');
-    console.log(confirmResult);
-
 
     try {
       // 대기(NULL)로 변경
@@ -197,7 +203,7 @@ export default function Popups() {
 
   // 복구
   const handleRestore = async (popId) => {
-    if (!confirm("이 팝업스토어를 복구하시겠습니까?")) return;
+    if (!window.confirm("이 팝업스토어를 복구하시겠습니까?")) return;
 
     try {
       await axiosInstance.put(`/api/admin/popups/${popId}/restore`);
@@ -208,6 +214,30 @@ export default function Popups() {
       console.error("Error restoring popup:", err);
       alert(err.response?.data?.message || "복구에 실패했습니다.");
     }
+  };
+
+  // 팝업 상세 보기
+  const handleViewDetail = async (popId) => {
+    try {
+      setDetailLoading(true);
+      setDetailModalOpen(true);
+      
+      const response = await axiosInstance.get(`/api/admin/popups/${popId}/detail`);
+      setSelectedPopup(response.data);
+      
+    } catch (err) {
+      console.error("Error fetching popup detail:", err);
+      alert("상세 정보를 불러오는데 실패했습니다.");
+      setDetailModalOpen(false);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  // 상세 모달 닫기
+  const closeDetailModal = () => {
+    setDetailModalOpen(false);
+    setSelectedPopup(null);
   };
 
   const handlePageChange = (page) => {
@@ -255,8 +285,8 @@ export default function Popups() {
           gradient="from-[#45CFD3] to-[#C33DFF]" 
         />
         <StatCard 
-          title="종료된 팝업" 
-          value={stats.ended} 
+          title="반려된 팝업" 
+          value={stats.rejected} 
           icon={<XCircle className="w-6 h-6 text-white" />} 
           gradient="from-[#FF2A7E] to-[#FFC92D]" 
         />
@@ -288,7 +318,7 @@ export default function Popups() {
             className="px-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
           >
             <option value="all">전체 상태</option>
-            <option value="ONGOING">활성</option>
+            <option value="ONGOING">진행중</option>
             <option value="UPCOMING">예정</option>
             <option value="ENDED">종료</option>
           </select>
@@ -316,7 +346,7 @@ export default function Popups() {
             className="px-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
           >
             <option value="all">전체</option>
-            <option value="active">진행중</option>
+            <option value="active">관리중</option>
             <option value="deleted">삭제됨</option>
           </select>
         </div>
@@ -387,9 +417,13 @@ export default function Popups() {
 
                     <td className="px-4 py-4 text-sm">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-[#242424] whitespace-nowrap">
+                        <button
+                          onClick={() => handleViewDetail(popup.popId)}
+                          className="text-sm text-[#242424] hover:text-[#7E00CC] hover:no-underline font-semibold whitespace-nowrap transition-colors cursor-pointer"
+                          title="클릭하여 상세 보기"
+                        >
                           {popup.popName}
-                        </span>
+                        </button>
                         {popup.popIsDeleted && (
                           <span className="px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded-full">
                             삭제됨
@@ -572,6 +606,15 @@ export default function Popups() {
           onClose={closeDeleteModal}
         />
       )}
+
+      {/* 상세 모달 */}
+      {detailModalOpen && (
+        <PopupDetailModal
+          popup={selectedPopup}
+          loading={detailLoading}
+          onClose={closeDetailModal}
+        />
+      )}
     </div>
   );
 }
@@ -666,6 +709,7 @@ function DeleteModal({ popup, reason, setReason, onConfirm, onClose }) {
   );
 }
 
+// 통계 카드 컴포넌트
 function StatCard({ title, value, icon, gradient }) {
   return (
     <div className={`rounded-2xl shadow-xl p-6 text-white bg-gradient-to-br ${gradient} flex flex-col justify-between min-h-[120px]`}>
@@ -674,6 +718,155 @@ function StatCard({ title, value, icon, gradient }) {
         <div className="bg-white/20 p-3 rounded-xl">{icon}</div>
       </div>
       <div className="text-3xl font-extrabold">{value?.toLocaleString()}</div>
+    </div>
+  );
+}
+
+// 팝업 상세 모달 컴포넌트
+function PopupDetailModal({ popup, loading, onClose }) {
+  if (loading || !popup) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl p-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#C33DFF] mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full my-8">
+        {/* 헤더 */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#DDDFE2]">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-r from-[#C33DFF]/10 to-[#45CFD3]/10 rounded-lg">
+              <Eye className="w-6 h-6 text-[#C33DFF]" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-[#242424]">{popup.popName}</h3>
+              <p className="text-sm text-[#70757A]">팝업 상세 정보</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-6 h-6 text-[#70757A]" />
+          </button>
+        </div>
+
+        {/* 내용 */}
+        <div className="px-6 py-6 space-y-6 max-h-[70vh] overflow-y-auto">
+          {/* 썸네일 */}
+          {popup.popThumbnail && (
+            <div className="aspect-video rounded-xl overflow-hidden bg-gray-100">
+              <img 
+                src={popup.popThumbnail} 
+                alt={popup.popName}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+
+          {/* 기본 정보 */}
+          <div className="grid grid-cols-2 gap-4">
+            <InfoItem label="상태" value={
+              <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                popup.popStatus === "ONGOING" ? "bg-green-100 text-green-600" :
+                popup.popStatus === "UPCOMING" ? "bg-blue-100 text-blue-600" :
+                "bg-gray-100 text-gray-600"
+              }`}>
+                {popup.popStatus === "ONGOING" ? "진행중" :
+                 popup.popStatus === "UPCOMING" ? "예정" : "종료"}
+              </span>
+            } />
+            
+            <InfoItem label="승인 상태" value={
+              <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                popup.popModerationStatus === null ? "bg-yellow-100 text-yellow-600" :
+                popup.popModerationStatus ? "bg-green-100 text-green-600" :
+                "bg-red-100 text-red-600"
+              }`}>
+                {popup.popModerationStatus === null ? "대기" :
+                 popup.popModerationStatus ? "승인" : "반려"}
+              </span>
+            } />
+          </div>
+
+          {/* 위치 및 기간 */}
+          <div className="grid grid-cols-1 gap-4">
+            <InfoItem label="위치" value={popup.popLocation} />
+            <InfoItem label="운영 기간" value={`${popup.popStartDate} ~ ${popup.popEndDate}`} />
+          </div>
+
+          {/* 설명 */}
+          {popup.popDescription && (
+            <div className="bg-[#F8F8F9] rounded-xl p-4">
+              <p className="text-sm font-semibold text-[#242424] mb-2">설명</p>
+              <p className="text-sm text-[#70757A] whitespace-pre-wrap">{popup.popDescription}</p>
+            </div>
+          )}
+
+          {/* 통계 */}
+          <div className="grid grid-cols-3 gap-4">
+            <InfoItem label="조회수" value={popup.popViewCount?.toLocaleString() || 0} />
+            <InfoItem label="예약 수" value={popup.reservationCount?.toLocaleString() || 0} />
+            <InfoItem label="찜 수" value={popup.wishlistCount?.toLocaleString() || 0} />
+          </div>
+
+          {/* 가격 정보 */}
+          <div className="grid grid-cols-2 gap-4">
+            <InfoItem label="가격 유형" value={popup.popPriceType === "FREE" ? "무료" : "유료"} />
+            {popup.popPrice && (
+              <InfoItem label="가격" value={`${popup.popPrice.toLocaleString()}원`} />
+            )}
+          </div>
+
+          {/* 운영자 정보 */}
+          <div className="bg-gradient-to-r from-[#C33DFF]/5 to-[#45CFD3]/5 rounded-xl p-4">
+            <p className="text-sm font-semibold text-[#242424] mb-3">운영자 정보</p>
+            <div className="grid grid-cols-2 gap-4">
+              <InfoItem label="이름" value={popup.ownerName || "-"} />
+              <InfoItem label="이메일" value={popup.ownerEmail || "-"} />
+            </div>
+          </div>
+
+          {/* AI 요약 */}
+          {popup.popAiSummary && (
+            <div className="bg-gradient-to-r from-[#C33DFF]/5 to-[#7E00CC]/5 rounded-xl p-4">
+              <p className="text-sm font-semibold text-[#242424] mb-2">AI 요약</p>
+              <p className="text-sm text-[#70757A]">{popup.popAiSummary}</p>
+            </div>
+          )}
+
+          {/* 생성일 */}
+          <div className="grid grid-cols-2 gap-4 text-xs text-[#70757A]">
+            <InfoItem label="생성일" value={popup.createdAt} />
+            {popup.updatedAt && <InfoItem label="수정일" value={popup.updatedAt} />}
+          </div>
+        </div>
+
+        {/* 버튼 */}
+        <div className="px-6 py-4 border-t border-[#DDDFE2] flex gap-3 justify-end">
+          <button
+            onClick={onClose}
+            className="px-6 py-2.5 bg-gradient-to-r from-[#C33DFF] to-[#7E00CC] text-white rounded-xl hover:shadow-lg transition-all font-semibold"
+          >
+            확인
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 정보 항목 컴포넌트
+function InfoItem({ label, value }) {
+  return (
+    <div>
+      <p className="text-xs text-[#70757A] mb-1">{label}</p>
+      <div className="text-sm font-semibold text-[#242424]">{value}</div>
     </div>
   );
 }

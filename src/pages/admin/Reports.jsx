@@ -1,17 +1,16 @@
 import { useState, useEffect } from "react";
 import { Search, AlertTriangle, CheckCircle, XCircle, Clock, FileText, User, MessageSquare } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/axios";
+import ReportDetailModal from "./ReportDetailModal";
 
 export default function Reports() {
-  const navigate = useNavigate();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState(null);
   const [keyword, setKeyword] = useState("");
   const [debouncedKeyword, setDebouncedKeyword] = useState("");
-  const [searchType, setSearchType] = useState("all");  // 검색 타입 추가
+  const [searchType, setSearchType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterType, setFilterType] = useState("all");
@@ -26,6 +25,9 @@ export default function Reports() {
     approved: 0,
     rejected: 0,
   });
+
+  // 모달 상태
+  const [selectedReportId, setSelectedReportId] = useState(null);
 
   const itemsPerPage = 10;
 
@@ -92,7 +94,7 @@ export default function Reports() {
       };
       if (debouncedKeyword.trim()) {
         params.keyword = debouncedKeyword.trim();
-        params.searchType = searchType;  // searchType 추가
+        params.searchType = searchType;
       }
       if (filterStatus) params.status = filterStatus;
       if (filterCategory) params.categoryId = filterCategory;
@@ -128,7 +130,16 @@ export default function Reports() {
   };
 
   const handleViewDetail = (repId) => {
-    navigate(`/admin/reports/${repId}`);
+    setSelectedReportId(repId);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedReportId(null);
+  };
+
+  const handleModalStatusChange = () => {
+    fetchStats();
+    fetchReports();
   };
 
   const handlePageChange = (page) => {
@@ -331,23 +342,23 @@ export default function Reports() {
                   const displayStatus = getDisplayStatus(report.repStatus);
                   return (
                     <tr key={report.repId} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-center group">
-                      <span
-                        onClick={() => {
-                          navigator.clipboard.writeText(report.repId);
-                        }}
-                        title="클릭하여 ID 복사"
-                        className="
-                          cursor-pointer
-                          text-xs
-                          text-gray-500
-                          group-hover:text-gray-700
-                          transition-colors
-                          font-mono"
-                      >
-                        {report.repId}
-                      </span>
-                    </td>
+                      <td className="px-4 py-3 text-center group">
+                        <span
+                          onClick={() => {
+                            navigator.clipboard.writeText(report.repId);
+                          }}
+                          title="클릭하여 ID 복사"
+                          className="
+                            cursor-pointer
+                            text-xs
+                            text-gray-500
+                            group-hover:text-gray-700
+                            transition-colors
+                            font-mono"
+                        >
+                          {report.repId}
+                        </span>
+                      </td>
                       <td className="px-6 py-3">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
                           report.repType === "popup" ? "bg-gradient-to-r from-[#C33DFF]/20 to-[#7E00CC]/20 text-[#7E00CC]" :
@@ -489,6 +500,15 @@ export default function Reports() {
           </div>
         </div>
       </div>
+
+      {/* 모달 */}
+      {selectedReportId && (
+        <ReportDetailModal
+          repId={selectedReportId}
+          onClose={handleCloseModal}
+          onStatusChange={handleModalStatusChange}
+        />
+      )}
     </div>
   );
 }
