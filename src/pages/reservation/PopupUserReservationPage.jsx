@@ -373,6 +373,22 @@ export default function PopupUserReservationPage() {
 
       console.log("[PAY] payment params", { paymentId, amount });
 
+      if (amount === 0) {
+        const completeRes = await completePortOnePaymentApi(paymentId);
+        console.log("[PAY] complete result (free)", completeRes);
+
+        if (completeRes?.status !== "PAID") {
+          alert(
+            `예약 확정에 실패했습니다. (status=${completeRes?.status ?? "UNKNOWN"})`
+          );
+          return;
+        }
+
+        alert("예약이 완료되었습니다.");
+        navigate(`/popup/${popupId}`);
+        return;
+      }
+
       if (!paymentId) {
         alert("결제 정보를 생성하지 못했습니다. (paymentId 없음)");
         return;
@@ -440,6 +456,7 @@ export default function PopupUserReservationPage() {
       }
 
       // ✅ 검증/확정 성공 시 상세로 이동
+      alert("예약이 완료되었습니다.");
       navigate(`/popup/${popupId}`);
     } catch (e) {
       console.error("[PAY] error", e);
