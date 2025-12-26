@@ -1225,13 +1225,19 @@ export default function MessageChatSection() {
                           toggleMenu();
 
                           setTimeout(() => {
-                            openReportModal({
-                              reportType: "CHAT",
-                              targetId:
-                                roomType === "GROUP"
-                                  ? activeRoom.gcrId
-                                  : activeRoom.roomId,
-                            });
+                            if (roomType === "GROUP") {
+                              //  그룹 채팅방 신고
+                              openReportModal({
+                                reportType: "CHAT",
+                                targetId: activeRoom.gcrId,
+                              });
+                            } else {
+                              //  PRIVATE → 상대 USER 신고
+                              openReportModal({
+                                reportType: "USER",
+                                targetId: otherUserId,
+                              });
+                            }
                           }, 180);
                         }}
                       >
