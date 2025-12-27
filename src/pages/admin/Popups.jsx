@@ -202,8 +202,9 @@ export default function Popups() {
   };
 
   // 복구
-  const handleRestore = async (popId) => {
-    if (!window.confirm("이 팝업스토어를 복구하시겠습니까?")) return;
+  const onRestoreClick = async (popId) => {
+    const ok = confirm("이 팝업스토어를 복구하시겠습니까?");
+    if (!ok) return;
 
     try {
       await axiosInstance.put(`/api/admin/popups/${popId}/restore`);
@@ -211,10 +212,12 @@ export default function Popups() {
       fetchPopups();
       alert("복구되었습니다!");
     } catch (err) {
-      console.error("Error restoring popup:", err);
-      alert(err.response?.data?.message || "복구에 실패했습니다.");
+      console.error(err);
+      alert("복구에 실패했습니다.");
     }
   };
+
+ 
 
   // 팝업 상세 보기
   const handleViewDetail = async (popId) => {
@@ -517,13 +520,12 @@ export default function Popups() {
                     <td className="px-4 py-4 w-24">
                       <div className="flex gap-1">
                         {popup.popIsDeleted ? (
-                          <button
-                            onClick={() => handleRestore(popup.popId)}
-                            className="p-1.5 bg-gradient-to-r from-[#45CFD3] to-[#C33DFF] text-white rounded-lg hover:shadow-lg transition-all"
-                            title="복구"
-                          >
-                            <RotateCcw className="w-4 h-4" />
-                          </button>
+                         <button
+                          onClick={() => onRestoreClick(popup.popId)}
+                          className="p-1.5 bg-gradient-to-r from-[#45CFD3] to-[#C33DFF] text-white rounded-lg"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </button>
                         ) : (
                           <button
                             onClick={() => openDeleteModal(popup)}
