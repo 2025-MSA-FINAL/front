@@ -119,8 +119,6 @@ export default function ChatRooms() {
   };
 
   const handleDelete = async (chatId) => {
-    if (!window.confirm("이 채팅방을 삭제하시겠습니까?")) return;
-
     try {
       await axiosInstance.delete(`/api/admin/chatrooms/${chatId}`);
       
