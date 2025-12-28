@@ -16,6 +16,23 @@ export default function ReportForm({ onSubmit }) {
   const categoryRef = useRef(null);
 
   /* ---------------------------------
+  카테고리 목록 (컴포넌트 내부 상단)
+---------------------------------- */
+  const categories = [
+    { id: 1, name: "스팸/광고/도배" },
+    { id: 2, name: "음란/성적 행위" },
+    { id: 3, name: "아동·청소년 성범죄/청소년 유해" },
+    { id: 4, name: "욕설/폭력/혐오/차별" },
+    { id: 5, name: "불법 상품·서비스/불법 정보" },
+    { id: 6, name: "개인정보 무단 수집/개인정보 노출" },
+    { id: 7, name: "비정상 서비스 이용" },
+    { id: 8, name: "자살·자해" },
+    { id: 9, name: "사기·사칭" },
+    { id: 10, name: "명예훼손·저작권 침해" },
+    { id: 11, name: "불법촬영물 유통" },
+    { id: 12, name: "불쾌한 표현(기타신고)" },
+  ];
+  /* ---------------------------------
      HEIC → JPG 변환
   ---------------------------------- */
   const convertHeicIfNeeded = async (file) => {
@@ -173,17 +190,7 @@ export default function ReportForm({ onSubmit }) {
       hover:border-accent-pink hover:shadow-sm
     "
         >
-          <span>
-            {
-              {
-                1: "욕설 / 비방",
-                2: "스팸 / 광고",
-                3: "개인정보 침해",
-                4: "지적 재산 침해",
-                5: "부적절한 콘텐츠",
-              }[categoryId]
-            }
-          </span>
+          <span>{categories.find((c) => c.id === categoryId)?.name}</span>
 
           <span
             className={`
@@ -199,27 +206,16 @@ export default function ReportForm({ onSubmit }) {
         {categoryVisible && (
           <div
             className={`
-            absolute z-20 mt-2 w-full
-            rounded-[18px]
-            bg-white/40 backdrop-blur-xl
-            border border-white/20
-            shadow-[0_8px_25px_rgba(0,0,0,0.12)]
-            overflow-hidden
-            transition-all duration-200
-            ${
-              categoryOpen
-                ? "opacity-100 translate-y-17"
-                : "opacity-0 -translate-y-2"
-            }
-          `}
+      absolute z-20 mt-2 w-full rounded-[18px]
+      bg-white/40 backdrop-blur-xl border border-white/20
+      shadow-[0_8px_25px_rgba(0,0,0,0.12)] max-h-[220px] overflow-y-auto 
+      overflow-hidden transition-all duration-200
+      ${
+        categoryOpen ? "opacity-100 translate-y-17" : "opacity-0 -translate-y-2"
+      }
+    `}
           >
-            {[
-              { id: 1, label: "욕설 / 비방" },
-              { id: 2, label: "스팸 / 광고" },
-              { id: 3, label: "개인정보 침해" },
-              { id: 4, label: "지적 재산 침해" },
-              { id: 5, label: "부적절한 콘텐츠" },
-            ].map((item) => (
+            {categories.map((item) => (
               <div
                 key={item.id}
                 onClick={() => {
@@ -228,13 +224,11 @@ export default function ReportForm({ onSubmit }) {
                   setTimeout(() => setCategoryVisible(false), 180);
                 }}
                 className="
-                  relative px-4 py-3 cursor-pointer
-                  text-sm text-text-black
-                  transition
-                  hover:bg-accent-pink/10
-                "
+          px-4 py-3 cursor-pointer text-sm text-gray-800
+          hover:bg-accent-pink/10 transition
+        "
               >
-                {item.label}
+                {item.name}
               </div>
             ))}
           </div>
