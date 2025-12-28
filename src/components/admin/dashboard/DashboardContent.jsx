@@ -101,7 +101,7 @@ export default function DashboardContent() {
 
   // 바 차트 하단 메타데이터 시간 계산
   const now = new Date();
-  const barChartMetadataTime = `조회수 기준 (2025년 12월 4일 오후 ${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")})`;
+  const barChartMetadataTime = `조회수 기준 (${currentDate})`;
 
   
   return (
