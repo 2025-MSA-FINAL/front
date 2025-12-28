@@ -92,7 +92,7 @@ export default function Users() {
   // 유저 상태 변경
   const handleStatusChange = async (userId, newStatus) => {
 
-    const statusText = newStatus === "ACTIVE" ? "활성화" : "정지";
+    const statusText = newStatus === "ACTIVE" ? "활성화" : "탈퇴";
     const confirmResult = await confirm(
         `이 회원을 "${statusText}" 상태로 변경하시겠습니까?`
       );
