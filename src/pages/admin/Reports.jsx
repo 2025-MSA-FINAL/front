@@ -365,7 +365,7 @@ export default function Reports() {
                           report.repType === "user" ? "bg-gradient-to-r from-[#45CFD3]/20 to-[#C33DFF]/20 text-[#45CFD3]" :
                           "bg-gradient-to-r from-[#FF2A7E]/20 to-[#FFC92D]/20 text-[#FF2A7E]"
                         }`}>
-                          {report.repType === "popup" ? "팝업" : report.repType === "user" ? "유저" : "채팅"}
+                          {report.repType === "popup" ? "팝업" : report.repType === "USER" ? "유저" : "채팅"}
                         </span>
                       </td>
                       <td className="px-6 py-3">
