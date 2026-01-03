@@ -101,7 +101,7 @@ export default function DashboardContent() {
 
   // 바 차트 하단 메타데이터 시간 계산
   const now = new Date();
-  const barChartMetadataTime = `조회수 기준 (2025년 12월 4일 오후 ${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")})`;
+  const barChartMetadataTime = `조회수 기준 (${currentDate})`;
 
   
   return (
@@ -158,8 +158,8 @@ export default function DashboardContent() {
 
       {/* Bar Charts Section (차트 컴포넌트 분리 적용) */}
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-8">
-        {/* 이번 주 인기 팝업 TOP 5 */}
-        <ChartCard title="이번 주 인기 팝업 TOP 5" height="450px">
+        {/* 이번 주 인기 팝업 TOP 10 */}
+        <ChartCard title="이번 주 인기 팝업 TOP 10" height="450px">
           <PopularPopupBarChart 
             data={stats.weeklyTopPopups} 
             metadata={barChartMetadataTime} // 계산된 메타데이터 전달

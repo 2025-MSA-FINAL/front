@@ -345,7 +345,7 @@ export default function usePopupDetailPage() {
     }
 
     try {
-      await joinGroupChatRoom({ gcrId });
+      await joinGroupChatRoom(gcrId);
 
       showToast("채팅방에 참여했어요! 채팅 페이지에서 대화를 시작해보세요 🙌");
 

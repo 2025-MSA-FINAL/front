@@ -28,7 +28,7 @@ export default function GroupChatRoomListSection() {
   return (
     <section
       className="
-    w-full min-h-full
+    w-full min-h-full h-full
     bg-primary-soft2
     rounded-[24px]
     p-3 lg:p-4

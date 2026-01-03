@@ -337,13 +337,9 @@ export default function MessageItem({
   const rawPopup =
     typeof msg.content === "object" ? msg.content : tryParseJson(msg.content);
 
-  const popupData =
-    rawPopup && rawPopup.type === "POPUP" ? normalizePopupData(rawPopup) : null;
+  const popupData = normalizePopupData(rawPopup);
 
-  const isPopupMessage =
-    msg.messageType === "POPUP" ||
-    msg.contentType === "POPUP" ||
-    popupData !== null;
+  const isPopupMessage = Boolean(popupData);
 
   const isPopupRecommend =
     rawPopup?.type === "POPUP_RECOMMEND" && Array.isArray(rawPopup?.items);
