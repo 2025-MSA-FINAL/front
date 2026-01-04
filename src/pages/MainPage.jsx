@@ -371,10 +371,7 @@ const CardGridSection = memo(function CardGridSection({
               paddingLeft: "24px",
               paddingRight: "24px",
             }}
-            onWheelCapture={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
+            
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={endDrag}
