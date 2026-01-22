@@ -9,11 +9,13 @@ import {
   AVAILABLE_THEMES,
 } from "../theme";
 
-export default function Navbar() {
+export default function Navbar({ hidden = false }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isThemeOpen, setIsThemeOpen] = useState(false);
   const [theme, setTheme] = useState(() => getCurrentTheme());
+
+  const isHighContrast = theme === "high-contrast";
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -74,7 +76,13 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-paper h-[88px]">
+    <nav
+      className={`
+        sticky top-0 z-100 bg-paper h-[88px]
+        transition-transform duration-300 ease-out
+        ${hidden ? "-translate-y-full" : "translate-y-0"}
+      `}
+    >
       <div className="w-full max-w-7xl mx-auto px-6 md:px-12 h-full flex justify-between items-center">
         {/* LEFT: 로고 + 데스크탑 메뉴 */}
         <div className="flex items-center gap-12 lg:gap-20">
@@ -109,7 +117,7 @@ export default function Navbar() {
                 (item === "MAP" && currentPath.startsWith("/popup/nearby")) ||
                 // POP-UP: /popup 로 시작하지만 /popup/nearby 는 제외
                 (item === "POP-UP" &&
-                  currentPath.startsWith("/popup") &&
+                  currentPath.startsWith("/pop-up") &&
                   !currentPath.startsWith("/popup/nearby")) ||
                 // CHAT: /chat 로 시작하는 경로
                 (item === "CHAT" && currentPath.startsWith("/chat"));
@@ -118,6 +126,14 @@ export default function Navbar() {
                 <Link
                   key={item}
                   to={path}
+                  onClick={(e) => {
+                    if (item === "CHAT" && !isLoggedIn) {
+                      e.preventDefault();
+                      alert("로그인 후 이용할 수 있습니다.");
+                      navigate("/login");
+                      return;
+                    }
+                  }}
                   className="
                     relative
                     text-title-md font-normal text-text-black
@@ -169,13 +185,17 @@ export default function Navbar() {
                 setIsThemeOpen((prev) => !prev);
                 setIsProfileOpen(false); // 설정 열면 프로필 드롭다운은 닫기
               }}
-              className="
+              className={`
                 flex items-center gap-1
                 rounded-full border border-secondary-light bg-paper
                 px-3 py-1 text-xs text-text-sub
-                hover:bg-secondary-light hover:text-text-main
                 transition-colors
-              "
+                ${
+                  isHighContrast
+                    ? "hover:bg-primary hover:text-[var(--color-primary-light)]"
+                    : "hover:bg-secondary-light hover:text-text-main"
+                }
+              `}
             >
               <svg
                 className="w-4 h-4"
@@ -239,7 +259,11 @@ export default function Navbar() {
                         text-left transition-colors
                         ${
                           theme === mode.id
-                            ? "bg-primary text-text-white"
+                            ? isHighContrast
+                              ? "bg-primary text-[var(--color-primary-light)]"
+                              : "bg-primary text-text-white"
+                            : isHighContrast
+                            ? "text-text-sub hover:bg-primary-soft hover:text-text-white"
                             : "text-text-sub hover:bg-secondary-light hover:text-text-main"
                         }
                       `}
@@ -263,10 +287,13 @@ export default function Navbar() {
               <div className="absolute inset-x-0 top-0 z-20">
                 <div
                   className={`
+                    group
                     overflow-hidden rounded-btn border bg-paper transition-colors
                     ${
                       isProfileOpen
                         ? "border-secondary-light shadow-dropdown"
+                        : isHighContrast
+                        ? "border-transparent hover:bg-primary"
                         : "border-transparent hover:bg-secondary-light"
                     }
                   `}
@@ -285,14 +312,32 @@ export default function Navbar() {
                         alt="Profile"
                         className="w-8 h-8 rounded-full object-cover bg-secondary-light border border-secondary"
                       />
-                      <span className="text-sm font-bold text-text-black truncate">
+                      <span
+                        className={`text-sm font-bold truncate ${
+                          isHighContrast
+                            ? `text-text-white ${
+                                !isProfileOpen
+                                  ? "group-hover:text-[var(--color-primary-light)]"
+                                  : ""
+                              }`
+                            : "text-text-black"
+                        }`}
+                      >
                         {username}
                       </span>
                     </div>
 
                     <svg
-                      className={`w-4 h-4 text-text-sub transition-transform ${
+                      className={`w-4 h-4 transition-transform ${
                         isProfileOpen ? "rotate-180" : ""
+                      } ${
+                        isHighContrast
+                          ? `text-text-sub ${
+                              !isProfileOpen
+                                ? "group-hover:text-[var(--color-primary-light)]"
+                                : ""
+                            }`
+                          : "text-text-sub"
                       }`}
                       fill="none"
                       stroke="currentColor"
@@ -322,7 +367,11 @@ export default function Navbar() {
                         <>
                           <Link
                             to="/mypage"
-                            className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
+                            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors ${
+                              isHighContrast
+                                ? "text-text-white hover:bg-secondary-light/10 hover:text-text-white"
+                                : "hover:bg-secondary-light"
+                            }`}
                             onClick={() => setIsProfileOpen(false)}
                           >
                             <svg
@@ -343,7 +392,11 @@ export default function Navbar() {
 
                           <Link
                             to="/me/report"
-                            className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
+                            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors ${
+                              isHighContrast
+                                ? "text-text-white hover:bg-secondary-light/10 hover:text-text-white"
+                                : "hover:bg-secondary-light"
+                            }`}
                             onClick={() => setIsProfileOpen(false)}
                           >
                             <svg
@@ -388,7 +441,11 @@ export default function Navbar() {
                         <>
                           <Link
                             to="/manager"
-                            className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
+                            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors ${
+                              isHighContrast
+                                ? "text-text-white hover:bg-secondary-light/10 hover:text-text-white"
+                                : "hover:bg-secondary-light"
+                            }`}
                             onClick={() => setIsProfileOpen(false)}
                           >
                             <svg
@@ -409,7 +466,11 @@ export default function Navbar() {
 
                           <Link
                             to="/popup/register"
-                            className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
+                            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors ${
+                              isHighContrast
+                                ? "text-text-white hover:bg-secondary-light/10 hover:text-text-white"
+                                : "hover:bg-secondary-light"
+                            }`}
                             onClick={() => setIsProfileOpen(false)}
                           >
                             <svg
@@ -434,7 +495,11 @@ export default function Navbar() {
                       {isAdmin && (
                         <Link
                           to="/admin"
-                          className="flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-secondary-light"
+                          className={`flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors ${
+                            isHighContrast
+                              ? "text-text-white hover:bg-secondary-light/10 hover:text-text-white"
+                              : "hover:bg-secondary-light"
+                          }`}
                           onClick={() => setIsProfileOpen(false)}
                         >
                           <svg
@@ -561,7 +626,16 @@ export default function Navbar() {
                 key={item}
                 to={path}
                 className="text-title-md font-medium text-text-sub hover:text-primary py-2 border-b border-secondary-light"
-                onClick={() => setIsMenuOpen(false)}
+                onClick={(e) => {
+                  if (item === "CHAT" && !isLoggedIn) {
+                    e.preventDefault();
+                    alert("로그인 후 이용할 수 있습니다.");
+                    navigate("/login");
+                    setIsMenuOpen(false);
+                    return;
+                  }
+                  setIsMenuOpen(false);
+                }}
               >
                 {item}
               </Link>
@@ -586,6 +660,8 @@ export default function Navbar() {
                       ${
                         theme === mode.id
                           ? "bg-primary-soft text-text-black"
+                          : isHighContrast
+                          ? "bg-paper text-text-sub hover:bg-primary-soft hover:text-text-white"
                           : "bg-paper text-text-sub hover:bg-secondary-light hover:text-text-main"
                       }
                     `}

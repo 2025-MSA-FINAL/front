@@ -49,34 +49,50 @@ export default function PopupCard({
 
   //상태 뱃지 UI
   const renderStatusBadge = (customClass = "") => {
-    let styles = "";
-    let label = "진행 중";
-
-    switch (popStatus) {
-      case "UPCOMING":
-        styles = "bg-[var(--color-accent-aqua-soft)] text-[#007E71]";
-        label = "오픈 예정";
-        break;
-      case "ENDED":
-        styles = "bg-[var(--color-secondary-light)] text-[var(--color-text-sub)]";
-        label = "종료";
-        break;
-      case "ONGOING":
-      default:
-        styles = "bg-[var(--color-primary-soft)] text-[var(--color-primary-dark)]";
-        label = "진행 중";
-        break;
-    }
-
+  // ✅ 1. 반려 상태 최우선 처리
+  if (popup.popModerationStatus === false) {
     return (
       <span
-        //폰트 크기: 모바일 10px / PC 11px
-        className={`inline-flex items-center justify-center px-2 py-[2px] rounded-full text-[10px] sm:text-[11px] font-bold tracking-wide shadow-sm ${styles} ${customClass}`}
+        className={`inline-flex items-center justify-center px-2 py-[2px] rounded-full 
+        text-[10px] sm:text-[11px] font-bold tracking-wide shadow-sm 
+        bg-red-100 text-red-600 ${customClass}`}
       >
-        {label}
+        반려됨
       </span>
     );
-  };
+  }
+
+  // ✅ 2. 기존 상태 로직
+  let styles = "";
+  let label = "진행 중";
+
+  switch (popStatus) {
+    case "UPCOMING":
+      styles = "bg-[var(--color-accent-aqua-soft)] text-[#007E71]";
+      label = "오픈 예정";
+      break;
+    case "ENDED":
+      styles = "bg-[var(--color-secondary-light)] text-[var(--color-text-sub)]";
+      label = "종료";
+      break;
+    case "ONGOING":
+    default:
+      styles = "bg-[var(--color-primary-soft)] text-[var(--color-primary-dark)]";
+      label = "진행 중";
+      break;
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center justify-center px-2 py-[2px] rounded-full 
+      text-[10px] sm:text-[11px] font-bold tracking-wide shadow-sm 
+      ${styles} ${customClass}`}
+    >
+      {label}
+    </span>
+  );
+};
+
 
   /**
    * 하트 버튼 UI

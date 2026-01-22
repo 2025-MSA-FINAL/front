@@ -13,10 +13,10 @@ export default function PopupRoomSection() {
   return (
     <section
       className="
-        w-full h-full 
-        bg-primary-soft2   /* 플랫 연보라 */
-        rounded-[24px] 
-        p-4 
+        w-full h-full
+        bg-primary-soft2
+        rounded-[24px]
+        p-3 lg:p-4
         flex flex-col
         border border-primary-soft
         shadow-[0_2px_8px_rgba(0,0,0,0.06)]

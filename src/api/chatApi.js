@@ -43,11 +43,9 @@ export async function getGroupChatRoomList(popId) {
 }
 
 // 그룹 채팅 참여
-export async function joinGroupChatRoom(payload) {
-  const res = await apiClient.post("/api/chat/group/join", payload, {
-    headers: { "Content-Type": "application/json" },
-  });
-  return res.data;
+export async function joinGroupChatRoom(gcrId) {
+  const res = await apiClient.post(`/api/chat/group/${gcrId}/join`);
+  return res.data; 
 }
 
 // 그룹 채팅 상세 조회
@@ -107,19 +105,23 @@ export async function deletePrivateChatRoom(pcrId) {
 /* -------------------------------------------
     4) 숨김/숨김 해제
 ------------------------------------------- */
-
 export async function hideChatRoom(crhType, crhRoomId) {
-  const res = await apiClient.post("/chat/hidden/hide", null, {
+  const res = await apiClient.post("/api/chat/hidden/hide", null, {
     params: { crhType, crhRoomId },
   });
   return res.data;
 }
 
 export async function unhideChatRoom(crhType, crhRoomId) {
-  const res = await apiClient.post("/chat/hidden/unhide", null, {
+  const res = await apiClient.post("/api/chat/hidden/unhide", null, {
     params: { crhType, crhRoomId },
   });
   return res.data;
+}
+
+export async function getHiddenChatRooms() {
+  const res = await apiClient.get("/api/chat/hidden");
+  return res.data; // List<ChatRoomHidden>
 }
 
 /* -------------------------------------------
@@ -139,6 +141,122 @@ export async function startAiChat() {
   });
   return res.data; // roomId
 }
+export async function pureLlmReply(payload) {
+  const res = await apiClient.post(
+    "/api/chat/messages/pure-llm",
+    payload,
+    { headers: { "Content-Type": "application/json" } }
+  );
+  return res.data;
+}
+/* -------------------------------------------
+    7) 채팅 이미지 전송
+------------------------------------------- */
+export async function uploadChatImages({
+  roomType,
+  roomId,
+  files,
+  clientMessageKey,
+}) {
+  const formData = new FormData();
+  formData.append("roomType", roomType);
+  formData.append("roomId", roomId);
+  formData.append("clientMessageKey", clientMessageKey);
+
+  files.forEach((file) => {
+    formData.append("images", file); // ⭐ 여러 개
+  });
+
+  const res = await apiClient.post(
+    "/api/chat/messages/images",
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+
+  return res.data; // ChatMessageResponse
+}
+/* -------------------------------------------
+    8) 신고 생성
+------------------------------------------- */
+export async function createChatReport(payload) {
+  const res = await apiClient.post(
+    "/api/chat/reports",
+    payload,
+    { headers: { "Content-Type": "application/json" } }
+  );
+  return res.data;
+}
+
+/* -------------------------------------------
+   9) 신고 이미지 업로드
+------------------------------------------- */
+export async function uploadReportImages(files) {
+  if (!files || files.length === 0) return [];
+
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+
+  const res = await apiClient.post(
+    "/api/chat/reports/upload",   // ✅ 백엔드와 일치
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+
+  return res.data; // List<String>
+}
+
+/* -------------------------------------------
+    10) 예약 메시지 (Schedule Message)
+------------------------------------------- */
+
+/**
+ * 예약 메시지 생성
+ * POST /api/chat/schedule
+ */
+export async function createScheduledMessage(payload) {
+  const res = await apiClient.post(
+    "/api/chat/schedule",
+    payload,
+    { headers: { "Content-Type": "application/json" } }
+  );
+  return res.data;
+}
+
+/**
+ * 내 예약 메시지 목록 조회
+ * GET /api/chat/schedule?status=PENDING
+ */
+export async function getMyScheduledMessages(status = "PENDING") {
+  const res = await apiClient.get("/api/chat/schedule", {
+    params: { status },
+  });
+  return res.data; // List<ScheduledMessageResponse>
+}
+
+/**
+ * 예약 메시지 수정
+ * PUT /api/chat/schedule/{csmId}
+ */
+export async function updateScheduledMessage(csmId, payload) {
+  const res = await apiClient.put(
+    `/api/chat/schedule/${csmId}`,
+    payload,
+    { headers: { "Content-Type": "application/json" } }
+  );
+  return res.data;
+}
+
+/**
+ * 예약 메시지 취소
+ * DELETE /api/chat/schedule/{csmId}
+ */
+export async function cancelScheduledMessage(csmId) {
+  const res = await apiClient.delete(
+    `/api/chat/schedule/${csmId}`
+  );
+  return res.data;
+}
+
 
 /* -------------------------------------------
     기본 export
@@ -162,4 +280,14 @@ export default {
   unhideChatRoom,
   getMiniUserProfile,
   startAiChat,
+  pureLlmReply,
+
+  uploadChatImages,
+  createChatReport,
+  uploadReportImages,
+
+  createScheduledMessage,
+  getMyScheduledMessages,
+  updateScheduledMessage,
+  cancelScheduledMessage,
 };

@@ -2,11 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+
+    <!-- ✅ 전역 폰트 (Pretendard 예시) -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"
+    />
+
     <link rel="icon" type="image/svg+xml" href="src/assets/ghost2.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>POPSPOT</title>
   </head>
-  <body>
+
+  <body style="
+    font-family: 'Pretendard', system-ui, -apple-system, BlinkMacSystemFont,
+      'Segoe UI', Roboto, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  ">
     <div id="root"></div>
     <div id="popover-root"></div>
     <script type="module" src="/src/main.jsx"></script>

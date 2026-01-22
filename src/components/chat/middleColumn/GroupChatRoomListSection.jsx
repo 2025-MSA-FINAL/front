@@ -28,13 +28,14 @@ export default function GroupChatRoomListSection() {
   return (
     <section
       className="
-        w-full h-full
-        bg-primary-soft2
-        rounded-[24px]
-        p-4 flex flex-col
-        border border-primary-soft
-        shadow-[0_2px_8px_rgba(0,0,0,0.06)]
-      "
+    w-full min-h-full h-full
+    bg-primary-soft2
+    rounded-[24px]
+    p-3 lg:p-4
+    flex flex-col
+    border border-primary-soft
+    shadow-[0_2px_8px_rgba(0,0,0,0.06)]
+  "
     >
       {/* HEADER */}
       <div className="flex items-center justify-between mb-4 w-full overflow-hidden">
@@ -125,7 +126,7 @@ export default function GroupChatRoomListSection() {
               key={room.gcrId}
               className="
                 group relative w-full
-                rounded-2xl px-4 py-4
+                rounded-2xl px-3 lg:px-4 py-3 lg:py-4
                 flex items-center justify-between
                 cursor-pointer
                 transition-all duration-200 ease-out
@@ -139,7 +140,9 @@ export default function GroupChatRoomListSection() {
                 hover:border-primary-light
               "
               onClick={async () => {
+                const { clearSelectedGroupRoom } = useChatPopupStore.getState();
                 if (room.joined) {
+                  clearSelectedGroupRoom();
                   const detail = await fetchRoomDetail(room.gcrId);
                   selectRoom(detail);
                   return;
@@ -149,19 +152,21 @@ export default function GroupChatRoomListSection() {
                 await fetchRoomDetail(room.gcrId);
               }}
             >
-              {/* 아이콘 */}
-              <div className="flex items-center gap-3 relative z-10 flex-1 min-w-0">
+              {/* 아이콘 + 제목 */}
+              <div className="flex items-center gap-3 flex-1 min-w-0">
                 {room.joined ? (
-                  <LockOpenIcon className="w-6 h-6 text-secondary-dark" />
+                  <LockOpenIcon className="w-6 h-6 text-secondary-dark shrink-0" />
                 ) : (
-                  <LockClosedIcon className="w-6 h-6 text-secondary-dark" />
+                  <LockClosedIcon className="w-6 h-6 text-secondary-dark shrink-0" />
                 )}
 
                 <p
                   className="
-      font-semibold text-text-black text-[15px]
-      truncate overflow-hidden whitespace-nowrap
-    "
+                  font-semibold text-text-black text-[15px]
+                  truncate
+                  min-w-0
+                  flex-1
+                "
                 >
                   {room.title}
                 </p>
@@ -170,13 +175,17 @@ export default function GroupChatRoomListSection() {
               {/* 참여 여부 뱃지 */}
               <span
                 className={`
-                  px-4 py-1 rounded-full text-[13px] font-bold shrink-0
-                  ${
-                    room.joined
-                      ? "bg-accent-lemon-soft text-text-black"
-                      : "bg-accent-pink-soft text-text-black"
-                  }
-                `}
+              w-[72px] text-center
+              px-3 py-1
+              rounded-full
+              text-[13px] font-bold
+              shrink-0
+              ${
+                room.joined
+                  ? "bg-accent-lemon-soft text-text-black"
+                  : "bg-accent-pink-soft text-text-black"
+              }
+            `}
               >
                 {room.joined ? "참여 중" : "입장"}
               </span>

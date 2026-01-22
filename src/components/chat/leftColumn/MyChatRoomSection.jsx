@@ -5,6 +5,7 @@ import groupChat from "../../../assets/groupChat.png";
 import privateChat from "../../../assets/privateChat.png";
 import ExpandDownDouble from "../icons/ExpandDownDouble";
 import ChatRoomItem from "../common/ChatRoomItem";
+import ChatRoomContextMenu from "../common/hidden/ChatRoomContextMenu";
 import POPBOT from "../../../assets/POPBOT.png";
 
 export default function MyChatRoomSection() {
@@ -13,8 +14,17 @@ export default function MyChatRoomSection() {
 
   const { rooms, fetchRooms, selectRoom } = useChatStore();
 
+  const [menu, setMenu] = useState(null);
+
   useEffect(() => {
     fetchRooms();
+  }, []);
+
+  // 외부 클릭 시 메뉴 닫기
+  useEffect(() => {
+    const close = () => setMenu(null);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
   }, []);
 
   // 스크롤 체크
@@ -52,15 +62,35 @@ export default function MyChatRoomSection() {
   };
 
   return (
-    <section className="w-full flex-1 min-h-0 rounded-[40px] flex flex-col items-center">
+    <section
+      className="
+        hidden md:flex
+        w-full flex-1 min-h-0
+        flex-col items-center
+      "
+    >
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 w-full overflow-y-auto scrollbar-hide flex flex-col items-center gap-3 p-4"
+        className="
+          flex-1 min-h-0 w-full
+          overflow-y-auto scrollbar-hide
+          flex flex-col items-center
+          gap-3 xl:gap-4
+          px-2 xl:px-3 py-4
+        "
       >
         {rooms.map((room) => (
           <div
             key={`${room.roomId}-${room.roomType}`}
             onClick={() => handleRoomClick(room)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setMenu({
+                x: e.clientX,
+                y: e.clientY,
+                room,
+              });
+            }}
           >
             <ChatRoomItem
               name={room.roomName}
@@ -72,9 +102,9 @@ export default function MyChatRoomSection() {
         ))}
 
         {!needsScroll && (
-          <div className="w-[100px] h-[40px] flex items-center justify-center pointer-events-none mt-2">
+          <div className="mt-2 pointer-events-none">
             <ExpandDownDouble
-              size={28}
+              size={26}
               className="text-secondary-dark animate-float-down"
             />
           </div>
@@ -82,12 +112,23 @@ export default function MyChatRoomSection() {
       </div>
 
       {needsScroll && (
-        <div className="w-[100px] h-[40px] flex items-center justify-center mt-2 pointer-events-none shrink-0">
+        <div className="mt-2 pointer-events-none shrink-0">
           <ExpandDownDouble
-            size={28}
+            size={26}
             className="text-secondary-light animate-float-down"
           />
         </div>
+      )}
+
+      {/* 🔥 우클릭 메뉴 */}
+      {menu && (
+        <ChatRoomContextMenu
+          x={menu.x}
+          y={menu.y}
+          room={menu.room}
+          onClose={() => setMenu(null)}
+          onHidden={() => fetchRooms()}
+        />
       )}
     </section>
   );

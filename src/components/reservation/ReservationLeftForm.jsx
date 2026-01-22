@@ -42,8 +42,22 @@ export function ReservationLeftForm() {
   const setPeriod = usePopupReservationStore((state) => state.setPeriod);
 
   const handleMaxUserChange = (e) => {
-    const value = Number(e.target.value);
-    setReservationInfo({ maxUserCnt: value });
+    const raw = e.target.value;
+
+    // ✅ 지우는 중(빈 값)에는 0으로 바꾸지 말고 비워두기
+    if (raw === "") {
+      setReservationInfo({ maxUserCnt: null });
+      return;
+    }
+
+    // ✅ 숫자만 반영 + 1 이상 보장
+    const value = parseInt(raw, 10);
+    if (Number.isNaN(value)) {
+      setReservationInfo({ maxUserCnt: null });
+      return;
+    }
+
+    setReservationInfo({ maxUserCnt: Math.max(1, value) });
   };
 
   const handleEntryTimeUnitChange = (e) => {
@@ -103,6 +117,16 @@ export function ReservationLeftForm() {
     return `${yyyy}-${mm}-${dd}T${time}`;
   };
 
+  // ✅ YYYY-MM-DD + HH:mm -> Date
+  const buildDateTimeObj = (date, time) => {
+    if (!date || !time) return null;
+    const d = date instanceof Date ? date : new Date(date);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return new Date(`${yyyy}-${mm}-${dd}T${time}`);
+  };
+
   const handleReservationStartDateTimeChange = (e) => {
     const value = e.target.value;
     if (!value) {
@@ -125,6 +149,22 @@ export function ReservationLeftForm() {
         alert("예약 시작일은 팝업 운영 종료일보다 늦을 수 없습니다.");
         return;
       }
+    }
+
+    // ✅ (추가) 예약 시작이 예약 종료보다 뒤면 alert + 다시 선택(방금 입력값 초기화)
+    const nextStartDT = new Date(`${datePart}T${timePart}`);
+    const currentEndDT = buildDateTimeObj(
+      period?.endDate,
+      reservationInfo.reservationOpenEndTime
+    );
+    if (currentEndDT && nextStartDT > currentEndDT) {
+      alert("예약 시작 시간이 종료시간보다 뒤입니다. 시간을 다시 선택해주세요.");
+      setReservationInfo({ reservationOpenStartTime: "" });
+      setPeriod({
+        startDate: null,
+        endDate: period?.endDate ?? null,
+      });
+      return;
     }
 
     setReservationInfo({ reservationOpenStartTime: timePart });
@@ -156,6 +196,22 @@ export function ReservationLeftForm() {
         alert("예약 종료일은 팝업 운영 종료일보다 늦을 수 없습니다.");
         return;
       }
+    }
+
+    // ✅ (추가) 예약 종료가 예약 시작보다 앞이면 alert + 다시 선택(방금 입력값 초기화)
+    const nextEndDT = new Date(`${datePart}T${timePart}`);
+    const currentStartDT = buildDateTimeObj(
+      period?.startDate,
+      reservationInfo.reservationOpenStartTime
+    );
+    if (currentStartDT && nextEndDT < currentStartDT) {
+      alert("예약 시작 시간이 종료시간보다 뒤입니다. 시간을 다시 선택해주세요.");
+      setReservationInfo({ reservationOpenEndTime: "" });
+      setPeriod({
+        startDate: period?.startDate ?? null,
+        endDate: null,
+      });
+      return;
     }
 
     setReservationInfo({ reservationOpenEndTime: timePart });

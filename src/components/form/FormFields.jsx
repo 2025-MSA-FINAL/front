@@ -402,6 +402,7 @@ export const TagInput = ({
     };
 
     const handleKeyDown = (e) => {
+        if (e.isComposing) return;
         if (
             e.key === "Enter" ||
             e.key === " " ||

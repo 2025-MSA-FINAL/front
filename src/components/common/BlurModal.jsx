@@ -5,6 +5,7 @@ export default function BlurModal({
   onClose,
   children,
   width = "480px",
+  showCloseButton = true,
 }) {
   if (!open) return null;
 
@@ -25,12 +26,15 @@ export default function BlurModal({
         style={{ width }}
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          onClick={onClose}
-          className="absolute right-5 top-5 text-gray-500 hover:text-black text-xl"
-        >
-          ✕
-        </button>
+        {/* ✅ 조건부 렌더링 */}
+        {showCloseButton && (
+          <button
+            onClick={onClose}
+            className="absolute right-5 top-5 text-gray-500 hover:text-black text-xl"
+          >
+            ✕
+          </button>
+        )}
 
         {children}
       </div>

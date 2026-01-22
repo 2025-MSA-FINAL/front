@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { logoutApi } from "@/api/authApi";
 import { AdminToastProvider } from "@/components/admin/ui/AdminToastProvider";
+import { Link } from "react-router-dom";
+import yellowCharacter from "@/assets/ghost3.png";
 
 import {
   Home,
@@ -67,22 +69,36 @@ export default function AdminLayout() {
           `}
         >
           {/* Logo */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-[#DDDFE2]">
-            <div>
-              <h1 className="text-2xl font-extrabold text-[#C33DFF] cursor-pointer" onClick={() => navigate("/admin")}>
-                PopSpot Admin
-              </h1>
-              <p className="text-xs text-[#70757A] mt-1">관리자 대시보드</p>
+          <div className="flex items-center justify-between px-6 h-[88px] border-b border-[#DDDFE2]">
+            <div className="flex items-center gap-3">
+              <div>
+                <h1 className="text-2xl font-extrabold text-[#C33DFF] cursor-pointer" onClick={() => navigate("/admin")}>
+                  PopSpot Admin
+                </h1>
+                <p className="text-xs text-[#70757A] mt-1">관리자 대시보드</p>
             </div>
-            <button
-              className="md:hidden text-[#70757A]"
-              onClick={toggleSidebar}
-              aria-label="닫기"
+            <Link to="/" className="group relative flex items-center justify-center p-1 rounded-full hover:bg-yellow-50 transition-colors"
+              title="메인 서비스로 돌아가기"
             >
-              <X className="w-6 h-6" />
-            </button>
+              <img 
+                src={yellowCharacter} 
+                alt="Main Home" 
+                className="w-10 h-10 object-contain group-hover:scale-110 transition-transform duration-200"
+              />
+              {/* 툴팁 효과 (선택사항) */}
+              <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity">
+                메인으로 가기
+              </span>
+            </Link>
           </div>
-
+              <button
+                className="md:hidden text-[#70757A]"
+                onClick={toggleSidebar}
+                aria-label="닫기"
+              >
+              <X className="w-6 h-6" />
+              </button>
+            </div>
           {/* Nav */}
           <nav className="mt-4 px-3">
             {menuItems.map((item) => (
@@ -144,31 +160,27 @@ export default function AdminLayout() {
           >
 
           {/* Top bar */}
-          <header className="sticky top-0 z-20 bg-[#F8F8F9]/80 backdrop-blur border-b border-[#DDDFE2] px-4 md:px-8 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                className="md:hidden p-2 rounded-lg bg-white shadow-sm text-[#424242]"
-                onClick={toggleSidebar}
-                aria-label="메뉴 열기"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-              <div>
-                <h2 className="text-xl md:text-2xl font-bold text-[#242424]">
-                  Dashboard Overview
-                </h2>
-                <p className="text-xs md:text-sm text-[#70757A]">
-                  전체 통계 및 현황을 확인하세요
-                </p>
-              </div>
-            </div>
+          <header className="sticky top-0 z-20 md:bg-transparent bg-[#F8F8F9]/90 backdrop-blur-sm md:border-none border-b border-[#DDDFE2] py-3 px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button
+                  className="md:hidden p-2 rounded-lg bg-white border border-[#DDDFE2] shadow-sm text-[#424242]"
+                  onClick={toggleSidebar}
+                  aria-label="메뉴 열기"
+                >
+                  <Menu className="w-5 h-5" />
+                </button>
 
-            <div className="flex items-center gap-4">
-            </div>
+                <div className="md:hidden flex items-center gap-2">
+                <div className="w-7 h-7 bg-gradient-to-tr from-[#C33DFF] to-[#7E00CC] rounded-lg shadow-sm" />
+                <span className="text-lg font-bold text-[#242424]">PopSpot</span> 
+                </div> 
+              </div> 
+            </div>     
           </header>
 
           {/* Content */}
-          <main className="flex-1 px-4 md:px-8 py-6 md:py-8 w-full max-w-full overflow-x-hidden">
+          <main className="flex-1 px-4 md:px-10 pt-6 md:pt-0 pb-10 w-full max-w-full">
             <Outlet />
           </main>
         </div>

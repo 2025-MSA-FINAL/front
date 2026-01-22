@@ -8,9 +8,10 @@ export default function ChatRooms() {
   const [chatRooms, setChatRooms] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState(null);
   const [keyword, setKeyword] = useState(""); 
-  const [debouncedKeyword, setDebouncedKeyword] = useState(""); //  디바운스된 키워드
+  const [debouncedKeyword, setDebouncedKeyword] = useState("");
   const [searchType, setSearchType] = useState("all");
   const [filterDeleted, setFilterDeleted] = useState("active");
   const [sortBy, setSortBy] = useState("createdAt");
@@ -22,20 +23,30 @@ export default function ChatRooms() {
   
   const itemsPerPage = 10;
 
-  // 🔥 검색어 디바운스 - 500ms 후 debouncedKeyword 업데이트
+  // 통계는 최초 로드시에만
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  // 검색어 디바운스
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedKeyword(keyword);
-      setCurrentPage(1); // 검색어 변경 시 첫 페이지로
-    }, 500);
-
+      setCurrentPage(1);
+    }, 400);
     return () => clearTimeout(timer);
   }, [keyword]);
 
-  // 🔥 API 호출 함수 (useCallback 제거)
+  // 필터/페이지/검색어 변경 시 데이터 로드
+  useEffect(() => {
+    fetchChatRooms();
+  }, [filterDeleted, sortBy, currentPage, searchType, debouncedKeyword]);
+
   const fetchChatRooms = async () => {
     try {
-      setLoading(true);
+      if (isInitialLoading) {
+        setLoading(true);
+      }
       setError(null);
       
       const params = {
@@ -44,13 +55,11 @@ export default function ChatRooms() {
         sort: sortBy,
       };
       
-      // 검색어 및 검색 타입 추가
       if (debouncedKeyword.trim()) {
         params.keyword = debouncedKeyword.trim();
         params.searchType = searchType;
       }
       
-      // 삭제 상태 필터
       if (filterDeleted === "active") {
         params.isDeleted = false;
       } else if (filterDeleted === "deleted") {
@@ -67,8 +76,13 @@ export default function ChatRooms() {
       console.error("Error fetching chatrooms:", err);
       setError("채팅방 목록을 불러오는데 실패했습니다.");
       setChatRooms([]);
+      setTotalPages(1);
+      setTotalElements(0);
     } finally {
-      setLoading(false);
+      if (isInitialLoading) {
+        setLoading(false);
+        setIsInitialLoading(false);
+      }
     }
   };
 
@@ -86,12 +100,6 @@ export default function ChatRooms() {
       });
     }
   };
-
-  useEffect(() => {
-    fetchStats();
-    fetchChatRooms();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterDeleted, sortBy, currentPage, searchType, debouncedKeyword]);
 
   const handleSelectAll = () => {
     if (selectAll) {
@@ -111,8 +119,6 @@ export default function ChatRooms() {
   };
 
   const handleDelete = async (chatId) => {
-    if (!confirm("이 채팅방을 삭제하시겠습니까?")) return;
-
     try {
       await axiosInstance.delete(`/api/admin/chatrooms/${chatId}`);
       
@@ -122,6 +128,7 @@ export default function ChatRooms() {
     } catch (err) {
       console.error("Error deleting chatroom:", err);
       alert(err.response?.data?.message || "삭제에 실패했습니다.");
+      fetchChatRooms(); 
     }
   };
 
@@ -131,7 +138,7 @@ export default function ChatRooms() {
       return;
     }
 
-    if (!confirm(`선택한 ${selectedRooms.length}개의 채팅방을 삭제하시겠습니까?`)) return;
+    if (!window.confirm(`선택한 ${selectedRooms.length}개의 채팅방을 삭제하시겠습니까?`)) return;
 
     try {
       await Promise.all(
@@ -148,43 +155,33 @@ export default function ChatRooms() {
     } catch (err) {
       console.error("Error bulk deleting:", err);
       alert(err.response?.data?.message || "일괄 삭제에 실패했습니다.");
+      fetchChatRooms();
     }
   };
 
   const handleViewReports = (chatId, chatName) => {
-    navigate(`/reports?type=chat&targetId=${chatId}&targetName=${encodeURIComponent(chatName)}`);
-  };
-
-  const handleSearch = () => {
-    setDebouncedKeyword(keyword); // 디바운스 무시하고 즉시 적용
-    setCurrentPage(1);
+    navigate(`/admin/reports?type=chat&targetId=${chatId}&targetName=${encodeURIComponent(chatName)}`);
   };
 
   const handlePageChange = (page) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (page > 0 && page <= totalPages) {
+      setCurrentPage(page);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
-  if (loading) {
+  // 날짜 포맷 함수 추가
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '-';
+    // ISO 형식(YYYY-MM-DDTHH:mm:ss)을 일반 형식으로 변환
+    return dateString.replace('T', ' ');
+  };
+
+  // 초기 로딩 UI
+  if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center h-[70vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#C33DFF]"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-[70vh]">
-        <div className="text-center">
-          <div className="text-[#FF2A7E] text-xl mb-4">{error}</div>
-          <button
-            onClick={fetchChatRooms}
-            className="px-6 py-2 bg-gradient-to-r from-[#C33DFF] to-[#7E00CC] text-white rounded-xl"
-          >
-            다시 시도
-          </button>
-        </div>
       </div>
     );
   }
@@ -194,7 +191,7 @@ export default function ChatRooms() {
       {/* 헤더 */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-[#242424]">채팅방 관리</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-[#242424]">채팅방 관리</h1>
           <p className="text-sm text-[#70757A]">팝업 채팅방 목록 및 관리</p>
         </div>
       </div>
@@ -202,117 +199,103 @@ export default function ChatRooms() {
       {/* 통계 카드 */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatCard
-            title="전체 채팅방"
-            value={stats.totalChatRooms}
-            icon={<MessageSquare className="w-6 h-6 text-white" />}
-            gradient="from-[#C33DFF] to-[#7E00CC]"
+          <StatCard 
+            title="전체 채팅방" 
+            value={stats.totalChatRooms} 
+            icon={<MessageSquare className="w-6 h-6 text-white" />} 
+            gradient="from-[#C33DFF] to-[#7E00CC]" 
           />
-          <StatCard
-            title="활성 채팅방"
-            value={stats.activeChatRooms}
-            icon={<MessageSquare className="w-6 h-6 text-white" />}
-            gradient="from-[#45CFD3] to-[#C33DFF]"
+          <StatCard 
+            title="활성 채팅방" 
+            value={stats.activeChatRooms} 
+            icon={<Users className="w-6 h-6 text-white" />} 
+            gradient="from-[#45CFD3] to-[#C33DFF]" 
           />
-          <StatCard
-            title="비활성 채팅방"
-            value={stats.inactiveChatRooms}
-            icon={<MessageSquare className="w-6 h-6 text-white" />}
-            gradient="from-[#7E00CC] to-[#C33DFF]"
+          <StatCard 
+            title="비활성 채팅방" 
+            value={stats.inactiveChatRooms} 
+            icon={<MessageSquare className="w-6 h-6 text-white" />} 
+            gradient="from-[#FF2A7E] to-[#FFC92D]" 
           />
-          <StatCard
-            title="신고된 채팅방"
-            value={stats.reportedChatRooms}
-            icon={<AlertTriangle className="w-6 h-6 text-white" />}
-            gradient="from-[#FF2A7E] to-[#FFC92D]"
+          <StatCard 
+            title="신고된 채팅방" 
+            value={stats.reportedChatRooms} 
+            icon={<AlertTriangle className="w-6 h-6 text-white" />} 
+            gradient="from-[#FFC92D] to-[#FF2A7E]" 
           />
         </div>
       )}
 
-      {/* 필터 & 검색 */}
-      <div className="bg-white rounded-2xl shadow-xl p-6">
+      {/* 검색 & 필터 */}
+      <div className="bg-white rounded-2xl shadow-xl px-6 py-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          
-          {/* 검색 타입 드롭다운 */}
           <select
             value={searchType}
             onChange={(e) => {
               setSearchType(e.target.value);
               setCurrentPage(1);
             }}
-            className="px-4 py-3 border border-[#DDDFE2] rounded-xl 
-                     focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
+            className="px-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
           >
-            <option value="all">통합 검색</option>
-            <option value="user">사용자(방장)</option>
-            <option value="popup">팝업스토어 이름</option>
-            <option value="chatName">채팅방 이름</option>
+            <option value="all">전체 검색</option>
+            <option value="chatName">채팅방명</option>
+            <option value="popupName">팝업명</option>
+            <option value="hostName">방장명</option>
           </select>
-          
-          {/* 검색어 입력 필드 */}
-          <div className="md:col-span-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 w-5 h-5 text-[#70757A]" />
-              <input
-                type="text"
-                placeholder="검색어를 입력하세요..."
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                className="w-full pl-10 pr-4 py-3 border border-[#DDDFE2] rounded-xl 
-                         focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
-                id="chatRoomSearch"
-                name="chatRoomSearch"
-              />
-            </div>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-3 w-5 h-5 text-[#70757A]" />
+            <input
+              type="text"
+              placeholder={
+                searchType === "all" ? "채팅방, 팝업, 방장 검색..." :
+                searchType === "chatName" ? "채팅방명 검색..." :
+                searchType === "popupName" ? "팝업명 검색..." :
+                "방장명 검색..."
+              }
+              value={keyword}
+              onChange={(e) => {
+                setKeyword(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-10 pr-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
+            />
           </div>
 
-          {/* 삭제 상태 필터 */}
           <select
             value={filterDeleted}
             onChange={(e) => {
               setFilterDeleted(e.target.value);
               setCurrentPage(1);
             }}
-            className="px-4 py-3 border border-[#DDDFE2] rounded-xl 
-                     focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
+            className="px-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
           >
             <option value="all">전체 상태</option>
             <option value="active">활성</option>
             <option value="deleted">삭제됨</option>
           </select>
 
-          {/* 정렬 필터 */}
           <select
             value={sortBy}
             onChange={(e) => {
               setSortBy(e.target.value);
               setCurrentPage(1);
             }}
-            className="px-4 py-3 border border-[#DDDFE2] rounded-xl 
-                     focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
+            className="px-4 py-3 border border-[#DDDFE2] rounded-xl focus:ring-2 focus:ring-[#C33DFF] focus:border-transparent"
           >
             <option value="createdAt">생성일 순</option>
-            <option value="reportCount">신고 많은 순</option>
-            <option value="participantCount">참여자 많은 순</option>
-            <option value="messageCount">메시지 많은 순</option>
-            <option value="name">이름 순</option>
+            <option value="participantCount">참여자 순</option>
+            <option value="reportCount">신고 순</option>
           </select>
         </div>
 
-        <div className="flex gap-3 mt-4">
-          <button
-            onClick={handleSearch}
-            className="px-6 py-2 bg-gradient-to-r from-[#C33DFF] to-[#7E00CC] text-white rounded-xl 
-                     hover:shadow-lg transition-all"
-          >
-            검색
-          </button>
+        <div className="mt-4 flex justify-end">
           {selectedRooms.length > 0 && (
             <button
               onClick={handleBulkDelete}
-              className="px-6 py-2 bg-[#FF2A7E] text-white rounded-xl hover:shadow-lg 
-                        transition-all flex items-center gap-2"
+              className="px-4 py-2 bg-gradient-to-r from-[#FF2A7E] to-[#FFC92D] 
+                       text-white rounded-xl hover:shadow-lg 
+                       transition-all flex items-center gap-2"
             >
               <Trash2 className="w-4 h-4" />
               선택 삭제 ({selectedRooms.length})
@@ -348,7 +331,25 @@ export default function ChatRooms() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F0F1F3]">
-              {chatRooms.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="9" className="px-6 py-12 text-center text-[#70757A]">
+                    불러오는 중...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan="9" className="px-6 py-12 text-center">
+                    <div className="text-[#FF2A7E] mb-4">{error}</div>
+                    <button
+                      onClick={fetchChatRooms}
+                      className="px-6 py-2 bg-gradient-to-r from-[#C33DFF] to-[#7E00CC] text-white rounded-xl hover:shadow-lg transition-all"
+                    >
+                      다시 시도
+                    </button>
+                  </td>
+                </tr>
+              ) : chatRooms.length === 0 ? (
                 <tr>
                   <td colSpan="9" className="px-6 py-12 text-center text-[#70757A]">
                     채팅방이 없습니다.
@@ -371,10 +372,21 @@ export default function ChatRooms() {
                         }
                       </button>
                     </td>
-                    <td className="px-6 py-3">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-[#C33DFF] to-[#7E00CC] text-white font-bold text-xs">
+                    <td className="px-6 py-3 group">
+                      <span
+                        onClick={() => navigator.clipboard.writeText(room.chatId)}
+                        title="클릭하여 ID 복사"
+                        className="
+                          cursor-pointer
+                          text-xs
+                          text-gray-500
+                          group-hover:text-gray-700
+                          transition-colors
+                          font-mono
+                        "
+                      >
                         {room.chatId}
-                      </div>
+                      </span>
                     </td>
                     <td className="px-6 py-3 whitespace-nowrap">
                       <div className="font-medium text-sm text-[#242424]">
@@ -392,7 +404,7 @@ export default function ChatRooms() {
                     <td className="px-6 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#45CFD3] to-[#C33DFF] flex items-center justify-center text-white text-xs font-bold">
-                          {room.hostUserId}
+                          {room.hostUserId?.toString().slice(-2) || '?'}
                         </div>
                         <div>
                           <div className="text-xs font-medium text-[#242424]">{room.hostUserName}</div>
@@ -406,7 +418,7 @@ export default function ChatRooms() {
                       </span>
                     </td>
                     <td className="px-6 py-3 whitespace-nowrap">
-                      {room.hasReports ? (
+                      {room.reportCount > 0 ? (
                         <button
                           onClick={() => handleViewReports(room.chatId, room.chatName)}
                           className="flex items-center gap-1 px-2 py-1 text-xs bg-gradient-to-r from-[#FF2A7E]/10 to-[#FFC92D]/10 
@@ -418,11 +430,11 @@ export default function ChatRooms() {
                           <span className="font-semibold">{room.reportCount}건</span>
                         </button>
                       ) : (
-                        <span className="text-xs text-[#70757A] whitespace-nowra">없음</span>
+                        <span className="text-xs text-[#70757A]">없음</span>
                       )}
                     </td>
                     <td className="px-6 py-3 text-sm text-[#70757A] whitespace-nowrap">
-                      {room.createdAt}
+                      {formatDateTime(room.createdAt)}
                     </td>
                     <td className="px-6 py-3">
                       {!room.chatIsDeleted && (
@@ -444,7 +456,7 @@ export default function ChatRooms() {
         </div>
 
         {/* 페이지네이션 */}
-        <div className="px-6 py-4 border-t border-[#DDDFE2] flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-[#DDDFE2] flex items-center justify-between flex-wrap">
           <div className="text-sm text-[#70757A]">
             총 {totalElements.toLocaleString()}개의 채팅방
           </div>
@@ -458,7 +470,6 @@ export default function ChatRooms() {
               이전
             </button>
             
-            {/* 페이지 번호 버튼 (최대 5개 표시) */}
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
               let pageNum;
               if (totalPages <= 5) {
@@ -470,6 +481,8 @@ export default function ChatRooms() {
               } else {
                 pageNum = currentPage - 2 + i;
               }
+              
+              if (pageNum < 1 || pageNum > totalPages) return null;
               
               return (
                 <button

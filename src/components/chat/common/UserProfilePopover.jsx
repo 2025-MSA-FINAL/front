@@ -3,10 +3,11 @@ import { createPortal } from "react-dom";
 import { startPrivateChat, getMiniUserProfile } from "../../../api/chatApi";
 import { useChatStore } from "../../../store/chat/chatStore";
 import privateChatIcon from "../../../assets/privateChat.png";
+import ReportIcon from "../icons/ReportIcon";
 
 /* --------------------------------------------------------
    📌 Follow Motion 설정
-   -------------------------------------------------------- */
+-------------------------------------------------------- */
 const lerp = (start, end, factor) => start + (end - start) * factor;
 const FOLLOW_SPEED = 0.18;
 
@@ -16,17 +17,16 @@ export default function UserProfilePopover({
   scrollParentRef,
   open,
   onClose,
+  openReportModal,
 }) {
   const popRef = useRef(null);
   const posRef = useRef({ x: 0, y: 0 });
+  const readyRef = useRef(false);
 
-  // ⭐ 꼬리 방향을 위한 상태값 (렌더에서 ref 접근 금지 해결)
   const [side, setSide] = useState("right");
-
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
 
-  // 첫 프레임인지 체크하는 ref
   const firstFrameRef = useRef(true);
 
   const { addOrSelectPrivateRoom } = useChatStore();
@@ -72,61 +72,57 @@ export default function UserProfilePopover({
 
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [open, anchorRef]);
+  }, [open, anchorRef, onClose]);
 
   /* ---------------------------------------
-      open 변경 시 초기 상태 리셋
+      open 변경 시 초기화
   --------------------------------------- */
   useEffect(() => {
     if (open) {
       firstFrameRef.current = true;
-      setTimeout(() => {
-        setReady(false);
-      }, 0);
+      readyRef.current = false;
     }
   }, [open]);
 
   /* ======================================================
-      위치 계산 + Follow Motion + 자동 close
+      위치 계산 + Follow Motion
   ====================================================== */
   const updatePosition = () => {
-    if (!open) return;
-    if (!anchorRef?.current || !popRef.current) return;
+    if (!open || !anchorRef?.current || !popRef.current) return;
 
     const trigger = anchorRef.current.getBoundingClientRect();
     const pop = popRef.current;
 
-    /* 1) 화면 밖이면 닫기 */
-    const outOfScreen =
+    // 화면 밖 → 닫기
+    if (
       trigger.bottom < 0 ||
       trigger.top > window.innerHeight ||
       trigger.right < 0 ||
-      trigger.left > window.innerWidth;
-
-    if (outOfScreen) return onClose();
-
-    /* 2) 메시지 영역 밖이면 닫기 */
-    if (scrollParentRef?.current) {
-      const scrollBox = scrollParentRef.current.getBoundingClientRect();
-      const out =
-        trigger.bottom < scrollBox.top || trigger.top > scrollBox.bottom;
-      if (out) return onClose();
+      trigger.left > window.innerWidth
+    ) {
+      onClose();
+      return;
     }
 
-    /* 3) Popover 크기 측정 */
+    // 메시지 영역 밖 → 닫기
+    if (scrollParentRef?.current) {
+      const scrollBox = scrollParentRef.current.getBoundingClientRect();
+      if (trigger.bottom < scrollBox.top || trigger.top > scrollBox.bottom) {
+        onClose();
+        return;
+      }
+    }
+
+    // 사이즈 측정
     pop.style.visibility = "hidden";
     pop.style.left = "-9999px";
     pop.style.top = "-9999px";
 
-    const rect = pop.getBoundingClientRect();
-    const popW = rect.width;
-    const popH = rect.height;
+    const { width: popW, height: popH } = pop.getBoundingClientRect();
 
-    /* 4) 기본 위치: 오른쪽 */
     let targetX = trigger.right + 12;
     let targetY = trigger.top + trigger.height / 2 - popH / 2;
 
-    /* 오른쪽 공간 부족 → 왼쪽으로 */
     let onLeft = false;
     if (targetX + popW > window.innerWidth - 10) {
       targetX = trigger.left - popW - 12;
@@ -134,57 +130,46 @@ export default function UserProfilePopover({
     }
     if (targetX < 10) targetX = 10;
 
-    /* Y Clamp */
     if (targetY < 10) targetY = 10;
     if (targetY + popH > window.innerHeight - 10) {
       targetY = window.innerHeight - popH - 10;
     }
 
-    /* 꼬리 상태 저장 → 렌더링 시 ref 접근 불필요 */
     setSide(onLeft ? "left" : "right");
 
-    /* Follow Motion */
     const current = posRef.current;
+    const newX = firstFrameRef.current
+      ? targetX
+      : lerp(current.x, targetX, FOLLOW_SPEED);
+    const newY = firstFrameRef.current
+      ? targetY
+      : lerp(current.y, targetY, FOLLOW_SPEED);
 
-    let newX, newY;
-
-    if (firstFrameRef.current) {
-      newX = targetX;
-      newY = targetY;
-      firstFrameRef.current = false;
-    } else {
-      newX = lerp(current.x, targetX, FOLLOW_SPEED);
-      newY = lerp(current.y, targetY, FOLLOW_SPEED);
-    }
-
+    firstFrameRef.current = false;
     posRef.current = { x: newX, y: newY };
 
     pop.style.left = `${newX}px`;
     pop.style.top = `${newY}px`;
     pop.style.visibility = "visible";
 
-    if (!ready) setReady(true);
+    if (!readyRef.current) {
+      readyRef.current = true;
+      setReady(true);
+    }
   };
 
-  /* Follow Motion Loop */
   useEffect(() => {
     if (!open) return;
-
     let frame;
     const loop = () => {
       updatePosition();
       frame = requestAnimationFrame(loop);
     };
-
     loop();
     return () => cancelAnimationFrame(frame);
   }, [open]);
 
   if (!open || !user) return null;
-
-  /* ======================================================
-      Tail + Kakao-style Popover
-  ====================================================== */
 
   const tailStyle =
     side === "left"
@@ -201,12 +186,33 @@ export default function UserProfilePopover({
 
   return createPortal(
     <div
+      key={userId}
       ref={popRef}
       className={`fixed z-[9999] w-[350px] rounded-3xl px-7 py-7
         bg-white shadow-lg backdrop-blur-xl border border-gray-200
-        flex flex-col items-center gap-3 origin-center
-        ${ready ? "animate-kakao-pop" : ""}`}
+        flex flex-col items-center gap-3
+           ${ready ? "animate-kakao-pop" : ""}`}
     >
+      {/* ⭐ 신고 버튼 */}
+      <button
+        className="
+          absolute left-5 top-4
+          w-8 h-8 rounded-full
+          flex items-center justify-center
+          text-accent-pink
+          hover:bg-gray-100/70 transition
+        "
+        onClick={() => {
+          openReportModal({
+            reportType: "USER",
+            targetId: userId,
+          });
+          onClose();
+        }}
+      >
+        <ReportIcon className="w-5 h-5" />
+      </button>
+
       {/* 꼬리 */}
       <div
         className="absolute top-1/2 -translate-y-1/2 w-0 h-0 border-[12px]"

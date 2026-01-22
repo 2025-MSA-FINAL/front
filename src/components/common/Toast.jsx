@@ -1,4 +1,5 @@
 // src/components/common/Toast.jsx
+import { createPortal } from "react-dom";
 
 // ✅ 성공 아이콘 (초록 체크)
 const CheckIcon = () => (
@@ -37,16 +38,24 @@ const ErrorIcon = () => (
   </svg>
 );
 
-export default function Toast({ message, visible, variant = "success" }) {
+
+export default function Toast({
+  message,
+  visible,
+  variant = "success",
+  actionLabel,
+  onAction,
+}) {
   if (!visible) return null;
 
   const isError = variant === "error";
+  const hasAction = !!actionLabel && typeof onAction === "function";
 
-  return (
+  const toastNode = (
     <div
       className={`
         fixed bottom-10 left-1/2 transform -translate-x-1/2 
-        z-50 flex items-center justify-center gap-3
+        z-[2147483647] flex items-center justify-center gap-3
         px-6 py-3.5
         rounded-full shadow-dropdown backdrop-blur-sm
         text-[15px] font-bold tracking-tight
@@ -57,7 +66,30 @@ export default function Toast({ message, visible, variant = "success" }) {
       <span className={isError ? "text-white" : "text-accent-lime"}>
         {isError ? <ErrorIcon /> : <CheckIcon />}
       </span>
+
       <span>{message}</span>
+
+      {/* 액션 버튼 */}
+      {hasAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className={`
+            ml-1 px-3 py-1 rounded-full text-[13px] font-semibold
+            ${
+              isError
+                ? "bg-white/15 hover:bg-white/25 text-white"
+                : "bg-white/10 hover:bg-white/20 text-text-white"
+            }
+            transition
+          `}
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
+
+  if (typeof document === "undefined") return toastNode;
+  return createPortal(toastNode, document.body);
 }

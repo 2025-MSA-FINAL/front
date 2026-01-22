@@ -10,23 +10,41 @@ export default function Users() {
   const [managerList, setManagerList] = useState([]);
   const [filterStatus, setFilterStatus] = useState("ACTIVE");
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [searchType, setSearchType] = useState("all");  // 추가!
+  const [debouncedKeyword, setDebouncedKeyword] = useState("");
+
   const [loading, setLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // 모드에 따른 현재 리스트
   const currentList = mode === "user" ? userList : managerList;
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedKeyword(searchKeyword);
+      setCurrentPage(1);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchKeyword]);
+
+  useEffect(() => {
     const fetchData = async () => {
+
       try {
+        if (isInitialLoading) {
         setLoading(true);
+        }
 
         const params = { 
           status: filterStatus,
-          keyword: searchKeyword,
+          keyword: debouncedKeyword,
+          searchType: searchType,
           page: currentPage - 1,
           size: pageSize,
         };
@@ -53,12 +71,15 @@ export default function Users() {
         setTotalElements(0);
 
       } finally {
-        setLoading(false);
+         if (isInitialLoading) {
+          setLoading(false);
+          setIsInitialLoading(false);
+        }
       }
     };
 
     fetchData();
-  }, [mode, filterStatus, currentPage, searchKeyword]);
+  }, [mode, filterStatus, currentPage, debouncedKeyword, searchType, reloadKey]);  // searchType 추가!
 
   // 페이지 변경
   const handlePageChange = (page) => {
@@ -68,57 +89,57 @@ export default function Users() {
     }
   };
 
-  // 필터 및 검색 변경
-  const handleFilterChange = (setter, value) => {
-    setter(value);
-    setCurrentPage(1);
-  };
-
   // 유저 상태 변경
   const handleStatusChange = async (userId, newStatus) => {
-    const statusText = newStatus === "ACTIVE" ? "활성화" : "정지";
-    if (!window.confirm(`이 회원을 ${statusText}하시겠습니까?`)) return;
+
+    const statusText = newStatus === "ACTIVE" ? "활성화" : "탈퇴";
+    const confirmResult = await confirm(
+        `이 회원을 "${statusText}" 상태로 변경하시겠습니까?`
+      );
+    if (!confirmResult) return;
 
     try {
       await axiosInstance.put(`/api/admin/users/${userId}/status`, null, {
         params: { status: newStatus }
       });
-
-      alert(`${statusText}되었습니다!`);
-      setCurrentPage(1);
-
     } catch (err) {
       console.error("Error changing status:", err);
-      alert("상태 변경에 실패했습니다.");
-    }
+      alert(err.response?.data?.message || "상태 변경에 실패했습니다.");
+      return; 
+    }        
+    alert(`${statusText}되었습니다.`);
+    setReloadKey(prev => prev + 1);
   };
 
   // 역할 변경
   const handleRoleChange = async (userId, newRole) => {
     const roleText = newRole === "MANAGER" ? "매니저로 승격" : "일반 회원으로 변경";
-    if (!window.confirm(`이 회원을 ${roleText}하시겠습니까?`)) return;
+    
+    const confirmResult = await confirm(
+    `이 회원을 "${roleText}" 하시겠습니까?`
+  );
+  if (!confirmResult) return;
 
     try {
-      await axiosInstance.put(`/api/admin/users/${userId}/role`, null, {
-        params: { role: newRole }
-      });
-
-      alert(`${roleText}되었습니다!`);
-      setCurrentPage(1);
+      await axiosInstance.put(`/api/admin/users/${userId}/role`, 
+        null, 
+        {params: { role: newRole }}
+      );
 
     } catch (err) {
       console.error("Error changing role:", err);
-      alert("권한 변경에 실패했습니다.");
+      alert(err.response?.data?.message || "권한 변경에 실패했습니다.");
+      return;
     }
+    alert(`${roleText}되었습니다!`);
+    setReloadKey(prev => prev + 1);
   };
 
   // 로딩 UI
-  if (loading) {
+  if (isInitialLoading) {
     return (
-      <div className="p-8">
-        <div className="flex items-center justify-center h-[70vh] text-gray-500">
-          로딩 중...
-        </div>
+      <div className="flex items-center justify-center h-[70vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
   }
@@ -128,7 +149,7 @@ export default function Users() {
       {/* 헤더 */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900">유저 관리</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900">유저 관리</h2>
           <p className="text-gray-500 text-sm">회원/매니저 정보를 조회하고 관리할 수 있습니다.</p>
         </div>
 
@@ -154,24 +175,53 @@ export default function Users() {
 
       {/* 필터 */}
       <div className="bg-white rounded-2xl shadow-xl px-4 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* 검색 타입 선택 */}
+          <select
+            value={searchType}
+            onChange={(e) => {
+              setSearchType(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-4 py-3 border border-gray-300 rounded-xl 
+                     focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+          >
+            <option value="all">전체 검색</option>
+            <option value="name">이름</option>
+            <option value="nickname">닉네임</option>
+            <option value="email">이메일</option>
+          </select>
+
+          {/* 검색창 */}
           <div className="md:col-span-2">
             <div className="relative">
               <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="이름, 닉네임, 이메일 검색..."
+                placeholder={
+                  searchType === "all" ? "이름, 닉네임, 이메일 검색..." :
+                  searchType === "name" ? "이름 검색..." :
+                  searchType === "nickname" ? "닉네임 검색..." :
+                  "이메일 검색..."
+                }
                 value={searchKeyword}
-                onChange={(e) => handleFilterChange(setSearchKeyword, e.target.value)}
+                onChange={(e) => {
+                  setSearchKeyword(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl 
                        focus:ring-2 focus:ring-purple-600 focus:border-transparent"
               />
             </div>
           </div>
 
+          {/* 상태 필터 */}
           <select
             value={filterStatus}
-            onChange={(e) => handleFilterChange(setFilterStatus, e.target.value)}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setCurrentPage(1);
+            }}
             className="px-4 py-3 border border-gray-300 rounded-xl 
                      focus:ring-2 focus:ring-purple-600 focus:border-transparent"
           >
@@ -210,108 +260,115 @@ export default function Users() {
             </thead>
 
             <tbody className="divide-y divide-gray-100">
-  {currentList.length === 0 ? (
-    <tr>
-      <td
-        colSpan={filterStatus === "DELETED" ? 7 : 6}
-        className="px-4 py-12 text-center text-gray-500"
-      >
-        조회된 목록이 없습니다.
-      </td>
-    </tr>
-  ) : (
-    currentList.map((item) => (
-      <tr key={item.userId} className="hover:bg-gray-50 transition-colors">
+              {loading ? (
+                <tr>
+                  <td
+                    colSpan={filterStatus === "DELETED" ? 7 : 7}
+                    className="px-4 py-12 text-center text-gray-400"
+                  >
+                    불러오는 중...
+                  </td>
+                </tr>
+              ) : currentList.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={filterStatus === "DELETED" ? 7 : 7}
+                    className="px-4 py-12 text-center text-gray-500"
+                  >
+                    조회된 목록이 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                currentList.map((item) => (
+                  <tr key={item.userId} className="hover:bg-gray-50 transition-colors">
+                   <td className="px-4 py-3 group">
+                    <span
+                      onClick={() => navigator.clipboard.writeText(item.userId)}
+                      className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 font-mono"
+                      title="클릭하여 ID 복사"
+                    >
+                      {item.userId}
+                    </span>
+                  </td>
 
-        {/* ID 원형 뱃지 */}
-        <td className="px-4 py-3">
-          <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center 
-                            bg-gradient-to-br from-purple-600 to-purple-800 text-white 
-                            text-sm font-bold shadow-sm">
-              {item.userId}
-            </div>
-          </div>
-        </td>
+                    {/* 이름 */}
+                    <td className="px-4 py-3 text-sm whitespace-nowrap max-w-[120px] truncate">
+                      {item.userName}
+                    </td>
 
-        {/* 이름 */}
-        <td className="px-4 py-3 text-sm whitespace-nowrap max-w-[120px] truncate">
-          {item.userName}
-        </td>
+                    {/* 닉네임 */}
+                    <td className="px-4 py-3 text-sm whitespace-nowrap max-w-[120px] truncate">
+                      @{item.userNickname}
+                    </td>
 
-        {/* 닉네임 */}
-        <td className="px-4 py-3 text-sm whitespace-nowrap max-w-[120px] truncate">
-          @{item.userNickname}
-        </td>
+                    {/* 이메일 */}
+                    <td className="px-4 py-3 text-sm whitespace-nowrap max-w-[160px] truncate">
+                      {item.userEmail}
+                    </td>
 
-        {/* 이메일 */}
-        <td className="px-4 py-3 text-sm whitespace-nowrap max-w-[160px] truncate">
-          {item.userEmail}
-        </td>
+                    {/* 상태 뱃지 */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap
+                          ${item.userStatus === "ACTIVE"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                          }`}
+                      >
+                        {item.userStatus === "ACTIVE" ? "활성" : "탈퇴"}
+                      </span>
+                    </td>
 
-        {/* 상태 뱃지 — 절대 안 잘리게 */}
-        <td className="px-4 py-3 whitespace-nowrap">
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap
-              ${item.userStatus === "ACTIVE"
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
-              }`}
-          >
-            {item.userStatus === "ACTIVE" ? "활성" : "탈퇴"}
-          </span>
-        </td>
+                    {/* 가입일 */}
+                    <td className="px-4 py-3 text-sm whitespace-nowrap">
+                      {item.createdAt}
+                    </td>
 
-        {/* 가입일 */}
-        <td className="px-4 py-3 text-sm whitespace-nowrap">
-          {item.createdAt}
-        </td>
+                    {/* 탈퇴일 */}
+                    {filterStatus === "DELETED" && (
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">
+                        {item.updatedAt}
+                      </td>
+                    )}
 
-        {/* 탈퇴일 */}
-        {filterStatus === "DELETED" && (
-          <td className="px-4 py-3 text-sm whitespace-nowrap">
-            {item.updatedAt}
-          </td>
-        )}
+                    {/* 관리 버튼 */}
+                    {filterStatus !== "DELETED" && (
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() =>
+                              handleStatusChange(
+                                item.userId,
+                                item.userStatus === "ACTIVE" ? "DELETED" : "ACTIVE"
+                              )
+                            }
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            {item.userStatus === "ACTIVE" ? (
+                              <XCircle className="w-4 h-4" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4" />
+                            )}
+                          </button>
 
-        {/* 관리 버튼 */}
-        {filterStatus !== "DELETED" && (
-          <td className="px-4 py-3 whitespace-nowrap">
-            <div className="flex gap-2">
-              <button
-                onClick={() =>
-                  handleStatusChange(
-                    item.userId,
-                    item.userStatus === "ACTIVE" ? "DELETED" : "ACTIVE"
-                  )
-                }
-                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              >
-                {item.userStatus === "ACTIVE" ? (
-                  <XCircle className="w-4 h-4" />
-                ) : (
-                  <CheckCircle className="w-4 h-4" />
-                )}
-              </button>
-
-              <button
-                onClick={() =>
-                  handleRoleChange(
-                    item.userId,
-                    item.userRole === "USER" ? "MANAGER" : "USER"
-                  )
-                }
-                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                <UserCog className="w-4 h-4" />
-              </button>
-            </div>
-          </td>
-        )}
-      </tr>
-    ))
-  )}
-</tbody>
+                          <button
+                            onClick={() =>
+                              handleRoleChange(
+                                item.userId,
+                                item.userRole === "USER" ? "MANAGER" : "USER"
+                              )
+                            }
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          >
+                            <UserCog className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
           </table>
         </div>
 

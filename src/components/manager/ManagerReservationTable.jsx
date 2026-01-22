@@ -27,31 +27,12 @@ function formatPhone(num) {
 }
 
 function getStatusLabel(status) {
-  if (status === null || status === undefined) return "-";
-
-  // 1. 문자열로 변환 후 대문자 처리
-  const s = String(status).trim().toUpperCase();
-
-  switch (s) {
-    // 1. 영어 코드 (백엔드 Enum)
-    case "PENDING":   return "예약 대기"; //아직 승인 전
-    case "CONFIRMED": return "예약 완료"; //사용자 페이지와 통일
-    case "CANCELLED": return "예약 취소"; //사용자 페이지와 통일
-    case "CANCELED":  return "예약 취소"; //스펠링 방어 코드
-    case "VISITED":   return "방문 완료";
-    case "NOSHOW":    return "노쇼";
-    
-    // 2. 혹시 boolean으로 올 경우 방어 코드
-    case "TRUE":      return "예약 완료";
-    case "FALSE":     return "예약 취소";
-
-    // 3. 이미 한글로 오는 경우
-    case "대기":      return "예약 대기";
-    case "확정":      return "예약 완료";
-    case "취소":      return "예약 취소";
-
-    default: return status; //알 수 없는 값은 그대로 출력
+  if (status === true) {
+    return "예약 확정";
+  } else if (status === false) {
+    return "예약 취소";
   }
+  return "-";
 }
 
 export default function ManagerReservationTable({
@@ -151,7 +132,7 @@ export default function ManagerReservationTable({
                     <td className="py-3 pr-4 font-medium">
                       <span
                         className={`
-                          ${String(item.status).includes("CANCEL") ? "text-text-sub" : "text-primary"}
+                          ${item.status === false ? "text-text-sub" : "text-primary"}
                         `}
                       >
                         {getStatusLabel(item.status)}
