@@ -4,7 +4,6 @@ import { ThumbnailUploader, DetailImageUploader } from "./ImageUploader";
 import {
     TextInput,
     DateInput,
-    SelectInput,
     PriceInput,
     TextArea,
     TagInput,
@@ -32,35 +31,34 @@ const PopupForm = () => {
         isUploading,
         maxDetailImages,
         handleRemoveDetailImage,
+        formMessage,
     } = usePopupForm();
 
-
-    //const locationTouched = touched.popLocation;
     const dateTouched = touched.popStartDate || touched.popEndDate;
 
     return (
         <div
             className="
-                w-full 
-                max-w-[1200px]
-                mx-auto
-                bg-paper rounded-card shadow-card
-                px-8 py-10
-                sm:px-12 sm:py-12
-                xl:px-16 xl:py-14
-                flex flex-col xl:flex-row
-                gap-10 xl:gap-24
-            "
+        w-full 
+        max-w-[1200px]
+        mx-auto
+        bg-paper rounded-card shadow-card
+        px-8 py-10
+        sm:px-12 sm:py-12
+        xl:px-16 xl:py-14
+        flex flex-col xl:flex-row
+        gap-10 xl:gap-24
+      "
         >
             {/* 왼쪽: 이미지 업로드 */}
             <div
                 className="
-                    w-full
-                    max-w-[420px] mx-auto
-                    xl:w-[420px] xl:max-w-none xl:mx-0
-                    2xl:w-[460px]
-                    xl:flex-shrink-0
-                "
+          w-full
+          max-w-[420px] mx-auto
+          xl:w-[420px] xl:max-w-none xl:mx-0
+          2xl:w-[460px]
+          xl:flex-shrink-0
+        "
             >
                 <ThumbnailUploader
                     previewUrl={form.popThumbnail}
@@ -81,15 +79,16 @@ const PopupForm = () => {
                     maxCount={maxDetailImages}
                 />
             </div>
+
             {/* 오른쪽: 입력 폼 */}
             <div
                 className="
-                    w-full
-                    max-w-[560px]
-                    mt-10 xl:mt-0
-                    mx-auto
-                    xl:mx-0 xl:ml-auto
-                "
+          w-full
+          max-w-[560px]
+          mt-10 xl:mt-0
+          mx-auto
+          xl:mx-0 xl:ml-auto
+        "
             >
                 <TextInput
                     label="팝업 스토어 이름"
@@ -126,9 +125,6 @@ const PopupForm = () => {
                     error={errors.popLocation}
                     touched={touched.popLocation}
                 />
-
-
-
 
                 <TextArea
                     label="팝업 스토어 설명"
@@ -207,6 +203,13 @@ const PopupForm = () => {
                         등록
                     </PrimaryButton>
                 </div>
+
+                {/* 폼 하단 에러/안내 메시지 */}
+                {formMessage && (
+                    <div className="mt-4 rounded-[14px] border border-accent-pink bg-accent-pink/10 px-4 py-3">
+                        <p className="text-label-sm text-accent-pink">{formMessage}</p>
+                    </div>
+                )}
             </div>
         </div>
     );

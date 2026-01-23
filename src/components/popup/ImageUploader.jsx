@@ -6,6 +6,12 @@ import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 /**
+ * 파일 드래그인지 체크 (텍스트 드래그 등은 무시)
+ */
+const isFileDrag = (e) =>
+  Array.from(e?.dataTransfer?.types || []).includes("Files");
+
+/**
  * 대표 썸네일 업로더
  */
 export const ThumbnailUploader = ({
@@ -17,7 +23,9 @@ export const ThumbnailUploader = ({
 }) => {
   const fileInputRef = useRef(null);
   const hasError = touched && !!error;
+
   const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounter = useRef(0);
 
   const handleClick = () => {
     if (isUploading) return;
@@ -31,9 +39,42 @@ export const ThumbnailUploader = ({
     e.target.value = "";
   };
 
-  // 드래그앤드랍 업로드
-  const handleDrop = (e) => {
+  /**
+   * wrapper에서 드래그/드롭 처리 (버튼+미리보기 전체 drop zone)
+   */
+  const handleWrapDragEnter = (e) => {
+    if (!isFileDrag(e)) return;
     e.preventDefault();
+    if (isUploading) return;
+
+    dragCounter.current += 1;
+    setIsDragOver(true);
+  };
+
+  const handleWrapDragOver = (e) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    if (isUploading) return;
+
+    e.dataTransfer.dropEffect = "copy";
+  };
+
+  const handleWrapDragLeave = (e) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setIsDragOver(false);
+    }
+  };
+
+  const handleWrapDrop = (e) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+
+    dragCounter.current = 0;
     setIsDragOver(false);
 
     if (isUploading) return;
@@ -41,25 +82,18 @@ export const ThumbnailUploader = ({
     const { files } = e.dataTransfer;
     if (!files || files.length === 0) return;
 
+    //썸네일은 1장만 사용
     onUpload(files, "thumbnail");
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-  const handleDragEnter = (e) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
   return (
-    <div className="w-full mb-10">
+    <div
+      className="w-full mb-10"
+      onDragEnter={handleWrapDragEnter}
+      onDragOver={handleWrapDragOver}
+      onDragLeave={handleWrapDragLeave}
+      onDrop={handleWrapDrop}
+    >
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-title-lg text-text-sub">썸네일 이미지 추가</h3>
         {isUploading && (
@@ -67,23 +101,17 @@ export const ThumbnailUploader = ({
         )}
       </div>
 
+      {/* 버튼은 drop 이벤트 제거 */}
       <button
         type="button"
         onClick={handleClick}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
         className={clsx(
           "w-full rounded-[18px] border border-dashed bg-secondary-light/60 hover:bg-secondary-light transition-colors",
           "shadow-card overflow-hidden relative",
           hasError && "border-accent-pink",
           isDragOver &&
-          "border-primary-dark bg-primary-light ring-2 ring-primary/60 scale-[1.01]"
+            "border-primary-dark bg-primary-light ring-2 ring-primary/60 scale-[1.01]"
         )}
-
-
-
       >
         <div className="relative w-full pt-[75%]">
           {previewUrl ? (
@@ -151,13 +179,8 @@ export const ThumbnailUploader = ({
 };
 
 function SortableImageCard({ id, url, index, onRemove }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -172,12 +195,11 @@ function SortableImageCard({ id, url, index, onRemove }) {
       {...attributes}
       {...listeners}
     >
-      {/* 삭제 버튼 */}
       {onRemove && (
         <button
           type="button"
           onClick={(e) => {
-            e.stopPropagation();     // 클릭 버블 막기
+            e.stopPropagation();
             onRemove(index);
           }}
           onPointerDown={(e) => {
@@ -198,8 +220,6 @@ function SortableImageCard({ id, url, index, onRemove }) {
   );
 }
 
-
-
 /**
  * 상세 이미지 업로더
  */
@@ -217,7 +237,9 @@ export const DetailImageUploader = ({
   const hasError = touched && !!error;
   const currentCount = images.length;
   const isMax = currentCount >= maxCount;
+
   const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounter = useRef(0);
 
   const handleClick = () => {
     if (isUploading || isMax) return;
@@ -232,31 +254,47 @@ export const DetailImageUploader = ({
     e.target.value = "";
   };
 
-  // 드래그앤드랍 업로드
-  const handleDrop = (e) => {
+  const handleWrapDragEnter = (e) => {
+    if (!isFileDrag(e)) return;
     e.preventDefault();
+    if (isUploading || isMax) return;
+
+    dragCounter.current += 1;
+    setIsDragOver(true);
+  };
+
+  const handleWrapDragOver = (e) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    if (isUploading || isMax) return;
+
+    e.dataTransfer.dropEffect = "copy";
+  };
+
+  const handleWrapDragLeave = (e) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setIsDragOver(false);
+    }
+  };
+
+  const handleWrapDrop = (e) => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+
+    dragCounter.current = 0;
     setIsDragOver(false);
+
     if (isUploading || isMax) return;
 
     const { files } = e.dataTransfer;
     if (!files || files.length === 0) return;
 
     onUpload(files, "detail");
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-  const handleDragEnter = (e) => {
-    e.preventDefault();
-    if (isMax) return;
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragOver(false);
   };
 
   const handleDragEnd = (event) => {
@@ -268,14 +306,17 @@ export const DetailImageUploader = ({
     const newIndex = images.findIndex((url) => url === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    onMove(oldIndex, newIndex); // usePopupForm 쪽에서 배열 순서 변경
+    onMove(oldIndex, newIndex);
   };
 
-
-
-
   return (
-    <div className="w-full">
+    <div
+      className="w-full"
+      onDragEnter={handleWrapDragEnter}
+      onDragOver={handleWrapDragOver}
+      onDragLeave={handleWrapDragLeave}
+      onDrop={handleWrapDrop}
+    >
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-title-lg text-text-sub">상세 이미지 추가</h3>
         <span className="text-label-sm text-text-sub">
@@ -290,10 +331,6 @@ export const DetailImageUploader = ({
       <button
         type="button"
         onClick={handleClick}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
         disabled={isMax}
         className={clsx(
           "w-full rounded-[18px] border border-dashed bg-secondary-light/60 hover:bg-secondary-light transition-colors",
@@ -301,10 +338,9 @@ export const DetailImageUploader = ({
           isMax && "opacity-60 cursor-not-allowed",
           hasError && "border-accent-pink",
           isDragOver &&
-          !isMax &&
-          "border-primary-dark bg-primary-light ring-2 ring-primary/60 scale-[1.01]"
+            !isMax &&
+            "border-primary-dark bg-primary-light ring-2 ring-primary/60 scale-[1.01]"
         )}
-
       >
         <div className="flex items-center gap-3 text-text-sub">
           <div className="w-8 h-8 rounded-full bg-paper flex items-center justify-center shadow-card">
@@ -324,9 +360,7 @@ export const DetailImageUploader = ({
             </svg>
           </div>
           <div className="flex flex-col items-start">
-            <span className="text-label-md">
-              상세 이미지를 업로드해 주세요
-            </span>
+            <span className="text-label-md">상세 이미지를 업로드해 주세요</span>
             <span className="text-label-sm text-text-sub/70">
               클릭 또는 드래그 앤 드랍 · 여러 장 선택 가능 · 최대 {maxCount}장
             </span>
@@ -353,7 +387,6 @@ export const DetailImageUploader = ({
         <p className="mt-2 text-label-sm text-accent-pink">{error}</p>
       )}
 
-      {/* 업로드된 이미지 리스트 */}
       {images.length > 0 && (
         <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={images}>
