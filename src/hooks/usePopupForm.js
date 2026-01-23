@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { uploadImageApi, registerPopupApi } from "../api/popupApi";
 import { extractUploadedUrls } from "../utils/imageUpload";
@@ -6,6 +6,9 @@ import { validatePopup } from "../utils/popupValidation";
 import { buildStartDateTime, buildEndDateTime } from "../utils/popupDate";
 
 const MAX_DETAIL_IMAGES = 10;
+
+//Undo 토스트 노출 시간
+const UNDO_TOAST_DURATION_MS = 4000;
 
 const INITIAL_FORM = {
   popName: "",
@@ -23,8 +26,8 @@ const INITIAL_FORM = {
 };
 
 /** 업로드 검증 정책 */
-const ALLOWED_IMAGE_EXT = ["jpg", "jpeg", "png", "webp", "heic", "heif"]; // heic/heif 필요없으면 빼도 됨
-const MAX_FILE_MB = 5; // 파일 1개당 최대 용량
+const ALLOWED_IMAGE_EXT = ["jpg", "jpeg", "png", "webp", "heic", "heif"];
+const MAX_FILE_MB = 5;
 const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
 
 const MAX_TOTAL_UPLOAD_MB = 18;
@@ -40,7 +43,7 @@ const bytesToMB = (bytes) => (bytes / 1024 / 1024).toFixed(1);
 export function usePopupForm() {
   const navigate = useNavigate();
 
-  // form + touched + 로딩 상태
+  //form + touched + 로딩 상태
   const [form, setForm] = useState(INITIAL_FORM);
   const [touched, setTouched] = useState({});
   const [isUploading, setIsUploading] = useState(false);
@@ -49,6 +52,15 @@ export function usePopupForm() {
   //업로드 관련 에러(필드별) + 폼 하단 메시지
   const [uploadErrors, setUploadErrors] = useState({});
   const [formMessage, setFormMessage] = useState("");
+
+  //Undo 토스트(마지막 삭제 1건)
+  const [undoToast, setUndoToast] = useState({
+    visible: false,
+    message: "",
+    variant: "success",
+  });
+  const [lastRemoved, setLastRemoved] = useState(null); // { url, index }
+  const undoTimerRef = useRef(null);
 
   const clearFormMessage = () => setFormMessage("");
 
@@ -145,7 +157,7 @@ export function usePopupForm() {
   /** uploadErrors 유틸 */
   const setFieldUploadError = (field, message) => {
     setUploadErrors((prev) => ({ ...prev, [field]: message }));
-    setFormMessage(message); //폼 하단에도 같이 띄우기
+    setFormMessage(message);
     markFieldTouched(field);
   };
 
@@ -249,8 +261,9 @@ export function usePopupForm() {
           field: "popImages",
           maxTotalBytes: MAX_TOTAL_UPLOAD_BYTES,
         })
-      )
+      ) {
         return;
+      }
     }
 
     try {
@@ -296,13 +309,66 @@ export function usePopupForm() {
     }
   };
 
-  //상세 이미지 삭제
+  /** Undo 토스트 띄우기 */
+  const showUndoToast = (message) => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+
+    setUndoToast({
+      visible: true,
+      message,
+      variant: "success",
+    });
+
+    undoTimerRef.current = setTimeout(() => {
+      setUndoToast((t) => ({ ...t, visible: false }));
+      setLastRemoved(null);
+      undoTimerRef.current = null;
+    }, UNDO_TOAST_DURATION_MS);
+  };
+
+  /** 되돌리기(마지막 1건) */
+  const handleUndoRemove = () => {
+    if (!lastRemoved) return;
+
+    if (undoTimerRef.current) {
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+
+    setForm((prev) => {
+      const arr = [...(prev.popImages || [])];
+
+      //이미 존재하면(드물지만) 중복 삽입 방지
+      if (arr.includes(lastRemoved.url)) return prev;
+
+      const insertIndex = Math.min(lastRemoved.index, arr.length);
+      arr.splice(insertIndex, 0, lastRemoved.url);
+      return { ...prev, popImages: arr };
+    });
+
+    markFieldTouched("popImages");
+    setUndoToast((t) => ({ ...t, visible: false }));
+    setLastRemoved(null);
+  };
+
+  //상세 이미지 삭제(Undo)
   const handleRemoveDetailImage = (index) => {
     clearFormMessage();
+
+    const url = form.popImages?.[index];
+    if (!url) return;
+
+    // 1) 즉시 제거
     setForm((prev) => ({
       ...prev,
       popImages: prev.popImages.filter((_, i) => i !== index),
     }));
+
+    // 2) 마지막 삭제 저장 + 토스트
+    setLastRemoved({ url, index });
+    showUndoToast("이미지를 삭제했어요.");
+
+    // 3) touched
     markFieldTouched("popImages");
   };
 
@@ -311,7 +377,7 @@ export function usePopupForm() {
     setForm((prev) => {
       const arr = [...(prev.popImages || [])];
 
-      //범위 체크
+      // 범위 체크
       if (toIndex < 0 || toIndex >= arr.length) {
         return prev;
       }
@@ -395,7 +461,8 @@ export function usePopupForm() {
     isUploading,
     isSubmitting,
     formMessage,
-
+    undoToast,
+    handleUndoRemove,
     handleChange,
     handleBlur,
     handleRadioChange,
