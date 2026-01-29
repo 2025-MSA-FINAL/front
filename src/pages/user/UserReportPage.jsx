@@ -76,6 +76,35 @@ function normalizeWeightedItems(list, keyCandidates) {
     .filter(Boolean);
 }
 
+// ✅ 추천 이유를 “문장”이 아니라 “포인트(칩)”로 통일
+function pickReasonPoints({ item, popup, topTag, topRegion }) {
+  // 1) 서버 reasons가 있으면: 최대 2개만, 짧게
+  const server = safeArray(item?.reasons || popup?.reasons)
+    .map((r) => {
+      if (!r) return null;
+      if (typeof r === "string") return r;
+      return r?.text ?? r?.reason ?? r?.value ?? null;
+    })
+    .filter(Boolean)
+    .map((s) => String(s).trim())
+    .filter((s) => s.length > 0)
+    .slice(0, 2);
+
+  if (server.length) return server;
+
+  // 2) 없으면: 고정 포맷으로 1~2개
+  const points = [];
+  if (topTag) points.push(`관심 키워드 #${topTag}`);
+  if (topRegion) points.push(`자주 보는 지역 ${topRegion}`);
+  else if (popup?.location) points.push(`위치 ${popup.location}`);
+
+  const st = statusLabel(popup?.status);
+  if (points.length < 2 && st && st !== "종료") points.push(st);
+
+  if (points.length === 0) points.push("최근 취향과 유사");
+  return points.slice(0, 2);
+}
+
 // ------------------------------------------------------
 // UI atoms (theme-token-first)
 // ------------------------------------------------------
@@ -205,7 +234,7 @@ function GlowCard({ icon, title, value, hint, tone = "tag" }) {
 }
 
 // ------------------------------------------------------
-// hero (✅ "~~님의 리포트" 상단 섹션 자체 없음)
+// hero
 // ------------------------------------------------------
 function PersonaHero({ report, nickname }) {
   const headline =
@@ -234,9 +263,11 @@ function PersonaHero({ report, nickname }) {
     <Card className="p-6 sm:p-7">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
+          {/* ✅ "~~님의 리포트" 섹션은 제거. (여기는 성향 설명 라벨만) */}
           <p className="text-[12px] text-text-sub">
             AI가 분석한 {nickname ? `${nickname}님의` : "나의"} 성향
           </p>
+
           <h2 className="mt-2 text-[22px] sm:text-[28px] font-semibold text-text-black break-keep tracking-tight">
             {headline || "아직은 취향을 모으는 중"}
           </h2>
@@ -333,7 +364,7 @@ function InsightBoard({ title, subtitle, items, prefix }) {
 
           <div className="pt-4 flex flex-wrap gap-2">
             {items.slice(0, 14).map((it, idx) => (
-              <Pill key={`${it.label}-${idx}`} tone={idx < 3 ? "brand" : "soft"}>
+              <Pill key={`${it.label}-${idx}`} tone={idx < 3 ? "brand" : "soft"} title={`${prefix}${it.label}`}>
                 {prefix}
                 {it.label}
               </Pill>
@@ -380,7 +411,6 @@ function InsightsSection({ report }) {
 
   return (
     <Card className="p-6">
-      {/* ✅ 차트 위 영역을 "하나의 섹션"처럼: 헤더 + 요약카드 묶음 */}
       <div className="rounded-[20px] border border-secondary-light bg-paper overflow-hidden">
         <div className="relative p-5 sm:p-6">
           <div className="absolute inset-0 pointer-events-none">
@@ -454,37 +484,10 @@ function MatchBadge({ level }) {
   );
 }
 
-function pickReasonText({ item, popup, topTag, topRegion }) {
-  const raw = safeArray(item?.reasons || popup?.reasons)
-    .map((r) => {
-      if (!r) return null;
-      if (typeof r === "string") return r;
-      return r?.text ?? r?.reason ?? r?.value ?? null;
-    })
-    .filter(Boolean);
-
-  if (raw.length) return raw[0];
-
-  const parts = [];
-  const st = statusLabel(popup?.status);
-  if (st && st !== "종료") parts.push(`${st} 팝업`);
-  if (popup?.location) parts.push(`위치: ${popup.location}`);
-  if (topRegion && popup?.location && String(popup.location).includes(topRegion))
-    parts.push(`자주 가는 지역(${topRegion})과 연관`);
-  if (topTag) parts.push(`관심 키워드(#${topTag}) 기반 추천`);
-
-  const price = priceLabel(popup);
-  if (price && price !== "가격 정보 없음") parts.push(`가격: ${price}`);
-
-  if (parts.length >= 2) return parts.slice(0, 2).join(" · ");
-  if (parts.length === 1) return `${parts[0]} · 한번 둘러볼 만해요`;
-  return "최근 취향과 유사한 팝업이에요";
-}
-
 function RecommendationCard({ item, topTag, topRegion }) {
   const popup = item?.popup ?? item ?? {};
   const st = statusLabel(popup.status);
-  const reasonText = pickReasonText({ item, popup, topTag, topRegion });
+  const points = pickReasonPoints({ item, popup, topTag, topRegion });
 
   return (
     <Link
@@ -541,15 +544,21 @@ function RecommendationCard({ item, topTag, topRegion }) {
 
         <div className="p-5">
           <div className="flex items-center justify-between gap-3">
+            {/* ✅ 가격은 여기 하나로만 (무료/xx원) */}
             <div className="text-[14px] font-semibold text-text-black">{priceLabel(popup)}</div>
           </div>
 
-          <p className="mt-3 text-[13px] text-text-sub leading-relaxed line-clamp-2">
-            {reasonText}
-          </p>
+          {/* ✅ 추천 이유: 카드마다 제각각 문장 X → 칩 2개로 통일 */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {points.map((p, i) => (
+              <Pill key={`${p}-${i}`} tone={i === 0 ? "brand" : "soft"} title={p}>
+                {p}
+              </Pill>
+            ))}
+          </div>
 
           {(item?.oneLine || popup?.oneLine) ? (
-            <p className="mt-2 text-[12px] text-text-sub leading-relaxed line-clamp-2">
+            <p className="mt-3 text-[12px] text-text-sub leading-relaxed line-clamp-2">
               {item?.oneLine || popup?.oneLine}
             </p>
           ) : null}
@@ -560,6 +569,8 @@ function RecommendationCard({ item, topTag, topRegion }) {
               자세히 보기 →
             </span>
           </div>
+
+          {/* ✅ FREE/PAID/ONGOING 같은 raw enum 출력은 어디에도 안 함 */}
         </div>
       </div>
     </Link>
@@ -601,12 +612,7 @@ function RecommendationSection({ report }) {
           {unified.map((it, idx) => {
             const key = String(it?.popId ?? it?.popup?.popId ?? it?.id ?? idx);
             return (
-              <RecommendationCard
-                key={key}
-                item={it}
-                topTag={topTag}
-                topRegion={topRegion}
-              />
+              <RecommendationCard key={key} item={it} topTag={topTag} topRegion={topRegion} />
             );
           })}
         </div>
