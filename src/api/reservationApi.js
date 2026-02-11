@@ -62,3 +62,16 @@ export async function completePortOnePaymentApi(paymentId) {
   const res = await apiClient.post("/api/payments/portone/complete", { paymentId });
   return res.data; // { paymentId, status }
 }
+
+/**
+ * ✅ [추가] 결제 실패/취소 시 HOLD 즉시 해제(재고 원복)
+ * POST /api/reservations/hold/release
+ */
+export async function releaseReservationHoldApi(paymentId, reason) {
+  if (!paymentId) throw new Error("paymentId가 없습니다.");
+  const res = await apiClient.post("/api/reservations/hold/release", {
+    paymentId,
+    reason,
+  });
+  return res.data; // { paymentId, released: true/false }
+}

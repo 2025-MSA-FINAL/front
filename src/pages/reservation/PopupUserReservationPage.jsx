@@ -10,6 +10,7 @@ import {
   fetchTimeSlotsByDateApi,
   createReservationHoldApi,
   completePortOnePaymentApi,
+  releaseReservationHoldApi, // ✅ [추가]
 } from "../../api/reservationApi.js";
 
 /**
@@ -378,6 +379,13 @@ export default function PopupUserReservationPage() {
         console.log("[PAY] complete result (free)", completeRes);
 
         if (completeRes?.status !== "PAID") {
+          // ✅ [추가] 무료 확정 실패도 hold 즉시 해제 시도
+          try {
+            await releaseReservationHoldApi(paymentId, "FREE_COMPLETE_FAILED");
+          } catch (re) {
+            console.warn("[PAY] release failed (free)", re);
+          }
+
           alert(
             `예약 확정에 실패했습니다. (status=${completeRes?.status ?? "UNKNOWN"})`
           );
@@ -436,8 +444,15 @@ export default function PopupUserReservationPage() {
 
       console.log("[PAY] PortOne.requestPayment returned", payment);
 
-      // SDK 반환값에 code가 있으면 실패 :contentReference[oaicite:8]{index=8}
+      // ✅ SDK 반환값에 code가 있으면 실패/취소
       if (payment?.code !== undefined) {
+        // ✅ [추가] 결제 실패/취소 즉시 hold 해제
+        try {
+          await releaseReservationHoldApi(paymentId, payment?.message || "PAY_FAILED");
+        } catch (re) {
+          console.warn("[PAY] release failed (sdk fail)", re);
+        }
+
         alert(payment.message || "결제에 실패했습니다.");
         return;
       }
@@ -447,6 +462,16 @@ export default function PopupUserReservationPage() {
       console.log("[PAY] complete result", completeRes);
 
       if (completeRes?.status !== "PAID") {
+        // ✅ [추가] PAID가 아니면 hold 즉시 해제
+        try {
+          await releaseReservationHoldApi(
+            paymentId,
+            `COMPLETE_NOT_PAID:${completeRes?.status ?? "UNKNOWN"}`
+          );
+        } catch (re) {
+          console.warn("[PAY] release failed (complete not paid)", re);
+        }
+
         alert(
           `결제가 완료되지 않았습니다. (status=${
             completeRes?.status ?? "UNKNOWN"
